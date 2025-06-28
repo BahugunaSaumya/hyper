@@ -1,0 +1,9 @@
+{
+      "name": "hyper-mma-app",
+      "version": "1.0.0",
+      "description": "Premium MMA Apparel",
+      "scripts": {
+        "start": "npx --yes serve",
+        "dev": "npx --yes serve"
+      }
+    }
