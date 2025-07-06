@@ -1,433 +1,191 @@
 <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Hyper | Premium MMA Apparel</title>
-        <script src="https://cdn.tailwindcss.com"></script>
-        <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
-        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-        <script src="https://js.stripe.com/v3/"></script>
-        <style>
-            body {
-                font-family: 'Rajdhani', sans-serif;
-                background: linear-gradient(45deg, #000000, #004d2e);
-                min-height: 100vh;
-            }
-            .product-card:hover {
-                transform: translateY(-5px);
-                box-shadow: 0 10px 20px rgba(0, 77, 46, 0.3);
-            }
-        </style>
-    </head>
-    <body class="text-white">
-        <!-- Notification Area -->
-        <div id="notificationArea" class="fixed top-16 left-0 w-full z-50 flex justify-center"></div>
+<html lang="en">
 
-        <!-- Navigation -->
-        <nav class="bg-black/90 fixed w-full z-50">
-            <div class="container mx-auto px-4 py-3">
-                <div class="flex justify-between items-center">
-                    <div class="text-2xl font-bold text-green-500">Hyper</div>
-                    <div class="hidden md:flex space-x-6">
-                        <a href="#home" class="hover:text-green-500">Home</a>
-                        <a href="#products" class="hover:text-green-500">Products</a>
-                        <a href="#blog" class="hover:text-green-500">Blog</a>
-                        <a href="#contact" class="hover:text-green-500">Contact</a>
-                        <button class="flex items-center hover:text-green-500" id="cartButton">
-                            <i class="bi bi-cart3 mr-2"></i>
-                            Cart (<span id="cartCount">0</span>)
-                        </button>
-                    </div>
-                    <button class="md:hidden" id="mobileMenuBtn">
-                        <i class="bi bi-list text-2xl"></i>
-                    </button>
-                </div>
-            </div>
-        </nav>
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HYPER</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes glitch {
+            0% {
+                transform: translate(0);
+            }
 
-        <!-- Mobile Menu -->
-        <div id="mobileMenu" class="fixed top-0 left-0 w-full h-full bg-black/95 z-40 hidden">
-            <div class="flex flex-col items-center pt-20 space-y-6">
-                <a href="#home" class="text-xl hover:text-green-500 mobile-nav-link">Home</a>
-                <a href="#products" class="text-xl hover:text-green-500 mobile-nav-link">Products</a>
-                <a href="#blog" class="text-xl hover:text-green-500 mobile-nav-link">Blog</a>
-                <a href="#contact" class="text-xl hover:text-green-500 mobile-nav-link">Contact</a>
-                <button class="flex items-center text-xl hover:text-green-500 mobile-nav-link" id="mobileCartButton">
-                    <i class="bi bi-cart3 mr-2"></i>
-                    Cart (<span class="mobile-cart-count">0</span>)
-                </button>
+            20% {
+                transform: translate(-1px, 1px);
+            }
+
+            40% {
+                transform: translate(-1px, -1px);
+            }
+
+            60% {
+                transform: translate(1px, 1px);
+            }
+
+            80% {
+                transform: translate(1px, -1px);
+            }
+
+            100% {
+                transform: translate(0);
+            }
+        }
+
+        .glitch {
+            animation: glitch 1s infinite;
+        }
+
+        .scroll-container::-webkit-scrollbar {
+            display: none;
+        }
+    </style>
+</head>
+
+<body class="bg-black text-white font-sans">
+
+    <!-- Navigation -->
+    <nav class="fixed w-full z-50 bg-black/80 backdrop-blur-sm border-b border-white/10">
+        <div class="container mx-auto flex items-center justify-between px-6 py-4">
+            <img src="./assets/hyper-logo.png" alt="HYPER Logo" class="h-10 glitch" />
+            <div class="space-x-6 font-medium text-sm tracking-widest">
+                <a href="#products" class="hover:text-pink-500 transition">Products</a>
+                <a href="#about" class="hover:text-pink-500 transition">About</a>
+                <a href="#contact" class="hover:text-pink-500 transition">Contact</a>
+                <a href="#cart" class="hover:text-pink-500 transition">🛒 Cart</a>
             </div>
         </div>
+    </nav>
 
-        <!-- Hero Section -->
-        <section id="home" class="pt-24 pb-12">
-            <div class="container mx-auto px-4">
-                <div class="text-center">
-                    <h1 class="text-4xl md:text-6xl font-bold mb-6">DOMINATE THE OCTAGON</h1>
-                    <p class="text-xl md:text-2xl mb-8">Premium MMA Gear for Champions</p>
-                    <a href="#products" class="bg-green-500 text-white px-8 py-3 rounded-md hover:bg-green-600 transition">
-                        Shop Now
-                    </a>
-                </div>
-            </div>
-        </section>
+    <!-- Hero -->
+    <section class="h-screen bg-cover bg-center flex items-center justify-center relative"
+        style="background-image: url('./assets/cage-bg.jpg');">
+        <div class="text-center space-y-4">
+            <h1 class="text-6xl md:text-8xl font-bold glitch">DOMINATE</h1>
+            <p class="text-pink-500 tracking-wider">START OF A NEW ERA</p>
+            <button
+                class="mt-4 px-6 py-3 bg-pink-500 hover:bg-pink-600 transition rounded-full text-black font-bold">Explore
+                Our Products</button>
+        </div>
+    </section>
 
-        <!-- Products Section -->
-        <section id="products" class="py-12">
-            <div class="container mx-auto px-4">
-                <h2 class="text-3xl font-bold mb-8 text-center">Our Products</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8" id="productGrid"></div>
-            </div>
-        </section>
-
-        <!-- Blog Section -->
-        <section id="blog" class="py-12 bg-black/50">
-            <div class="container mx-auto px-4">
-                <h2 class="text-3xl font-bold mb-8 text-center">Latest Blog Posts</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8" id="blogPosts">
-                    <!-- Blog posts will be dynamically added here -->
-                </div>
-                <div class="text-center mt-8">
-                    <a href="#" class="bg-green-500 text-white px-8 py-3 rounded-md hover:bg-green-600 transition">
-                        View All Posts
-                    </a>
-                </div>
-            </div>
-        </section>
-
-        <!-- Contact Section -->
-        <section id="contact" class="py-12 bg-black/50">
-            <div class="container mx-auto px-4">
-                <h2 class="text-3xl font-bold mb-8 text-center">Contact Us</h2>
-                <div class="max-w-md mx-auto">
-                    <form id="contactForm" class="space-y-4">
-                        <input type="email" placeholder="Email" class="w-full px-4 py-2 rounded bg-gray-800 text-white" required>
-                        <textarea placeholder="Message" class="w-full px-4 py-2 rounded bg-gray-800 text-white h-32" required></textarea>
-                        <button type="submit" class="w-full bg-green-500 text-white px-6 py-3 rounded hover:bg-green-600">
-                            Send Message
-                        </button>
-                    </form>
-                    <div class="mt-6 text-center">
-                        <a href="https://www.instagram.com/hyperfitness.in?igsh=MW11ZXE0eXh6cTgxcw==" class="text-green-500 hover:text-green-600">
-                            Follow us on Instagram
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Cart Modal -->
-        <div id="cartModal" class="fixed inset-0 bg-black/80 hidden z-50">
-            <div class="bg-gray-900 max-w-md mx-auto mt-20 rounded-lg">
-                <div class="p-6">
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="text-xl font-bold">Shopping Cart</h3>
-                        <button id="closeCart" class="text-2xl">&times;</button>
-                    </div>
-                    <div id="cartItems" class="space-y-4 mb-4"></div>
-                    <div class="border-t border-gray-700 pt-4">
-                        <div class="flex justify-between mb-4">
-                            <span>Total:</span>
-                            <span id="cartTotal">$0.00</span>
-                        </div>
-                        <button id="checkoutBtn" class="w-full bg-green-500 text-white px-6 py-3 rounded hover:bg-green-600">
-                            Checkout
-                        </button>
-                    </div>
-                </div>
+    <!-- Why We Created -->
+    <section class="py-16 bg-black" id="about">
+        <div class="container mx-auto flex flex-col md:flex-row items-center gap-8 px-6">
+            <img src="./assets/group-photo.jpg" alt="Team" class="w-full md:w-1/2 rounded" />
+            <div class="md:w-1/2">
+                <h2 class="text-4xl font-bold mb-4">WHY WE CREATED HYPER</h2>
+                <p class="text-gray-300">Lorem ipsum dolor sit amet consectetur. Sociis in tempor enim ut metus eu
+                    dignissim. Purus dui auctor imperdiet pretium. Nullam tincidunt id ut massa lacus tincidunt.</p>
             </div>
         </div>
+    </section>
 
-        <script>
-            // Product Data
-            const products = [
-                {
-                    id: 1,
-                    name: "Pro Fighter MMA Shorts",
-                    price: 59.99,
-                    description: "Professional grade MMA shorts with reinforced stitching",
-                    image: "https://images.unsplash.com/photo-1517466787929-bc90951d0974?auto=format&fit=crop&q=80&w=500",
-                    sizes: ["S", "M", "L", "XL"]
-                },
-                {
-                    id: 2,
-                    name: "Elite Combat Shorts",
-                    price: 69.99,
-                    description: "Lightweight and durable competition shorts",
-                    image: "https://images.unsplash.com/photo-1562751362-404243c2eea3?auto=format&fit=crop&q=80&w=500",
-                    sizes: ["S", "M", "L", "XL"]
-                },
-                {
-                    id: 3,
-                    name: "Champion Series Shorts",
-                    price: 79.99,
-                    description: "Premium quality shorts with advanced moisture-wicking",
-                    image: "https://images.unsplash.com/photo-1571019613576-2b22c76fd955?auto=format&fit=crop&q=80&w=500",
-                    sizes: ["S", "M", "L", "XL"]
-                }
-            ];
+    <!-- Products (dynamic via JS) -->
+    <section class="py-16 bg-black" id="products">
+        <div class="text-center mb-12">
+            <h2 class="text-3xl font-bold text-white">OUR PRODUCTS</h2>
+        </div>
+        <div id="product-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-10 px-6">
+            <!-- JS will inject product cards here -->
+        </div>
+    </section>
 
-            // Blog Post Data
-            const blogPosts = [
-                {
-                    id: 101,
-                    title: "The Ultimate Guide to MMA Training",
-                    content: "Explore the essential techniques and training methods for MMA.",
-                    image: "https://images.unsplash.com/photo-1617169805947-2101cb295ff5?auto=format&fit=crop&q=80&w=500"
-                },
-                {
-                    id: 102,
-                    title: "Choosing the Right Gear for Your First Fight",
-                    content: "Learn about the essential protective gear you need for your first MMA fight.",
-                    image: "https://images.unsplash.com/photo-1571019613576-2b22c76fd955?auto=format&fit=crop&q=80&w=500"
-                },
-                {
-                    id: 103,
-                    title: "Nutrition Tips for MMA Fighters",
-                    content: "Discover the best dietary practices to enhance your performance in MMA.",
-                    image: "https://images.unsplash.com/photo-1562751362-404243c2eea3?auto=format&fit=crop&q=80&w=500"
-                }
-            ];
+    <!-- Blog Section -->
+    <section class="bg-black py-16 px-6">
+        <div class="grid md:grid-cols-3 gap-6">
+            <div class="bg-gray-800 p-4 rounded">
+                <img src="./assets/blog1.jpg" alt="" class="rounded mb-2" />
+                <p>Try Pulse and unlock 20x MMA songs with insane mood potential.</p>
+            </div>
+            <div class="bg-gray-800 p-4 rounded">
+                <img src="./assets/blog2.jpg" alt="" class="rounded mb-2" />
+                <p>Try Pulse and unlock 20x songs with hype & volume boost.</p>
+            </div>
+            <div class="bg-gray-800 p-4 rounded">
+                <img src="./assets/blog3.jpg" alt="" class="rounded mb-2" />
+                <p>The hyper grind pack has 20 items with combat-focused options.</p>
+            </div>
+        </div>
+    </section>
 
-            // Contact Email
-            const contactEmail = 'shanubahuguna@gmail.com';
+    <!-- FAQ -->
+    <section class="bg-black py-16 px-6">
+        <div class="text-center mb-8">
+            <h3 class="text-2xl font-bold">FREQUENTLY ASKED <span class="text-pink-500">QUESTIONS</span></h3>
+        </div>
+        <div class="space-y-4 max-w-3xl mx-auto">
+            <div class="border-t border-gray-700 pt-4">
+                <h4 class="font-bold">Commando tights good value?</h4>
+                <p class="text-gray-400">Absolutely. Designed for durability and comfort.</p>
+            </div>
+            <div class="border-t border-gray-700 pt-4">
+                <h4 class="font-bold">How do I order?</h4>
+                <p class="text-gray-400">Just click a product and hit checkout. Fast, secure, seamless.</p>
+            </div>
+        </div>
+    </section>
 
-            // Cart functionality
-            let cart = [];
-            let selectedSizes = {}; // Track selected sizes for each product
-            
-            function renderProducts() {
-                const productGrid = document.getElementById('productGrid');
-                productGrid.innerHTML = products.map(product => {
-                    const isSizeSelected = selectedSizes[product.id] !== undefined && selectedSizes[product.id] !== null;
-                    return `
-                        <div class="product-card bg-gray-900 rounded-lg overflow-hidden transition duration-300">
-                            <img src="${product.image}" alt="${product.name}" class="w-full h-48 object-cover">
-                            <div class="p-4">
-                                <h3 class="text-xl font-bold mb-2">${product.name}</h3>
-                                <p class="text-gray-400 mb-2">${product.description}</p>
-                                <p class="text-green-500 font-bold mb-2">$${product.price}</p>
-                                <div class="flex flex-wrap gap-2 mb-4">
-                                    ${product.sizes.map(size => `
-                                        <button 
-                                            class="size-btn px-3 py-1 border border-green-500 rounded hover:bg-green-500 ${selectedSizes[product.id] === size ? 'bg-green-500' : ''}"
-                                            onclick="selectSize(${product.id}, '${size}')">
-                                            ${size}
-                                        </button>
-                                    `).join('')}
-                                </div>
-                                <button 
-                                    onclick="addToCart(${product.id})" 
-                                    class="w-full bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
-                                    ${isSizeSelected ? '' : 'disabled'}>
-                                    Add to Cart
-                                </button>
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-            }
+    <!-- Call to Action -->
+    <section class="bg-white text-black py-16 text-center">
+        <h3 class="text-3xl font-bold">Start A Project?</h3>
+        <a href="#contact"
+            class="mt-4 inline-block bg-black text-white px-6 py-3 rounded-full hover:bg-pink-500 transition">GET IN
+            TOUCH</a>
+    </section>
 
-            function selectSize(productId, size) {
-                if (selectedSizes[productId] === size) {
-                    selectedSizes[productId] = null; // Deselect if already selected
-                } else {
-                    selectedSizes[productId] = size;
-                }
-                renderProducts(); // Re-render to update the selected size button
-            }
+    <!-- Footer -->
+    <footer class="bg-black text-white py-6 text-center">
+        FOOTER
+    </footer>
 
-            function addToCart(productId) {
-                const selectedSize = selectedSizes[productId];
+    <!-- CSV & JS Script -->
+    <script>
+        const csvData = `
+name,image,price,sizes
+Pink Blast MMA Fighting Shorts,red-shorts.png,₹1500,"S, M, L, XL"
+Flag Wave MMA Combat Set,white-shorts.png,₹1500,"M, L, XL"
+Desert Shadow Training Gear,camo-shorts.png,₹1800,"S, M"
+`;
 
-                if (!selectedSize) {
-                    showNotification('Please select a size!');
-                    return;
-                }
-
-                const product = products.find(p => p.id === productId);
-                if (product) {
-                    const existingItem = cart.find(item => item.id === productId && item.size === selectedSize);
-                    if (existingItem) {
-                        existingItem.quantity++;
-                    } else {
-                        cart.push({ ...product, quantity: 1, size: selectedSize });
-                    }
-                    updateCartCount();
-                    showNotification('Added to cart!');
-                }
-            }
-
-            function updateCartCount() {
-                const counts = document.querySelectorAll('#cartCount, .mobile-cart-count');
-                counts.forEach(count => count.textContent = cart.reduce((sum, item) => sum + item.quantity, 0));
-            }
-
-            function showNotification(message) {
-                const notificationArea = document.getElementById('notificationArea');
-                const notification = document.createElement('div');
-                notification.className = 'bg-green-500 text-white px-4 py-2 rounded shadow-lg';
-                notification.textContent = message;
-                notificationArea.appendChild(notification);
-                setTimeout(() => notification.remove(), 2000);
-            }
-
-            function renderCart() {
-                const cartItems = document.getElementById('cartItems');
-                const cartTotal = document.getElementById('cartTotal');
-                
-                cartItems.innerHTML = cart.map(item => `
-                    <div class="flex justify-between items-center">
-                        <div>
-                            <h4 class="font-bold">${item.name}</h4>
-                            <p class="text-sm text-gray-400">$${item.price} x ${item.quantity} (Size: ${item.size})</p>
-                            <div class="flex items-center mt-2">
-                                <button onclick="adjustQuantity(${item.id}, '${item.size}', -1)" class="text-gray-600 px-2 py-1 rounded">-</button>
-                                <input type="number" value="${item.quantity}" min="1" class="w-16 text-center border border-gray-700 rounded text-black" onchange="updateQuantity(${item.id}, '${item.size}', this.value)">
-                                <button onclick="adjustQuantity(${item.id}, '${item.size}', 1)" class="text-gray-600 px-2 py-1 rounded">+</button>
-                            </div>
-                        </div>
-                        <button onclick="removeFromCart(${item.id}, '${item.size}')" class="text-red-500">
-                            <i class="bi bi-trash"></i>
-                        </button>
-                    </div>
-                `).join('');
-
-                const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-                cartTotal.textContent = `$${total.toFixed(2)}`;
-            }
-
-            function adjustQuantity(productId, size, change) {
-                const item = cart.find(item => item.id === productId && item.size === size);
-                if (item) {
-                    item.quantity += change;
-                    if (item.quantity < 1) {
-                        item.quantity = 1;
-                    }
-                    updateCartCount();
-                    renderCart();
-                }
-            }
-
-            function updateQuantity(productId, size, newQuantity) {
-                const item = cart.find(item => item.id === productId && item.size === size);
-                if (item) {
-                    item.quantity = parseInt(newQuantity, 10);
-                    if (isNaN(item.quantity) || item.quantity < 1) {
-                        item.quantity = 1;
-                    }
-                    updateCartCount();
-                    renderCart();
-                }
-            }
-
-            function removeFromCart(productId, size) {
-                cart = cart.filter(item => item.id !== productId || item.size !== size);
-                updateCartCount();
-                renderCart();
-            }
-
-            function renderBlogPosts() {
-                const blogPostsContainer = document.getElementById('blogPosts');
-                blogPostsContainer.innerHTML = blogPosts.map(post => `
-                    <div class="bg-gray-900 rounded-lg overflow-hidden">
-                        <img src="${post.image}" alt="${post.title}" class="w-full h-48 object-cover">
-                        <div class="p-4">
-                            <h3 class="text-xl font-bold mb-2">${post.title}</h3>
-                            <p class="text-gray-400">${post.content}</p>
-                            <a href="#" class="text-green-500 hover:text-green-600">Read More</a>
-                        </div>
-                    </div>
-                `).join('');
-            }
-
-            // Event Listeners
-            document.getElementById('cartButton').addEventListener('click', () => {
-                document.getElementById('cartModal').classList.remove('hidden');
-                renderCart();
+        function parseCSV(csv) {
+            const [headers, ...rows] = csv.trim().split("\n").map(line => line.split(","));
+            return rows.map(row => {
+                return headers.reduce((acc, header, i) => {
+                    acc[header] = row[i].replace(/^"|"$/g, ""); // remove surrounding quotes if any
+                    return acc;
+                }, {});
             });
+        }
 
-            document.getElementById('mobileCartButton').addEventListener('click', () => {
-                document.getElementById('mobileMenu').classList.add('hidden');
-                document.getElementById('cartModal').classList.remove('hidden');
-                renderCart();
-            });
-
-            document.getElementById('closeCart').addEventListener('click', () => {
-                document.getElementById('cartModal').classList.add('hidden');
-            });
-
-            document.getElementById('mobileMenuBtn').addEventListener('click', () => {
-                document.getElementById('mobileMenu').classList.toggle('hidden');
-            });
-
-            document.querySelectorAll('.mobile-nav-link').forEach(link => {
-                link.addEventListener('click', () => {
-                    document.getElementById('mobileMenu').classList.add('hidden');
-                });
-            });
-
-            document.getElementById('contactForm').addEventListener('submit', function(event) {
-                event.preventDefault(); // Prevent the default form submission
-
-                // Get the form data
-                const email = this.querySelector('input[type="email"]').value;
-                const message = this.querySelector('textarea').value;
-
-                // Here, you would typically send the data to a server
-                // Since we can't use a server-side language, we'll just log the data
-                console.log('Email:', email);
-                console.log('Message:', message);
-                console.log('Sending to:', contactEmail);
-
-                // You can use the mailto: link to open the user's default email client
-                window.location.href = `mailto:${contactEmail}?subject=Contact Form Submission&body=Email: ${email}%0D%0AMessage: ${message}`;
-
-                // Optionally, show a thank you message
-                showNotification('Sending your message...');
-            });
-
-            document.getElementById('checkoutBtn').addEventListener('click', () => {
-                if (cart.length === 0) {
-                    showNotification('Cart is empty!');
-                    return;
-                }
-                // Initialize Stripe checkout
-                const stripe = Stripe('pk_test_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'); // Replace with your actual publishable key
-                stripe.redirectToCheckout({
-                    lineItems: cart.map(item => {
-                        return {
-                            price_data: {
-                                currency: 'usd',
-                                product_data: {
-                                    name: item.name,
-                                },
-                                unit_amount: Math.round(item.price * 100), // Amount in cents
-                            },
-                            quantity: item.quantity,
-                        };
-                    }),
-                    mode: 'payment',
-                    successUrl: window.location.href + '?success=true',
-                    cancelUrl: window.location.href + '?canceled=true',
-                })
-                .then(function (result) {
-                    if (result.error) {
-                        showNotification(result.error.message);
-                    }
-                });
-                showNotification('Redirecting to checkout...');
-            });
-
-            // Initialize
-            // Initialize selectedSizes object
+        function renderProducts(products) {
+            const grid = document.getElementById("product-grid");
             products.forEach(product => {
-                selectedSizes[product.id] = null;
+                const div = document.createElement("div");
+                div.className = "relative group";
+
+                div.innerHTML = `
+  <div class="relative z-20 p-4 bg-black/90 rounded overflow-hidden border border-gray-700">
+    <div class="relative mb-4">
+      <img src="./assets/${product.image}" alt="${product.name}" class="w-full rounded relative z-20" />
+      <img src="./assets/frame.png" alt="Frame" class="absolute inset-0 w-full h-full object-cover pointer-events-none z-30" />
+    </div>
+    <h3 class="text-white font-semibold text-center">${product.name}</h3>
+    <p class="text-center text-pink-500 mt-1">${product.price}</p>
+    <p class="text-center text-gray-400 text-sm">Sizes: ${product.sizes}</p>
+    <div class="flex justify-center mt-4">
+      <button class="text-pink-500 text-2xl font-bold hover:scale-110 transition">+</button>
+    </div>
+  </div>
+`;
+                grid.appendChild(div);
             });
-            renderProducts();
-            renderBlogPosts();
-        </script>
-    <script>document.body.addEventListener('wheel', e => { if (!e.ctrlKey) return; e.preventDefault(); return }, { passive: false })</script>
-    </body>
-    </html>
+        }
+
+        const products = parseCSV(csvData);
+        renderProducts(products);
+    </script>
+</body>
+
+</html>
