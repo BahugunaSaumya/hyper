@@ -232,7 +232,7 @@
     <script>
         const csvData = `
 name,image,price,sizes
-Pink Blast MMA Fighting Shorts,red-shorts.png,₹1500,"S"
+Pink Blast MMA Fighting Shorts,red-shorts.png,₹1500,"S/M/XL"
 Flag Wave MMA Combat Set,white-shorts.png,₹1500,"M"
 Desert Shadow Training Gear,camo-shorts.png,₹1800,"S"
 `;
@@ -249,35 +249,60 @@ Desert Shadow Training Gear,camo-shorts.png,₹1800,"S"
 
         function renderProducts(products) {
             const grid = document.getElementById("product-grid");
-            products.forEach((product, index) => {
-                const div = document.createElement("div");
-                div.className = "relative group";
-                div.innerHTML = `
-        <div class="relative z-20 p-4 rounded overflow-hidden">
-          <div class="relative aspect-[4/5] w-full overflow-hidden rounded mb-4">
-            <img src="./assets/${product.image}" alt="${product.name}" class="absolute inset-0 w-full h-full object-cover z-10" />
-            <img src="./assets/frame.png" alt="Frame" class="absolute inset-0 w-full h-full object-cover z-20 pointer-events-none" />
-          </div>
-          <h3 class="text-white font-semibold text-center">${product.name}</h3>
-          <p class="text-center text-pink-500 mt-1">${product.price}</p>
-          <p class="text-center text-gray-400 text-sm">Sizes: ${product.sizes}</p>
-          <div class="flex justify-center mt-4">
-            <button 
-              class="add-to-cart-btn w-6 h-6 flex items-center justify-center rounded-full border border-pink-500 text-pink-500 text-sm hover:bg-pink-500 hover:text-black transition" 
-              data-id="${index}">
-              +
-            </button>
-          </div>
-        </div>
-      `;
-                grid.appendChild(div);
-            });
+            grid.innerHTML = "";
 
-            document.querySelectorAll(".add-to-cart-btn").forEach(btn => {
-                const id = btn.getAttribute("data-id");
-                btn.addEventListener("click", () => {
-                    addToCart(products[id]);
+            products.forEach((product, index) => {
+                const sizes = product.sizes.split("/").map(s => s.trim());
+
+                const div = document.createElement("div");
+                div.className = "relative group animate-in transition-transform duration-300 hover:scale-105";
+
+                const sizeOptions = sizes.map(size =>
+                    `<option value="${size}">${size}</option>`
+                ).join("");
+
+                div.innerHTML = `
+            <div class="relative z-20 p-4 rounded overflow-hidden bg-black/80 border border-white/10">
+                <div class="relative aspect-[4/5] w-full overflow-hidden rounded mb-4">
+                    <img src="./assets/${product.image}" alt="${product.name}" class="absolute inset-0 w-full h-full object-cover z-10" />
+                    <img src="./assets/frame.png" alt="Frame" class="absolute inset-0 w-full h-full object-cover z-20 pointer-events-none" />
+                </div>
+                <h3 class="text-white font-semibold text-center">${product.name}</h3>
+                <p class="text-center text-pink-500 mt-1">${product.price}</p>
+
+                <div class="mt-2 flex justify-center">
+                    <select class="size-select text-sm px-3 py-1 rounded bg-black border border-pink-500 text-white">
+                        <option value="" selected disabled>Select size</option>
+                        ${sizeOptions}
+                    </select>
+                </div>
+
+                <div class="flex justify-center mt-4">
+                    <button 
+                        class="add-to-cart-btn w-6 h-6 flex items-center justify-center rounded-full border border-pink-500 text-pink-500 text-sm hover:bg-pink-500 hover:text-black transition disabled:opacity-50" 
+                        data-id="${index}" disabled>
+                        +
+                    </button>
+                </div>
+            </div>
+        `;
+
+                const select = div.querySelector(".size-select");
+                const button = div.querySelector(".add-to-cart-btn");
+
+                select.addEventListener("change", () => {
+                    button.disabled = !select.value;
+                    button.setAttribute("data-size", select.value);
                 });
+
+                button.addEventListener("click", () => {
+                    const selectedSize = select.value;
+                    if (selectedSize) {
+                        addToCart(products[index], selectedSize);
+                    }
+                });
+
+                grid.appendChild(div);
             });
         }
 
@@ -352,12 +377,14 @@ Desert Shadow Training Gear,camo-shorts.png,₹1800,"S"
             }
         }
 
-        function addToCart(product) {
-            if (cart[product.name]) {
-                cart[product.name].quantity++;
+        function addToCart(product, selectedSize) {
+            const key = `${product.name}_${selectedSize}`;
+            if (cart[key]) {
+                cart[key].quantity++;
             } else {
-                cart[product.name] = {
+                cart[key] = {
                     ...product,
+                    size: selectedSize,
                     quantity: 1
                 };
             }
@@ -449,7 +476,7 @@ Desert Shadow Training Gear,camo-shorts.png,₹1800,"S"
                 const html = `
         <div class="border-b border-gray-600 pb-2 flex justify-between items-center">
           <div>
-            <h4 class="font-semibold">${item.name}</h4>
+            <h4 class="font-semibold">${item.name} <span class="text-sm text-gray-400">(${item.size})</span></h4>
             <p class="text-sm text-gray-400">${item.price} × ${item.quantity}</p>
           </div>
           <div class="flex items-center space-x-2">
