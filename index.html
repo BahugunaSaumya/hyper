@@ -1,191 +1,168 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>HYPER</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        @keyframes glitch {
-            0% {
-                transform: translate(0);
-            }
-
-            20% {
-                transform: translate(-1px, 1px);
-            }
-
-            40% {
-                transform: translate(-1px, -1px);
-            }
-
-            60% {
-                transform: translate(1px, 1px);
-            }
-
-            80% {
-                transform: translate(1px, -1px);
-            }
-
-            100% {
-                transform: translate(0);
-            }
-        }
-
-        .glitch {
-            animation: glitch 1s infinite;
-        }
-
-        .scroll-container::-webkit-scrollbar {
-            display: none;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HYPER</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @keyframes glitch {
+      0% { transform: translate(0); }
+      20% { transform: translate(-1px, 1px); }
+      40% { transform: translate(-1px, -1px); }
+      60% { transform: translate(1px, 1px); }
+      80% { transform: translate(1px, -1px); }
+      100% { transform: translate(0); }
+    }
+    .glitch { animation: glitch 1s infinite; }
+    .scroll-container::-webkit-scrollbar { display: none; }
+  </style>
 </head>
-
 <body class="bg-black text-white font-sans">
 
-    <!-- Navigation -->
-    <nav class="fixed w-full z-50 bg-black/80 backdrop-blur-sm border-b border-white/10">
-        <div class="container mx-auto flex items-center justify-between px-6 py-4">
-            <img src="./assets/hyper-logo.png" alt="HYPER Logo" class="h-10 glitch" />
-            <div class="space-x-6 font-medium text-sm tracking-widest">
-                <a href="#products" class="hover:text-pink-500 transition">Products</a>
-                <a href="#about" class="hover:text-pink-500 transition">About</a>
-                <a href="#contact" class="hover:text-pink-500 transition">Contact</a>
-                <a href="#cart" class="hover:text-pink-500 transition">🛒 Cart</a>
-            </div>
-        </div>
-    </nav>
-
-    <!-- Hero -->
-    <section class="h-screen bg-cover bg-center flex items-center justify-center relative"
-        style="background-image: url('./assets/cage-bg.jpg');">
-        <div class="text-center space-y-4">
-            <h1 class="text-6xl md:text-8xl font-bold glitch">DOMINATE</h1>
-            <p class="text-pink-500 tracking-wider">START OF A NEW ERA</p>
-            <button
-                class="mt-4 px-6 py-3 bg-pink-500 hover:bg-pink-600 transition rounded-full text-black font-bold">Explore
-                Our Products</button>
-        </div>
-    </section>
-
-    <!-- Why We Created -->
-    <section class="py-16 bg-black" id="about">
-        <div class="container mx-auto flex flex-col md:flex-row items-center gap-8 px-6">
-            <img src="./assets/group-photo.jpg" alt="Team" class="w-full md:w-1/2 rounded" />
-            <div class="md:w-1/2">
-                <h2 class="text-4xl font-bold mb-4">WHY WE CREATED HYPER</h2>
-                <p class="text-gray-300">Lorem ipsum dolor sit amet consectetur. Sociis in tempor enim ut metus eu
-                    dignissim. Purus dui auctor imperdiet pretium. Nullam tincidunt id ut massa lacus tincidunt.</p>
-            </div>
-        </div>
-    </section>
-
-    <!-- Products (dynamic via JS) -->
-    <section class="py-16 bg-black" id="products">
-        <div class="text-center mb-12">
-            <h2 class="text-3xl font-bold text-white">OUR PRODUCTS</h2>
-        </div>
-        <div id="product-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-10 px-6">
-            <!-- JS will inject product cards here -->
-        </div>
-    </section>
-
-    <!-- Blog Section -->
-    <section class="bg-black py-16 px-6">
-        <div class="grid md:grid-cols-3 gap-6">
-            <div class="bg-gray-800 p-4 rounded">
-                <img src="./assets/blog1.jpg" alt="" class="rounded mb-2" />
-                <p>Try Pulse and unlock 20x MMA songs with insane mood potential.</p>
-            </div>
-            <div class="bg-gray-800 p-4 rounded">
-                <img src="./assets/blog2.jpg" alt="" class="rounded mb-2" />
-                <p>Try Pulse and unlock 20x songs with hype & volume boost.</p>
-            </div>
-            <div class="bg-gray-800 p-4 rounded">
-                <img src="./assets/blog3.jpg" alt="" class="rounded mb-2" />
-                <p>The hyper grind pack has 20 items with combat-focused options.</p>
-            </div>
-        </div>
-    </section>
-
-    <!-- FAQ -->
-    <section class="bg-black py-16 px-6">
-        <div class="text-center mb-8">
-            <h3 class="text-2xl font-bold">FREQUENTLY ASKED <span class="text-pink-500">QUESTIONS</span></h3>
-        </div>
-        <div class="space-y-4 max-w-3xl mx-auto">
-            <div class="border-t border-gray-700 pt-4">
-                <h4 class="font-bold">Commando tights good value?</h4>
-                <p class="text-gray-400">Absolutely. Designed for durability and comfort.</p>
-            </div>
-            <div class="border-t border-gray-700 pt-4">
-                <h4 class="font-bold">How do I order?</h4>
-                <p class="text-gray-400">Just click a product and hit checkout. Fast, secure, seamless.</p>
-            </div>
-        </div>
-    </section>
-
-    <!-- Call to Action -->
-    <section class="bg-white text-black py-16 text-center">
-        <h3 class="text-3xl font-bold">Start A Project?</h3>
-        <a href="#contact"
-            class="mt-4 inline-block bg-black text-white px-6 py-3 rounded-full hover:bg-pink-500 transition">GET IN
-            TOUCH</a>
-    </section>
-
-    <!-- Footer -->
-    <footer class="bg-black text-white py-6 text-center">
-        FOOTER
-    </footer>
-
-    <!-- CSV & JS Script -->
-    <script>
-        const csvData = `
-name,image,price,sizes
-Pink Blast MMA Fighting Shorts,red-shorts.png,₹1500,"S, M, L, XL"
-Flag Wave MMA Combat Set,white-shorts.png,₹1500,"M, L, XL"
-Desert Shadow Training Gear,camo-shorts.png,₹1800,"S, M"
-`;
-
-        function parseCSV(csv) {
-            const [headers, ...rows] = csv.trim().split("\n").map(line => line.split(","));
-            return rows.map(row => {
-                return headers.reduce((acc, header, i) => {
-                    acc[header] = row[i].replace(/^"|"$/g, ""); // remove surrounding quotes if any
-                    return acc;
-                }, {});
-            });
-        }
-
-        function renderProducts(products) {
-            const grid = document.getElementById("product-grid");
-            products.forEach(product => {
-                const div = document.createElement("div");
-                div.className = "relative group";
-
-                div.innerHTML = `
-  <div class="relative z-20 p-4 bg-black/90 rounded overflow-hidden border border-gray-700">
-    <div class="relative mb-4">
-      <img src="./assets/${product.image}" alt="${product.name}" class="w-full rounded relative z-20" />
-      <img src="./assets/frame.png" alt="Frame" class="absolute inset-0 w-full h-full object-cover pointer-events-none z-30" />
+  <!-- NAVIGATION -->
+  <nav id="navbar" class="fixed w-full z-50 bg-black/80 backdrop-blur-sm border-b border-white/10">
+    <div class="container mx-auto flex items-center justify-between px-6 py-4">
+      <img src="./assets/hyper-logo.png" alt="HYPER Logo" class="h-10 glitch" />
+      <div class="space-x-6 font-medium text-sm tracking-widest">
+        <a href="#products" class="hover:text-pink-500 transition">Products</a>
+        <a href="#about" class="hover:text-pink-500 transition">About</a>
+        <a href="#contact" class="hover:text-pink-500 transition">Contact</a>
+        <a href="#cart" class="hover:text-pink-500 transition">🛒 Cart</a>
+      </div>
     </div>
-    <h3 class="text-white font-semibold text-center">${product.name}</h3>
-    <p class="text-center text-pink-500 mt-1">${product.price}</p>
-    <p class="text-center text-gray-400 text-sm">Sizes: ${product.sizes}</p>
-    <div class="flex justify-center mt-4">
-      <button class="text-pink-500 text-2xl font-bold hover:scale-110 transition">+</button>
+  </nav>
+
+  <!-- HERO -->
+  <section id="hero" class="h-screen bg-cover bg-center flex items-center justify-center relative" style="background-image: url('./assets/cage-bg.png');">
+    <div class="text-center space-y-4">
+      <h1 class="text-6xl md:text-8xl font-bold glitch">DOMINATE</h1>
+      <p class="text-pink-500 tracking-wider">START OF A NEW ERA</p>
+      <button class="mt-4 px-6 py-3 bg-pink-500 hover:bg-pink-600 transition rounded-full text-black font-bold">Explore Our Products</button>
+    </div>
+  </section>
+
+  <!-- ABOUT / WHY WE CREATED -->
+  <section id="about" class="py-16 relative bg-black">
+    <div class="container mx-auto flex flex-col md:flex-row items-center gap-8 px-6">
+      <img src="./assets/group-photo.png" alt="Team" class="w-full md:w-1/2 rounded" />
+      <div class="md:w-1/2">
+        <h2 class="text-4xl font-bold mb-4">WHY WE CREATED HYPER</h2>
+        <p class="text-gray-300">Lorem ipsum dolor sit amet consectetur. Sociis in tempor enim ut metus eu dignissim. Purus dui auctor imperdiet pretium. Nullam tincidunt id ut massa lacus tincidunt.</p>
+      </div>
+    </div>
+  </section>
+
+<!-- PRODUCTS -->
+<section id="products" class="relative py-20 bg-cover bg-center" style="background-image: url('./assets/products-bg.png');">
+  <!-- Optional overlay (keep if you want a dark tint) -->
+  <div class="absolute inset-0 bg-black/60 z-0"></div>
+
+  <!-- Content -->
+  <div class="relative z-10">
+    <div class="text-center mb-12">
+      <div class="inline-block border-2 border-white px-6 py-2 rounded-full text-white text-sm tracking-widest">
+        <span class="text-gray-300">OUR</span> <span class="text-pink-500 font-bold">PRODUCTS</span>
+      </div>
+    </div>
+
+    <div id="product-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-10 px-6">
+      <!-- Injected by JS -->
     </div>
   </div>
+</section>
+
+  <!-- BLOG / HIGHLIGHTED CONTENT -->
+  <section id="blogs" class="py-16 relative bg-black px-6">
+    <div class="grid md:grid-cols-3 gap-6">
+      <div class="bg-gray-800 p-4 rounded">
+        <img src="./assets/blog1.png" alt="" class="rounded mb-2" />
+        <p>Try Pulse and unlock 20x MMA songs with insane mood potential.</p>
+      </div>
+      <div class="bg-gray-800 p-4 rounded">
+        <img src="./assets/blog2.png" alt="" class="rounded mb-2" />
+        <p>Try Pulse and unlock 20x songs with hype & volume boost.</p>
+      </div>
+      <div class="bg-gray-800 p-4 rounded">
+        <img src="./assets/blog3.png" alt="" class="rounded mb-2" />
+        <p>The hyper grind pack has 20 items with combat-focused options.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section id="faq" class="py-16 relative bg-black px-6">
+    <div class="text-center mb-8">
+      <h3 class="text-2xl font-bold">FREQUENTLY ASKED <span class="text-pink-500">QUESTIONS</span></h3>
+    </div>
+    <div class="space-y-4 max-w-3xl mx-auto">
+      <div class="border-t border-gray-700 pt-4">
+        <h4 class="font-bold">Commando tights good value?</h4>
+        <p class="text-gray-400">Absolutely. Designed for durability and comfort.</p>
+      </div>
+      <div class="border-t border-gray-700 pt-4">
+        <h4 class="font-bold">How do I order?</h4>
+        <p class="text-gray-400">Just click a product and hit checkout. Fast, secure, seamless.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- CALL TO ACTION -->
+  <section id="cta" class="bg-white text-black py-16 text-center">
+    <h3 class="text-3xl font-bold">Start A Project?</h3>
+    <a href="#contact" class="mt-4 inline-block bg-black text-white px-6 py-3 rounded-full hover:bg-pink-500 transition">GET IN TOUCH</a>
+  </section>
+
+  <!-- FOOTER -->
+  <footer id="footer" class="bg-black text-white py-6 text-center">
+    FOOTER
+  </footer>
+
+  <!-- CSV + JS Rendering -->
+  <script>
+    const csvData = `
+name,image,price,sizes
+Pink Blast MMA Fighting Shorts,red-shorts.png,₹1500,"S"
+Flag Wave MMA Combat Set,white-shorts.png,₹1500,"M"
+Desert Shadow Training Gear,camo-shorts.png,₹1800,"S"
 `;
-                grid.appendChild(div);
-            });
-        }
 
-        const products = parseCSV(csvData);
-        renderProducts(products);
-    </script>
+    function parseCSV(csv) {
+      const [headers, ...rows] = csv.trim().split("\n").map(line => line.split(","));
+      return rows.map(row => {
+        return headers.reduce((acc, header, i) => {
+          acc[header] = row[i].replace(/^"|"$/g, "");
+          return acc;
+        }, {});
+      });
+    }
+
+    function renderProducts(products) {
+      const grid = document.getElementById("product-grid");
+      products.forEach(product => {
+        const div = document.createElement("div");
+        div.className = "relative group";
+
+        div.innerHTML = `
+          <div class="relative z-20 p-4 bg-black/90 rounded overflow-hidden">
+            <div class="relative aspect-[4/5] w-full overflow-hidden rounded mb-4">
+              <img src="./assets/${product.image}" alt="${product.name}" class="absolute inset-0 w-full h-full object-cover z-10" />
+              <img src="./assets/frame.png" alt="Frame" class="absolute inset-0 w-full h-full object-cover z-20 pointer-events-none" />
+            </div>
+            <h3 class="text-white font-semibold text-center">${product.name}</h3>
+            <p class="text-center text-pink-500 mt-1">${product.price}</p>
+            <p class="text-center text-gray-400 text-sm">Sizes: ${product.sizes}</p>
+            <div class="flex justify-center mt-4">
+              <button class="w-6 h-6 flex items-center justify-center rounded-full border border-pink-500 text-pink-500 text-sm hover:bg-pink-500 hover:text-black transition">+</button>
+            </div>
+          </div>
+        `;
+        grid.appendChild(div);
+      });
+    }
+
+    const products = parseCSV(csvData);
+    renderProducts(products);
+  </script>
 </body>
-
 </html>
