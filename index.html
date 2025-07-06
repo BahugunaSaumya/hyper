@@ -230,12 +230,7 @@
     </div>
 
     <script>
-        const csvData = `
-name,image,price,sizes
-Pink Blast MMA Fighting Shorts,red-shorts.png,₹1500,"S/M/XL"
-Flag Wave MMA Combat Set,white-shorts.png,₹1500,"M"
-Desert Shadow Training Gear,camo-shorts.png,₹1800,"S"
-`;
+
 
         function parseCSV(csv) {
             const [headers, ...rows] = csv.trim().split("\n").map(line => line.split(","));
@@ -417,8 +412,15 @@ Desert Shadow Training Gear,camo-shorts.png,₹1800,"S"
         }
 
         document.addEventListener("DOMContentLoaded", () => {
-            const products = parseCSV(csvData);
-            renderProducts(products);
+            fetch('./assets/hyper-products-sample.csv')
+                .then(response => response.text())
+                .then(csv => {
+                    const products = parseCSV(csv);
+                    renderProducts(products);
+                })
+                .catch(error => {
+                    console.error("Failed to load product CSV:", error);
+                });
 
             const checkoutBtn = document.getElementById("checkoutButton");
             if (checkoutBtn) {
