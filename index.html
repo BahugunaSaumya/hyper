@@ -7,6 +7,23 @@
     <title>HYPER</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
+        @keyframes spin-slow {
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .animate-spin-slow {
+            animation: spin-slow 12s linear infinite;
+        }
+    </style>
+
+
+    <style>
         @keyframes glitch {
             0% {
                 transform: translate(0);
@@ -51,7 +68,7 @@
             <!-- Logo -->
             <div>
                 <img src="./assets/hyper-logo.png" alt="HYPER Logo" class="h-8 md:h-10 glitch" />
-            </div>  
+            </div>
 
             <!-- Navigation Links -->
             <div class="hidden md:flex space-x-8 text-white text-sm font-semibold">
@@ -93,34 +110,75 @@
     </nav>
 
     <!-- Hero -->
-    <section id="hero" class="h-screen bg-cover bg-center flex items-center justify-center relative"
+    <section id="hero" class="h-screen relative bg-cover bg-center"
         style="background-image: url('./assets/cage-bg.png');">
-        <div class="text-center flex flex-col items-center gap-4 px-4 sm:px-6 md:px-8">
-            <h1 class="text-4xl sm:text-6xl md:text-8xl font-extrabold tracking-wider leading-none glitch">DOMINATE</h1>
-            <p class="text-white text-sm md:text-base uppercase tracking-widest font-semibold">Start of a new era</p>
-            <div class="flex justify-center">
-                <img src="./assets/bars.png" alt="Decorative Bars" class="h-6 md:h-8 w-auto" />
-            </div>
-            <a href="#products" class="mt-4">
-                <img src="./assets/explore-button.png" alt="Explore Our Products" class="w-[250px] h-auto" />
-            </a>
+        <div class="absolute inset-0 bg-black/40 z-0"></div> <!-- Optional dark overlay -->
 
+        <!-- Content Wrapper -->
+        <div class="absolute bottom-12 left-1/2 transform -translate-x-1/2 z-10 w-full px-4 text-center">
+            <h1 class="text-white font-extrabold uppercase leading-tight text-3xl sm:text-4xl md:text-5xl lg:text-6xl">
+                Where Innovation Begins<br />And a New Era Rises
+            </h1>
         </div>
     </section>
 
-    <!-- ABOUT / WHY WE CREATED -->
-    <section id="about" class="py-16 relative bg-black">
-        <div class="container mx-auto flex flex-col md:flex-row items-center gap-8 px-6">
-            <img src="./assets/group-photo.png" alt="Team" class="w-full md:w-1/2 rounded" />
-            <div class="md:w-1/2">
-                <h2 class="text-4xl font-bold mb-4">WHY WE CREATED HYPER</h2>
-                <p class="text-gray-300">Lorem ipsum dolor sit amet consectetur. Sociis in tempor enim ut metus eu
-                    dignissim. Purus dui auctor imperdiet pretium. Nullam tincidunt id ut massa lacus tincidunt.</p>
+    <section id="about" class="relative bg-white text-black py-20 overflow-hidden">
+        <!-- Text Header -->
+        <div class="text-center px-4">
+            <h3 class="text-sm tracking-widest uppercase font-semibold">Welcome to Hyper</h3>
+            <div class="w-full flex justify-center my-1">
+                <div class="flex space-x-1 text-lg">| | | | | | | |</div>
+            </div>
+            <h2 class="text-3xl sm:text-4xl md:text-5xl font-extrabold uppercase mt-4">Why We Created Hyper</h2>
+        </div>
+
+        <!-- Video Container -->
+        <div class="mt-12 flex justify-center">
+            <div id="videoWrapper"
+                class="transition-all duration-[1150ms] ease-in-out w-60 h-60 sm:w-80 sm:h-80 rounded-full overflow-hidden relative shadow-lg max-w-full mx-auto">
+                <!-- Video Thumbnail -->
+                <img id="videoThumbnail" src="./assets/video-preview.jpg" alt="Preview"
+                    class="w-full h-full object-cover absolute inset-0 z-0 transition-opacity duration-500" />
+
+                <!-- Video Element -->
+                <video id="mainVideo"
+                    class="w-full h-full object-cover absolute inset-0 z-10 opacity-0 pointer-events-none" muted>
+                    <source src="./assets/sample.mp4" type="video/mp4" />
+                    Your browser does not support the video tag.
+                </video>
+
+                <!-- Play Button -->
+                <!-- PLAY BUTTON AND ROTATING TEXT -->
+                <div id="playButton" class="absolute inset-0 flex items-center justify-center z-20 cursor-pointer">
+
+                    <div class="relative w-24 h-24 sm:w-28 sm:h-28 flex items-center justify-center">
+
+                        <!-- Circular Rotating Text -->
+                        <svg class="absolute w-full h-full animate-spin-slow" viewBox="0 0 100 100">
+                            <defs>
+                                <path id="circlePath" d="M 50, 50 m -40, 0 a 40,40 0 1,1 80,0 a 40,40 0 1,1 -80,0" />
+                            </defs>
+                            <text fill="white" font-size="13" font-family="Arial" font-weight="bold">
+                                <textPath xlink:href="#circlePath" startOffset="0%">
+                                    How to be so fresh || How to be fresh ||</textPath>
+                            </text>
+                        </svg>
+
+                        <!-- Play Icon Circle -->
+                        <div
+                            class="w-14 h-14 sm:w-16 sm:h-16 bg-white/80 rounded-full flex items-center justify-center shadow-md z-10">
+                            <svg class="w-6 h-6 sm:w-7 sm:h-7 text-gray-900" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M8 5v14l11-7z" />
+                            </svg>
+                        </div>
+
+                    </div>
+                </div>
+
             </div>
         </div>
     </section>
 
-    <!-- Products Section -->
     <section id="products" class="relative py-20 bg-cover bg-center"
         style="background-image: url('./assets/products-bg.png');">
         <div class="absolute inset-0 bg-black/60 z-0"></div>
@@ -129,10 +187,41 @@
                 <img src="./assets/our-products-heading.png" alt="Our Products"
                     class="mx-auto w-[250px] sm:w-[300px] md:w-[350px] h-auto" />
             </div>
-        </div>
-        <div id="product-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-10 px-6"></div>
+
+            <!-- Product Showcase -->
+            <div class="relative max-w-7xl mx-auto px-4">
+                <div class="flex justify-center items-center relative">
+                    <button id="productPrev"
+                        class="absolute left-0 bg-black/60 text-white rounded-full w-10 h-10 flex items-center justify-center z-10">←</button>
+
+                    <img id="highlightedProductImg" src="./assets/model.png" alt="Product"
+                        class="max-h-[500px] mx-auto transition-all duration-500" />
+
+                    <button id="productNext"
+                        class="absolute right-0 bg-black/60 text-white rounded-full w-10 h-10 flex items-center justify-center z-10">→</button>
+                </div>
+
+                <div class="text-center mt-6">
+                    <h2 id="highlightedTitle" class="text-3xl sm:text-4xl md:text-5xl font-bold text-white">Product
+                        Title</h2>
+                    <p class="uppercase text-pink-400 mt-1">MMA Shorts</p>
+                    <p id="highlightedDesc" class="max-w-xl mx-auto text-white/80 mt-2">Product Description</p>
+                    <p id="highlightedPrice" class="text-2xl font-semibold text-white mt-4">₹ 0</p>
+                    <div id="highlightedRating" class="text-yellow-400 text-xl mb-4">★★★★★</div>
+                    <button id="highlightedAddToCart"
+                        class="bg-pink-500 hover:bg-pink-600 text-white font-bold py-2 px-6 rounded-full transition">+
+                        Add to Cart</button>
+                </div>
+
+                <div class="mt-10 overflow-x-auto scroll-container">
+                    <div id="productThumbnails" class="flex gap-6 px-6 w-max"></div>
+                </div>
+            </div>
         </div>
     </section>
+
+
+
 
     <!-- BLOG / HIGHLIGHTED CONTENT -->
     <section id="blogs" class="py-16 relative bg-black px-6">
@@ -142,7 +231,7 @@
         </div>
         <div class="grid md:grid-cols-3 gap-6">
             <div class="bg-gray-800 p-4 rounded">
-                <img src="./assets/blog1.png" alt="" class="rounded mb-2" />
+                <img src="./assets/red-shorts.png" alt="" class="rounded mb-2" />
                 <p>Try Pulse and unlock 20x MMA songs with insane mood potential.</p>
             </div>
             <div class="bg-gray-800 p-4 rounded">
@@ -255,6 +344,76 @@
         class="fixed bottom-24 right-6 bg-black text-white px-4 py-2 rounded shadow-lg opacity-0 transition-opacity duration-300 z-50">
     </div>
 
+
+
+    <script>
+        let allProducts = [];
+        let currentIndex = 0;
+
+        function loadProductsCSV() {
+            fetch('./assets/hyper-products-sample.csv')
+                .then(res => res.text())
+                .then(data => {
+                    const lines = data.split('\n').filter(Boolean);
+                    const headers = lines[0].split(',');
+                    const products = lines.slice(1).map(line => {
+                        const values = line.split(',');
+                        return headers.reduce((obj, header, i) => {
+                            obj[header.trim()] = values[i]?.trim();
+                            return obj;
+                        }, {});
+                    });
+                    allProducts = products;
+                    renderHighlighted();
+                    renderThumbnails();
+                });
+        }
+
+        function renderHighlighted() {
+            const p = allProducts[currentIndex];
+            document.getElementById('highlightedTitle').textContent = p.title;
+            document.getElementById('highlightedDesc').textContent = p.description;
+            document.getElementById('highlightedPrice').textContent = `₹ ${p.price}`;
+            document.getElementById('highlightedRating').innerHTML = '★'.repeat(p.rating) + '☆'.repeat(5 - p.rating);
+        }
+
+        function renderThumbnails() {
+            const container = document.getElementById('productThumbnails');
+            container.innerHTML = '';
+            allProducts.forEach((p, i) => {
+                const div = document.createElement('div');
+                div.className = `cursor-pointer ${i === currentIndex ? 'ring-2 ring-pink-500' : ''}`;
+                div.innerHTML = `<img src="./assets/model.png" alt="${p.title}" class="h-48" />`;
+                div.addEventListener('click', () => {
+                    currentIndex = i;
+                    renderHighlighted();
+                    renderThumbnails();
+                });
+                container.appendChild(div);
+            });
+        }
+
+        document.getElementById('productPrev').addEventListener('click', () => {
+            currentIndex = (currentIndex - 1 + allProducts.length) % allProducts.length;
+            renderHighlighted();
+            renderThumbnails();
+        });
+
+        document.getElementById('productNext').addEventListener('click', () => {
+            currentIndex = (currentIndex + 1) % allProducts.length;
+            renderHighlighted();
+            renderThumbnails();
+        });
+
+        document.getElementById('highlightedAddToCart').addEventListener('click', () => {
+            const p = allProducts[currentIndex];
+            alert(`${p.title} added to cart!`);
+        });
+
+        document.addEventListener('DOMContentLoaded', loadProductsCSV);
+    </script>
+
+
     <script>
 
 
@@ -269,47 +428,50 @@
         }
 
         function renderProducts(products) {
-            const grid = document.getElementById("product-grid");
-            grid.innerHTML = "";
+            const container = document.getElementById("product-scroll");
+            container.innerHTML = "";
 
             products.forEach((product, index) => {
                 const sizes = product.sizes.split("/").map(s => s.trim());
-
-                const div = document.createElement("div");
-                div.className = "relative group animate-in transition-transform duration-300 hover:scale-105";
 
                 const sizeOptions = sizes.map(size =>
                     `<option value="${size}">${size}</option>`
                 ).join("");
 
-                div.innerHTML = `
-            <div class="relative z-20 p-4 rounded overflow-hidden bg-black/80 border border-white/10">
-                <div class="relative aspect-[4/5] w-full overflow-hidden rounded mb-4">
-                    <img src="./assets/${product.image}" alt="${product.name}" class="absolute inset-0 w-full h-full object-cover z-10" />
-                    <img src="./assets/frame.png" alt="Frame" class="absolute inset-0 w-full h-full object-cover z-20 pointer-events-none" />
-                </div>
-                <h3 class="text-white font-semibold text-center">${product.name}</h3>
-                <p class="text-center text-pink-500 mt-1">${product.price}</p>
+                const card = document.createElement("div");
+                card.className = "relative bg-black/80 border border-white/10 rounded-xl p-6 w-[320px] flex-shrink-0";
 
-                <div class="mt-2 flex justify-center">
-                    <select class="size-select text-sm px-3 py-1 rounded bg-black border border-pink-500 text-white">
-                        <option value="" selected disabled>Select size</option>
-                        ${sizeOptions}
-                    </select>
+                card.innerHTML = `
+            <div class="relative mb-4">
+                <img src="./assets/model.png" alt="${product.name}" class="rounded-xl" />
+            </div>
+            <h3 class="text-2xl font-extrabold text-center leading-tight">${product.name}</h3>
+            <p class="text-center text-pink-400 mt-1">${product.category || 'MMA Shorts'}</p>
+            <p class="text-gray-300 text-sm text-center mt-2">Lorem ipsum dolor sit amet consectetur adipiscing elit ut et massa mi.</p>
+            <div class="flex flex-col sm:flex-row justify-center items-center gap-2 mt-4">
+                <span class="text-white text-lg font-bold">${product.price}</span>
+                <div class="flex text-yellow-400">
+                    ${'<svg class="h-4 w-4 fill-current" viewBox="0 0 20 20"><path d="M10 15l-5.878 3.09 1.122-6.545L.488 6.91l6.561-.955L10 0l2.951 5.955 6.561.955-4.756 4.635 1.122 6.545z" /></svg>'.repeat(4)}
+                    <svg class="h-4 w-4 text-gray-500" viewBox="0 0 20 20"><path d="M10 15l-5.878 3.09 1.122-6.545L.488 6.91l6.561-.955L10 0l2.951 5.955 6.561.955-4.756 4.635 1.122 6.545z" /></svg>
                 </div>
-
-                <div class="flex justify-center mt-4">
-                    <button 
-                        class="add-to-cart-btn w-6 h-6 flex items-center justify-center rounded-full border border-pink-500 text-pink-500 text-sm hover:bg-pink-500 hover:text-black transition disabled:opacity-50" 
-                        data-id="${index}" disabled>
-                        +
-                    </button>
-                </div>
+            </div>
+            <div class="mt-4 text-center">
+                <select class="size-select text-sm px-3 py-1 rounded bg-black border border-pink-500 text-white">
+                    <option value="" selected disabled>Select size</option>
+                    ${sizeOptions}
+                </select>
+            </div>
+            <div class="text-center mt-4">
+                <button 
+                    class="add-to-cart-btn bg-pink-500 hover:bg-pink-600 text-white px-6 py-2 rounded-full font-bold text-sm transition disabled:opacity-50" 
+                    data-id="${index}" disabled>
+                    + ADD TO CART
+                </button>
             </div>
         `;
 
-                const select = div.querySelector(".size-select");
-                const button = div.querySelector(".add-to-cart-btn");
+                const select = card.querySelector(".size-select");
+                const button = card.querySelector(".add-to-cart-btn");
 
                 select.addEventListener("change", () => {
                     button.disabled = !select.value;
@@ -323,7 +485,7 @@
                     }
                 });
 
-                grid.appendChild(div);
+                container.appendChild(card);
             });
         }
 
@@ -527,7 +689,64 @@
             showCartSummary();
             toggleCart(false); // auto close after checkout tap
         }
+
+
+
     </script>
+    <script>
+        const videoWrapper = document.getElementById('videoWrapper');
+        const mainVideo = document.getElementById('mainVideo');
+        const playButton = document.getElementById('playButton');
+        const thumbnail = document.getElementById('videoThumbnail');
+
+        let isPlaying = false;
+
+        playButton.addEventListener('click', () => {
+            if (!isPlaying) {
+                mainVideo.classList.remove('opacity-0', 'pointer-events-none');
+                thumbnail.classList.add('opacity-0');
+                playButton.classList.add('hidden');
+                mainVideo.play();
+                isPlaying = true;
+            } else {
+                mainVideo.pause();
+                isPlaying = false;
+                playButton.classList.remove('hidden');
+            }
+        });
+        // Toggle circle ↔ square on scroll
+        const observer = new IntersectionObserver(
+            ([entry]) => {
+                if (entry.isIntersecting) {
+                    videoWrapper.classList.remove('rounded-full', 'w-60', 'h-60', 'sm:w-80', 'sm:h-80');
+                    videoWrapper.classList.add('w-full', 'h-[500px]', 'rounded-none', 'mx-auto');
+
+                } else {
+                    videoWrapper.classList.remove('w-full', 'h-[500px]', 'rounded-none');
+                    videoWrapper.classList.add('rounded-full', 'w-60', 'h-60', 'sm:w-80', 'sm:h-80');
+
+                    // Stop video + reset
+                    mainVideo.pause();
+                    isPlaying = false;
+                    mainVideo.classList.add('opacity-0', 'pointer-events-none');
+                    thumbnail.classList.remove('opacity-0');
+                    playButton.classList.remove('hidden');
+                }
+            },
+            { threshold: 0.5 }
+        );
+
+        observer.observe(videoWrapper);
+
+        // Click to play video
+        playButton.addEventListener('click', () => {
+            mainVideo.classList.remove('opacity-0', 'pointer-events-none');
+            thumbnail.classList.add('opacity-0');
+            playButton.classList.add('hidden');
+            mainVideo.play();
+        });
+    </script>
+
 </body>
 
 </html>
