@@ -202,22 +202,32 @@
                 </div>
 
                 <div class="text-center mt-6">
-                    <h2 id="highlightedTitle" class="text-3xl sm:text-4xl md:text-5xl font-bold text-white">Product
-                        Title</h2>
-                    <p class="uppercase text-pink-400 mt-1">MMA Shorts</p>
-                    <p id="highlightedDesc" class="max-w-xl mx-auto text-white/80 mt-2">Product Description</p>
-                    <p id="highlightedPrice" class="text-2xl font-semibold text-white mt-4">₹ 0</p>
-                    <div id="highlightedRating" class="text-yellow-400 text-xl mb-4">★★★★★</div>
-                    <button id="highlightedAddToCart"
-                        class="bg-pink-500 hover:bg-pink-600 text-white font-bold py-2 px-6 rounded-full transition">+
-                        Add to Cart</button>
-                </div>
+                    <h2 id="highlightedTitle" class="text-4xl font-extrabold text-white text-center leading-tight mt-4">
+                    </h2>
+                    <p class="text-pink-400 text-sm uppercase text-center mt-1">MMA Shorts</p>
+                    <p id="highlightedDesc" class="text-white/80 max-w-md mx-auto text-center text-sm mt-2"></p>
+                    <p id="highlightedPrice" class="text-white text-2xl font-bold mt-4 text-center"></p>
+                    <div id="highlightedRating" class="text-yellow-400 text-xl text-center mb-4"></div>
 
-                <div class="mt-10 overflow-x-auto scroll-container">
-                    <div id="productThumbnails" class="flex gap-6 px-6 w-max"></div>
+                    <div class="text-center mt-4">
+                        <select id="highlightedSizeSelect"
+                            class="text-sm px-4 py-2 rounded bg-black border border-pink-500 text-white">
+                            <option value="" selected disabled>Select size</option>
+                        </select>
+                    </div>
+
+                    <div class="text-center mt-4">
+                        <button id="highlightedAddToCart"
+                            class="bg-gradient-to-r from-pink-500 to-pink-400 hover:from-pink-600 hover:to-pink-500 text-white font-bold py-3 px-8 rounded-full transition">
+                            + ADD TO CART
+                        </button>
+                    </div>
+
+                    <div class="mt-10 overflow-x-auto scroll-container">
+                        <div id="productThumbnails" class="flex gap-6 px-6 w-max items-end h-[220px]"></div>
+                    </div>
                 </div>
             </div>
-        </div>
     </section>
 
 
@@ -371,19 +381,42 @@
 
         function renderHighlighted() {
             const p = allProducts[currentIndex];
-            document.getElementById('highlightedTitle').textContent = p.title;
+
+            document.getElementById('highlightedTitle').textContent = p.name;
             document.getElementById('highlightedDesc').textContent = p.description;
-            document.getElementById('highlightedPrice').textContent = `₹ ${p.price}`;
+            document.getElementById('highlightedPrice').textContent = `${p.price}`;
             document.getElementById('highlightedRating').innerHTML = '★'.repeat(p.rating) + '☆'.repeat(5 - p.rating);
+
+            const sizeSelect = document.getElementById('highlightedSizeSelect');
+            const addBtn = document.getElementById('highlightedAddToCart');
+
+            if (sizeSelect && p.sizes) {
+                const sizes = p.sizes.split('/').map(s => s.trim());
+                sizeSelect.innerHTML = '<option value="" disabled selected>Select size</option>';
+                sizes.forEach(size => {
+                    const opt = document.createElement('option');
+                    opt.value = size;
+                    opt.textContent = size;
+                    sizeSelect.appendChild(opt);
+                });
+
+                addBtn.disabled = true;
+
+                sizeSelect.addEventListener('change', () => {
+                    addBtn.disabled = !sizeSelect.value;
+                });
+            }
         }
+
 
         function renderThumbnails() {
             const container = document.getElementById('productThumbnails');
             container.innerHTML = '';
             allProducts.forEach((p, i) => {
                 const div = document.createElement('div');
-                div.className = `cursor-pointer ${i === currentIndex ? 'ring-2 ring-pink-500' : ''}`;
-                div.innerHTML = `<img src="./assets/model.png" alt="${p.title}" class="h-48" />`;
+                div.className = `cursor-pointer transition-transform duration-300 ${i === currentIndex ? 'scale-110' : 'scale-90 opacity-50'
+                    }`;
+                div.innerHTML = `<img src="./assets/model.png" alt="${p.title}" class="h-40 mx-auto" />`;
                 div.addEventListener('click', () => {
                     currentIndex = i;
                     renderHighlighted();
@@ -407,7 +440,15 @@
 
         document.getElementById('highlightedAddToCart').addEventListener('click', () => {
             const p = allProducts[currentIndex];
-            alert(`${p.title} added to cart!`);
+            const sizeSelect = document.getElementById('highlightedSizeSelect');
+            const selectedSize = sizeSelect ? sizeSelect.value : '';
+
+            if (!selectedSize) {
+                alert('Please select a size before adding to cart.');
+                return;
+            }
+
+            addToCart(p, selectedSize);
         });
 
         document.addEventListener('DOMContentLoaded', loadProductsCSV);
@@ -694,51 +735,51 @@
 
     </script>
     <script>
-    const videoWrapper = document.getElementById('videoWrapper');
-    const mainVideo = document.getElementById('mainVideo');
-    const playButton = document.getElementById('playButton');
-    const thumbnail = document.getElementById('videoThumbnail');
+        const videoWrapper = document.getElementById('videoWrapper');
+        const mainVideo = document.getElementById('mainVideo');
+        const playButton = document.getElementById('playButton');
+        const thumbnail = document.getElementById('videoThumbnail');
 
-    let isPlaying = false;
+        let isPlaying = false;
 
-    // Play or pause on click anywhere in the wrapper
-    videoWrapper.addEventListener('click', () => {
-        if (!isPlaying) {
-            mainVideo.classList.remove('opacity-0', 'pointer-events-none');
-            thumbnail.classList.add('opacity-0');
-            playButton.classList.add('hidden');
-            mainVideo.play();
-            isPlaying = true;
-        } else {
-            mainVideo.pause();
-            isPlaying = false;
-            playButton.classList.remove('hidden');
-        }
-    });
-
-    // Observer for scroll-triggered style change
-    const observer = new IntersectionObserver(
-        ([entry]) => {
-            if (entry.isIntersecting) {
-                videoWrapper.classList.remove('rounded-full', 'w-60', 'h-60', 'sm:w-80', 'sm:h-80');
-                videoWrapper.classList.add('w-full', 'h-[640px]', 'rounded-none', 'mx-auto');
+        // Play or pause on click anywhere in the wrapper
+        videoWrapper.addEventListener('click', () => {
+            if (!isPlaying) {
+                mainVideo.classList.remove('opacity-0', 'pointer-events-none');
+                thumbnail.classList.add('opacity-0');
+                playButton.classList.add('hidden');
+                mainVideo.play();
+                isPlaying = true;
             } else {
-                videoWrapper.classList.remove('w-full', 'h-[640px]', 'rounded-none');
-                videoWrapper.classList.add('rounded-full', 'w-60', 'h-60', 'sm:w-80', 'sm:h-80');
-
-                // Reset video
                 mainVideo.pause();
                 isPlaying = false;
-                mainVideo.classList.add('opacity-0', 'pointer-events-none');
-                thumbnail.classList.remove('opacity-0');
                 playButton.classList.remove('hidden');
             }
-        },
-        { threshold: 0.5 }
-    );
+        });
 
-    observer.observe(videoWrapper);
-</script>
+        // Observer for scroll-triggered style change
+        const observer = new IntersectionObserver(
+            ([entry]) => {
+                if (entry.isIntersecting) {
+                    videoWrapper.classList.remove('rounded-full', 'w-60', 'h-60', 'sm:w-80', 'sm:h-80');
+                    videoWrapper.classList.add('w-full', 'h-[640px]', 'rounded-none', 'mx-auto');
+                } else {
+                    videoWrapper.classList.remove('w-full', 'h-[640px]', 'rounded-none');
+                    videoWrapper.classList.add('rounded-full', 'w-60', 'h-60', 'sm:w-80', 'sm:h-80');
+
+                    // Reset video
+                    mainVideo.pause();
+                    isPlaying = false;
+                    mainVideo.classList.add('opacity-0', 'pointer-events-none');
+                    thumbnail.classList.remove('opacity-0');
+                    playButton.classList.remove('hidden');
+                }
+            },
+            { threshold: 0.5 }
+        );
+
+        observer.observe(videoWrapper);
+    </script>
 </body>
 
 </html>
