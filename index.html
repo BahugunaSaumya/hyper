@@ -46,14 +46,48 @@
 <body class="bg-black text-white font-sans min-h-screen overflow-x-hidden">
 
     <!-- Navigation -->
-    <nav class="fixed w-full z-50 bg-black/80 backdrop-blur-sm border-b border-white/10">
-        <div class="container mx-auto flex flex-wrap items-center justify-between px-4 py-4">
-            <img src="./assets/hyper-logo.png" alt="HYPER Logo" class="h-10 max-w-[120px] glitch" />
-            <div class="space-x-4 text-sm font-medium tracking-widest">
+    <nav class="fixed top-0 left-0 w-full z-50 bg-transparent backdrop-blur-md px-6 py-4">
+        <div class="flex items-center justify-between max-w-7xl mx-auto">
+            <!-- Logo -->
+            <div>
+                <img src="./assets/hyper-logo.png" alt="HYPER Logo" class="h-8 md:h-10 glitch" />
+            </div>  
+
+            <!-- Navigation Links -->
+            <div class="hidden md:flex space-x-8 text-white text-sm font-semibold">
                 <a href="#products" class="hover:text-pink-500 transition">Products</a>
-                <a href="#about" class="hover:text-pink-500 transition">About</a>
+                <a href="#blogs" class="hover:text-pink-500 transition">Blogs</a>
                 <a href="#contact" class="hover:text-pink-500 transition">Contact</a>
-                <a href="#cart" class="hover:text-pink-500 transition">🛒 Cart</a>
+            </div>
+
+            <!-- Icons -->
+            <div class="flex items-center space-x-6 text-white text-lg">
+                <!-- Search Icon -->
+                <button class="hover:text-pink-500 transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M21 21l-4.35-4.35M17 10a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                </button>
+
+                <!-- Cart Icon -->
+                <button onclick="toggleCart(true)" class="hover:text-pink-500 transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13l-1.5 7h13L17 13M6 21a1 1 0 11-2 0 1 1 0 012 0zm12 0a1 1 0 11-2 0 1 1 0 012 0z" />
+                    </svg>
+                </button>
+
+                <!-- User Icon -->
+                <button class="hover:text-pink-500 transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M5.121 17.804A9 9 0 0112 15a9 9 0 016.879 2.804M15 10a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                </button>
             </div>
         </div>
     </nav>
@@ -73,14 +107,6 @@
 
         </div>
     </section>
-    <!-- CTA Button
-    <a href="#products"
-        class="mt-6 inline-flex items-center gap-2 px-6 py-3 border border-white text-white font-semibold rounded-full hover:bg-white hover:text-black transition">
-        Explore Our Products
-        <span class="text-xl">↗️</span>
-    </a>
-    </div>
-    </section> -->
 
     <!-- ABOUT / WHY WE CREATED -->
     <section id="about" class="py-16 relative bg-black">
