@@ -694,59 +694,51 @@
 
     </script>
     <script>
-        const videoWrapper = document.getElementById('videoWrapper');
-        const mainVideo = document.getElementById('mainVideo');
-        const playButton = document.getElementById('playButton');
-        const thumbnail = document.getElementById('videoThumbnail');
+    const videoWrapper = document.getElementById('videoWrapper');
+    const mainVideo = document.getElementById('mainVideo');
+    const playButton = document.getElementById('playButton');
+    const thumbnail = document.getElementById('videoThumbnail');
 
-        let isPlaying = false;
+    let isPlaying = false;
 
-        playButton.addEventListener('click', () => {
-            if (!isPlaying) {
-                mainVideo.classList.remove('opacity-0', 'pointer-events-none');
-                thumbnail.classList.add('opacity-0');
-                playButton.classList.add('hidden');
-                mainVideo.play();
-                isPlaying = true;
-            } else {
-                mainVideo.pause();
-                isPlaying = false;
-                playButton.classList.remove('hidden');
-            }
-        });
-        // Toggle circle ↔ square on scroll
-        const observer = new IntersectionObserver(
-            ([entry]) => {
-                if (entry.isIntersecting) {
-                    videoWrapper.classList.remove('rounded-full', 'w-60', 'h-60', 'sm:w-80', 'sm:h-80');
-                    videoWrapper.classList.add('w-full', 'h-[500px]', 'rounded-none', 'mx-auto');
-
-                } else {
-                    videoWrapper.classList.remove('w-full', 'h-[500px]', 'rounded-none');
-                    videoWrapper.classList.add('rounded-full', 'w-60', 'h-60', 'sm:w-80', 'sm:h-80');
-
-                    // Stop video + reset
-                    mainVideo.pause();
-                    isPlaying = false;
-                    mainVideo.classList.add('opacity-0', 'pointer-events-none');
-                    thumbnail.classList.remove('opacity-0');
-                    playButton.classList.remove('hidden');
-                }
-            },
-            { threshold: 0.5 }
-        );
-
-        observer.observe(videoWrapper);
-
-        // Click to play video
-        playButton.addEventListener('click', () => {
+    // Play or pause on click anywhere in the wrapper
+    videoWrapper.addEventListener('click', () => {
+        if (!isPlaying) {
             mainVideo.classList.remove('opacity-0', 'pointer-events-none');
             thumbnail.classList.add('opacity-0');
             playButton.classList.add('hidden');
             mainVideo.play();
-        });
-    </script>
+            isPlaying = true;
+        } else {
+            mainVideo.pause();
+            isPlaying = false;
+            playButton.classList.remove('hidden');
+        }
+    });
 
+    // Observer for scroll-triggered style change
+    const observer = new IntersectionObserver(
+        ([entry]) => {
+            if (entry.isIntersecting) {
+                videoWrapper.classList.remove('rounded-full', 'w-60', 'h-60', 'sm:w-80', 'sm:h-80');
+                videoWrapper.classList.add('w-full', 'h-[640px]', 'rounded-none', 'mx-auto');
+            } else {
+                videoWrapper.classList.remove('w-full', 'h-[640px]', 'rounded-none');
+                videoWrapper.classList.add('rounded-full', 'w-60', 'h-60', 'sm:w-80', 'sm:h-80');
+
+                // Reset video
+                mainVideo.pause();
+                isPlaying = false;
+                mainVideo.classList.add('opacity-0', 'pointer-events-none');
+                thumbnail.classList.remove('opacity-0');
+                playButton.classList.remove('hidden');
+            }
+        },
+        { threshold: 0.5 }
+    );
+
+    observer.observe(videoWrapper);
+</script>
 </body>
 
 </html>
