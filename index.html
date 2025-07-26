@@ -58,7 +58,6 @@
                 transform: scale(0.75) translateX(100px);
             }
         }
-        
     </style>
 
 
@@ -276,17 +275,17 @@
     </section>
 
     <!-- TESTIMONIALS -->
-    <section id="testimonials" class="py-20 relative bg-black px-6 overflow-hidden">
+    <section id="testimonials" class="py-20 bg-black px-6">
         <div class="text-center mb-12">
-            <h2 class="text-3xl sm:text-4xl md:text-5xl font-extrabold uppercase">
+            <h2 class="text-3xl sm:text-4xl md:text-5xl font-extrabold uppercase text-white">
                 WHAT OUR FIGHTERS ARE SAYING
             </h2>
         </div>
 
         <div class="relative max-w-6xl mx-auto">
             <div class="overflow-hidden">
-                <div id="testimonialWrapper" class="flex transition-transform duration-700 ease-in-out">
-                    <!-- Slides injected here -->
+                <div id="testimonialWrapper" class="flex transition-transform duration-700 ease-in-out space-x-6">
+                    <!-- Slides will be injected by JS -->
                 </div>
             </div>
 
@@ -298,27 +297,54 @@
 
 
 
+
     <!-- BLOG / HIGHLIGHTED CONTENT -->
-    <section id="blogs" class="py-16 relative bg-black px-6">
+    <section id="blogs" class="py-16 relative bg-white text-black px-6">
+        <!-- Header Image -->
         <div class="text-center mb-12">
             <img src="./assets/our-blogs-heading.png" alt="Our Blogs"
                 class="mx-auto w-[220px] sm:w-[280px] md:w-[320px] h-auto" />
         </div>
-        <div class="grid md:grid-cols-3 gap-6">
-            <div class="bg-gray-800 p-4 rounded">
-                <img src="./assets/red-shorts.png" alt="" class="rounded mb-2" />
-                <p>Try Pulse and unlock 20x MMA songs with insane mood potential.</p>
+
+        <!-- Blog Carousel -->
+        <div class="relative max-w-7xl mx-auto">
+            <div class="flex items-center justify-between mb-6 px-2">
+                <div></div>
+                <!-- Empty div to center arrow icons -->
+                <div class="flex gap-4">
+                    <button class="text-2xl hover:text-pink-500 transition" onclick="scrollBlogs(-1)">←</button>
+                    <button class="text-2xl hover:text-pink-500 transition" onclick="scrollBlogs(1)">→</button>
+                </div>
             </div>
-            <div class="bg-gray-800 p-4 rounded">
-                <img src="./assets/blog2.png" alt="" class="rounded mb-2" />
-                <p>Try Pulse and unlock 20x songs with hype & volume boost.</p>
-            </div>
-            <div class="bg-gray-800 p-4 rounded">
-                <img src="./assets/blog3.png" alt="" class="rounded mb-2" />
-                <p>The hyper grind pack has 20 items with combat-focused options.</p>
+
+            <div id="blogScroll" class="flex overflow-x-auto space-x-6 scroll-smooth scroll-container pb-4">
+                <!-- Blog Card 1 -->
+                <div class="min-w-[300px] flex-shrink-0">
+                    <img src="./assets/red-shorts.png" alt="" class="rounded-lg w-full h-[280px] object-cover mb-2" />
+                    <p class="text-sm font-bold mb-1">07 July, 2025</p>
+                    <p class="text-gray-800">Try Hyper and unlock 25 million songs with endless musical possibilities.
+                    </p>
+                </div>
+
+                <!-- Blog Card 2 -->
+                <div class="min-w-[300px] flex-shrink-0">
+                    <img src="./assets/blog2.png" alt="" class="rounded-lg w-full h-[280px] object-cover mb-2" />
+                    <p class="text-sm font-bold mb-1">07 July, 2025</p>
+                    <p class="text-gray-800">Try Hyper and unlock 25 million songs with endless musical possibilities.
+                    </p>
+                </div>
+
+                <!-- Blog Card 3 -->
+                <div class="min-w-[300px] flex-shrink-0">
+                    <img src="./assets/blog3.png" alt="" class="rounded-lg w-full h-[280px] object-cover mb-2" />
+                    <p class="text-sm font-bold mb-1">07 July, 2025</p>
+                    <p class="text-gray-800">Try Hyper and unlock 25 million songs with endless musical possibilities.
+                    </p>
+                </div>
             </div>
         </div>
     </section>
+
 
     <!-- FAQ -->
     <section id="faq" class="py-16 relative bg-black px-6">
@@ -915,7 +941,6 @@
         ];
 
         let testimonialIndex = 0;
-
         function renderTestimonials() {
             const wrapper = document.getElementById("testimonialWrapper");
             const dots = document.getElementById("testimonialDots");
@@ -926,23 +951,25 @@
             testimonials.forEach((t, i) => {
                 const slide = document.createElement("div");
                 slide.className =
-                    "min-w-full px-4 flex flex-col md:flex-row items-center justify-center text-white";
+                    "min-w-full max-w-full px-4 flex justify-center";
 
                 slide.innerHTML = `
-      <div class="w-32 h-32 md:w-48 md:h-48 rounded-full overflow-hidden mb-6 md:mb-0 md:mr-6">
-        <img src="${t.image}" class="object-cover w-full h-full" />
-      </div>
-      <div class="max-w-xl text-center md:text-left">
-        <p class="text-lg md:text-xl mb-4 leading-relaxed">"${t.quote}"</p>
-        <p class="font-bold text-lg">${t.name}</p>
-        <p class="text-sm text-gray-400">${t.role}</p>
-      </div>
-    `;
+        <div class="border border-white/30 bg-transparent text-white rounded-xl p-6 w-full max-w-3xl flex flex-col sm:flex-row items-center gap-6 relative">
+            <div class="absolute top-4 right-6 text-pink-500 text-6xl font-bold select-none leading-none">"</div>
+            <div class="relative w-32 h-32 sm:w-40 sm:h-40 overflow-hidden rounded-md flex-shrink-0">
+                <img src="${t.image}" class="w-full h-full object-cover rounded-md" />
+            </div>
+            <div class="flex-1">
+                <p class="text-base sm:text-lg font-medium mb-4 leading-relaxed text-white/90">"${t.quote}"</p>
+                <p class="font-bold text-xl">${t.name}</p>
+                <p class="text-sm text-white/60">${t.role}</p>
+            </div>
+        </div>
+      `;
                 wrapper.appendChild(slide);
 
                 const dot = document.createElement("button");
-                dot.className = `w-3 h-3 rounded-full ${i === 0 ? "bg-pink-500" : "bg-gray-500"
-                    }`;
+                dot.className = `w-3 h-3 rounded-full ${i === 0 ? "bg-pink-500" : "bg-gray-500"}`;
                 dot.addEventListener("click", () => {
                     testimonialIndex = i;
                     updateTestimonialSlide();
@@ -950,6 +977,8 @@
                 dots.appendChild(dot);
             });
         }
+
+
 
         function updateTestimonialSlide() {
             const wrapper = document.getElementById("testimonialWrapper");
@@ -968,6 +997,15 @@
             testimonialIndex = (testimonialIndex + 1) % testimonials.length;
             updateTestimonialSlide();
         }, 5000);
+
+        function scrollBlogs(direction) {
+            const container = document.getElementById('blogScroll');
+            const scrollAmount = 320; // Adjust based on card width
+            container.scrollBy({
+                left: direction * scrollAmount,
+                behavior: 'smooth'
+            });
+        }
 
     </script>
 
