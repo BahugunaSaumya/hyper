@@ -20,6 +20,45 @@
         .animate-spin-slow {
             animation: spin-slow 12s linear infinite;
         }
+
+        .carousel-item {
+            transition: all 0.6s ease-in-out;
+            position: absolute;
+            opacity: 0.8;
+            top: 0;
+            transform-origin: center center;
+            filter: brightness(1);
+        }
+
+        .carousel-center {
+            transform: scale(1) translateX(0);
+            opacity: 1 !important;
+            z-index: 10;
+            filter: brightness(1.1);
+        }
+
+        @media (min-width: 1000px) {
+            .carousel-left {
+                transform: scale(0.85) translateX(-160px);
+                z-index: 5;
+            }
+
+            .carousel-right {
+                transform: scale(0.85) translateX(160px);
+                z-index: 5;
+            }
+        }
+
+        @media (max-width: 1000px) {
+            .carousel-left {
+                transform: scale(0.75) translateX(-100px);
+            }
+
+            .carousel-right {
+                transform: scale(0.75) translateX(100px);
+            }
+        }
+        
     </style>
 
 
@@ -180,7 +219,7 @@
     </section>
 
     <section id="products" class="relative py-20 bg-cover bg-center"
-        style="background-image: url('./assets/products-bg.png');">
+        style="background-image: url('./assets/design.png');">
         <div class="absolute inset-0 bg-black/60 z-0"></div>
         <div class="relative z-10">
             <div class="text-center mb-12">
@@ -189,45 +228,71 @@
             </div>
 
             <!-- Product Showcase -->
-            <div class="relative max-w-7xl mx-auto px-4">
-                <div class="flex justify-center items-center relative">
-                    <button id="productPrev"
-                        class="absolute left-0 bg-black/60 text-white rounded-full w-10 h-10 flex items-center justify-center z-10">←</button>
 
-                    <img id="highlightedProductImg" src="./assets/model.png" alt="Product"
-                        class="max-h-[500px] mx-auto transition-all duration-500" />
+            <div
+                class="relative z-0 min-h-[620px] sm:min-h-[680px] md:min-h-[750px] flex justify-center items-center overflow-hidden">
+                <!-- Floating models -->
+                <div id="carouselContainer"
+                    class="absolute top-0 left-1/2 transform -translate-x-1/2 flex justify-center items-center h-full w-full z-0 min-h-[400px]">
 
-                    <button id="productNext"
-                        class="absolute right-0 bg-black/60 text-white rounded-full w-10 h-10 flex items-center justify-center z-10">→</button>
+                    <!-- JS will inject model images here -->
                 </div>
 
-                <div class="text-center mt-6">
-                    <h2 id="highlightedTitle" class="text-4xl font-extrabold text-white text-center leading-tight mt-4">
-                    </h2>
-                    <p class="text-pink-400 text-sm uppercase text-center mt-1">MMA Shorts</p>
-                    <p id="highlightedDesc" class="text-white/80 max-w-md mx-auto text-center text-sm mt-2"></p>
-                    <p id="highlightedPrice" class="text-white text-2xl font-bold mt-4 text-center"></p>
-                    <div id="highlightedRating" class="text-yellow-400 text-xl text-center mb-4"></div>
+                <!-- Product info overlayed -->
+                <div class="relative z-10 text-center mt-32 sm:mt-40 px-4">
+                    <h2 id="highlightedTitle" class="text-3xl sm:text-4xl font-extrabold text-white mb-1"></h2>
+                    <p class="text-pink-400 text-sm uppercase mb-2">MMA Shorts</p>
+                    <p id="highlightedDesc" class="text-white/80 text-sm mb-2 max-w-lg mx-auto"></p>
+                    <p id="highlightedPrice" class="text-white text-2xl font-bold mt-4"></p>
+                    <div id="highlightedRating" class="text-yellow-400 text-xl mb-3"></div>
 
-                    <div class="text-center mt-4">
+                    <div class="mt-3">
                         <select id="highlightedSizeSelect"
                             class="text-sm px-4 py-2 rounded bg-black border border-pink-500 text-white">
                             <option value="" selected disabled>Select size</option>
                         </select>
                     </div>
 
-                    <div class="text-center mt-4">
+                    <div class="mt-4">
                         <button id="highlightedAddToCart"
                             class="bg-gradient-to-r from-pink-500 to-pink-400 hover:from-pink-600 hover:to-pink-500 text-white font-bold py-3 px-8 rounded-full transition">
                             + ADD TO CART
                         </button>
                     </div>
+                </div>
 
-                    <div class="mt-10 overflow-x-auto scroll-container">
-                        <div id="productThumbnails" class="flex gap-6 px-6 w-max items-end h-[220px]"></div>
-                    </div>
+                <!-- Nav buttons -->
+                <button id="productPrev"
+                    class="absolute left-4 top-1/2 transform -translate-y-1/2 bg-black/70 text-white rounded-full w-10 h-10 flex items-center justify-center z-10 text-xl">
+                    ←
+                </button>
+                <button id="productNext"
+                    class="absolute right-4 top-1/2 transform -translate-y-1/2 bg-black/70 text-white rounded-full w-10 h-10 flex items-center justify-center z-10 text-xl">
+                    →
+                </button>
+            </div>
+
+
+    </section>
+
+    <!-- TESTIMONIALS -->
+    <section id="testimonials" class="py-20 relative bg-black px-6 overflow-hidden">
+        <div class="text-center mb-12">
+            <h2 class="text-3xl sm:text-4xl md:text-5xl font-extrabold uppercase">
+                WHAT OUR FIGHTERS ARE SAYING
+            </h2>
+        </div>
+
+        <div class="relative max-w-6xl mx-auto">
+            <div class="overflow-hidden">
+                <div id="testimonialWrapper" class="flex transition-transform duration-700 ease-in-out">
+                    <!-- Slides injected here -->
                 </div>
             </div>
+
+            <!-- Dots -->
+            <div class="flex justify-center mt-6 space-x-3" id="testimonialDots"></div>
+        </div>
     </section>
 
 
@@ -375,7 +440,7 @@
                     });
                     allProducts = products;
                     renderHighlighted();
-                    renderThumbnails();
+                    renderCarousel();
                 });
         }
 
@@ -385,7 +450,8 @@
             document.getElementById('highlightedTitle').textContent = p.name;
             document.getElementById('highlightedDesc').textContent = p.description;
             document.getElementById('highlightedPrice').textContent = `${p.price}`;
-            document.getElementById('highlightedRating').innerHTML = '★'.repeat(p.rating) + '☆'.repeat(5 - p.rating);
+            document.getElementById('highlightedRating').innerHTML =
+                '★'.repeat(Number(p.rating)) + '☆'.repeat(5 - Number(p.rating));
 
             const sizeSelect = document.getElementById('highlightedSizeSelect');
             const addBtn = document.getElementById('highlightedAddToCart');
@@ -401,7 +467,6 @@
                 });
 
                 addBtn.disabled = true;
-
                 sizeSelect.addEventListener('change', () => {
                     addBtn.disabled = !sizeSelect.value;
                 });
@@ -409,34 +474,19 @@
         }
 
 
-        function renderThumbnails() {
-            const container = document.getElementById('productThumbnails');
-            container.innerHTML = '';
-            allProducts.forEach((p, i) => {
-                const div = document.createElement('div');
-                div.className = `cursor-pointer transition-transform duration-300 ${i === currentIndex ? 'scale-110' : 'scale-90 opacity-50'
-                    }`;
-                div.innerHTML = `<img src="./assets/model.png" alt="${p.title}" class="h-40 mx-auto" />`;
-                div.addEventListener('click', () => {
-                    currentIndex = i;
-                    renderHighlighted();
-                    renderThumbnails();
-                });
-                container.appendChild(div);
-            });
-        }
 
-        document.getElementById('productPrev').addEventListener('click', () => {
+
+        document.getElementById("productPrev").addEventListener("click", () => {
             currentIndex = (currentIndex - 1 + allProducts.length) % allProducts.length;
+            renderCarousel();
             renderHighlighted();
-            renderThumbnails();
         });
 
-        document.getElementById('productNext').addEventListener('click', () => {
+        document.getElementById("productNext").addEventListener("click", () => {
             currentIndex = (currentIndex + 1) % allProducts.length;
+            renderCarousel();
             renderHighlighted();
-            renderThumbnails();
-        });
+        })
 
         document.getElementById('highlightedAddToCart').addEventListener('click', () => {
             const p = allProducts[currentIndex];
@@ -450,12 +500,6 @@
 
             addToCart(p, selectedSize);
         });
-
-        document.addEventListener('DOMContentLoaded', loadProductsCSV);
-    </script>
-
-
-    <script>
 
 
         function parseCSV(csv) {
@@ -641,6 +685,7 @@
         }
 
         document.addEventListener("DOMContentLoaded", () => {
+            // Load for product scroll view (if needed)
             fetch('./assets/hyper-products-sample.csv')
                 .then(response => response.text())
                 .then(csv => {
@@ -651,6 +696,10 @@
                     console.error("Failed to load product CSV:", error);
                 });
 
+            // Load for highlighted + carousel
+            loadProductsCSV();
+
+            // Optional: setup cart link if needed
             const checkoutBtn = document.getElementById("checkoutButton");
             if (checkoutBtn) {
                 checkoutBtn.addEventListener("click", () => {
@@ -659,15 +708,73 @@
                 });
             }
 
-            document.querySelector('a[href="#cart"]').addEventListener("click", function (e) {
-                e.preventDefault();
-                toggleCart(true);
-            });
+            const cartLink = document.querySelector('a[href="#cart"]');
+            if (cartLink) {
+                cartLink.addEventListener("click", function (e) {
+                    e.preventDefault();
+                    toggleCart(true);
+                });
+            }
         });
-    </script>
+        function getRandomTint() {
+            const tints = [
+                'hsla(350, 52%, 76%, 0.5)', 'hsla(321, 60%, 72%, 0.5)', 'hsla(111, 67%, 64%, 0.5)',
+                'hsla(20, 59%, 66%, 0.5)', 'hsla(339, 56%, 79%, 0.5)', 'hsla(295, 53%, 74%, 0.5)',
+                'hsla(245, 52%, 64%, 0.5)', 'hsla(89, 47%, 66%, 0.5)', 'hsla(293, 47%, 70%, 0.5)',
+                'hsla(117, 66%, 63%, 0.5)', 'hsla(30, 59%, 67%, 0.5)', 'hsla(345, 52%, 72%, 0.5)',
+                'hsla(218, 50%, 63%, 0.5)', 'hsla(6, 51%, 72%, 0.5)', 'hsla(44, 62%, 68%, 0.5)',
+                'hsla(320, 55%, 72%, 0.5)', 'hsla(63, 47%, 63%, 0.5)', 'hsla(259, 51%, 67%, 0.5)',
+                'hsla(177, 69%, 78%, 0.5)', 'hsla(77, 55%, 79%, 0.5)'
+            ];
+            return tints[Math.floor(Math.random() * tints.length)];
+        }
+
+        function renderCarousel(direction = 'next') {
+            const container = document.getElementById("carouselContainer");
+
+            const visibleCount = window.innerWidth < 640 ? 1 : 3;
+            const indexes = [];
+
+            if (visibleCount === 1) {
+                indexes.push(currentIndex);
+            } else {
+                const prev = (currentIndex - 1 + allProducts.length) % allProducts.length;
+                const next = (currentIndex + 1) % allProducts.length;
+                indexes.push(prev, currentIndex, next);
+            }
+
+            // Create wrapper for new content
+            const newWrapper = document.createElement("div");
+            newWrapper.className = "absolute top-0 left-1/2 transform -translate-x-1/2 flex justify-center items-center h-full w-full";
+
+            indexes.forEach((index, i) => {
+                const wrapper = document.createElement("div");
+                wrapper.className = `carousel-item ${i === 0 && visibleCount === 3 ? "carousel-left" :
+                    i === 1 || visibleCount === 1 ? "carousel-center" :
+                        "carousel-right"} h-[300px] sm:h-[450px] transition-all duration-500 relative`;
+
+                const img = document.createElement("img");
+                img.src = "./assets/model.png";
+                img.alt = allProducts[index].name;
+                img.className = "w-full h-full object-contain";
+
+                const overlay = document.createElement("div");
+                overlay.className = "absolute inset-0 z-10 pointer-events-none";
+                overlay.style.backgroundColor = getRandomTint();
+
+                wrapper.appendChild(img);
+                wrapper.appendChild(overlay);
+                newWrapper.appendChild(wrapper);
+            });
+
+            // Clear old carousel smoothly
+            container.innerHTML = "";
+            container.appendChild(newWrapper);
+        }
 
 
-    <script>
+
+
         function toggleCart(show = null) {
             const overlay = document.getElementById("cartOverlay");
             const sidebar = document.getElementById("cartSidebar");
@@ -732,9 +839,6 @@
         }
 
 
-
-    </script>
-    <script>
         const videoWrapper = document.getElementById('videoWrapper');
         const mainVideo = document.getElementById('mainVideo');
         const playButton = document.getElementById('playButton');
@@ -779,7 +883,94 @@
         );
 
         observer.observe(videoWrapper);
+        setInterval(() => {
+            currentIndex = (currentIndex + 1) % allProducts.length;
+            renderCarousel('next');
+            renderHighlighted();
+        }, 4000);
+
+
+        const testimonials = [
+            {
+                name: "KHABIB",
+                role: "CO–OWNER",
+                image: "./assets/fighter-1.png", // Replace with real image path
+                quote:
+                    "Aut nihil mollitia deserunt quia sed rem. Quibusdam amet veniam rerum id rerum beatae. Quas rerum iste necessitatibus..."
+            },
+            {
+                name: "ALICIA RUIZ",
+                role: "TRAINER",
+                image: "./assets/fighter-2.png",
+                quote:
+                    "Inventore et nihil. Ut rerum dolores hic quis. At voluptates ad magnam blanditiis excepturi expedita aut."
+            },
+            {
+                name: "TYLER MOSS",
+                role: "MMA CHAMP",
+                image: "./assets/fighter-3.png",
+                quote:
+                    "Explicabo autem assumenda deleniti. Reprehenderit sint amet accusamus deserunt rerum veniam illum."
+            }
+        ];
+
+        let testimonialIndex = 0;
+
+        function renderTestimonials() {
+            const wrapper = document.getElementById("testimonialWrapper");
+            const dots = document.getElementById("testimonialDots");
+
+            wrapper.innerHTML = "";
+            dots.innerHTML = "";
+
+            testimonials.forEach((t, i) => {
+                const slide = document.createElement("div");
+                slide.className =
+                    "min-w-full px-4 flex flex-col md:flex-row items-center justify-center text-white";
+
+                slide.innerHTML = `
+      <div class="w-32 h-32 md:w-48 md:h-48 rounded-full overflow-hidden mb-6 md:mb-0 md:mr-6">
+        <img src="${t.image}" class="object-cover w-full h-full" />
+      </div>
+      <div class="max-w-xl text-center md:text-left">
+        <p class="text-lg md:text-xl mb-4 leading-relaxed">"${t.quote}"</p>
+        <p class="font-bold text-lg">${t.name}</p>
+        <p class="text-sm text-gray-400">${t.role}</p>
+      </div>
+    `;
+                wrapper.appendChild(slide);
+
+                const dot = document.createElement("button");
+                dot.className = `w-3 h-3 rounded-full ${i === 0 ? "bg-pink-500" : "bg-gray-500"
+                    }`;
+                dot.addEventListener("click", () => {
+                    testimonialIndex = i;
+                    updateTestimonialSlide();
+                });
+                dots.appendChild(dot);
+            });
+        }
+
+        function updateTestimonialSlide() {
+            const wrapper = document.getElementById("testimonialWrapper");
+            wrapper.style.transform = `translateX(-${testimonialIndex * 100}%)`;
+
+            document
+                .querySelectorAll("#testimonialDots button")
+                .forEach((dot, i) => {
+                    dot.className = `w-3 h-3 rounded-full ${i === testimonialIndex ? "bg-pink-500" : "bg-gray-500"
+                        }`;
+                });
+        }
+
+        renderTestimonials();
+        setInterval(() => {
+            testimonialIndex = (testimonialIndex + 1) % testimonials.length;
+            updateTestimonialSlide();
+        }, 5000);
+
     </script>
+
 </body>
 
 </html>
