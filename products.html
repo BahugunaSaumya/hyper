@@ -1,0 +1,55 @@
+<section id="products" class="relative py-20 bg-cover bg-center" style="background-image: url('./assets/design.png'); background-color: rgba(0, 0, 0, 0.7);">
+    <div class="absolute inset-0 bg-black/60 z-0"></div>
+    <div class="relative z-10">
+        <div class="text-center mb-12">
+            <img src="./assets/our-products-heading.png" alt="Our Products"
+                class="mx-auto w-[250px] sm:w-[300px] md:w-[350px] h-auto" />
+        </div>
+
+        <!-- Product Showcase -->
+
+        <div
+            class="relative z-0 min-h-[620px] sm:min-h-[680px] md:min-h-[750px] flex justify-center items-center overflow-hidden">
+            <!-- Floating models -->
+            <div id="carouselContainer"
+                class="absolute top-0 left-1/2 transform -translate-x-1/2 flex justify-center items-center h-full w-full z-0 min-h-[400px]">
+
+                <!-- JS will inject model images here -->
+            </div>
+
+            <!-- Product info overlayed -->
+            <div class="relative z-10 text-center mt-32 sm:mt-40 px-4">
+                <h2 id="highlightedTitle" class="text-3xl sm:text-4xl font-extrabold text-white mb-1"></h2>
+                <p class="text-pink-400 text-sm uppercase mb-2">MMA Shorts</p>
+                <p id="highlightedDesc" class="text-white/80 text-sm mb-2 max-w-lg mx-auto"></p>
+                <p id="highlightedPrice" class="text-white ext-2xl font-bold mt-4"></p>
+                <div id="highlightedRating" class="text-yellow-400 text-xl mb-3"></div>
+
+                <div class="mt-3">
+                    <select id="highlightedSizeSelect"
+                        class="text-sm px-4 py-2 rounded bg-black border border-pink-500 text-white">
+                        <option value="" selected disabled>Select size</option>
+                    </select>
+                </div>
+
+                <div class="mt-4">
+                    <button id="highlightedAddToCart"
+                        class="bg-gradient-to-r from-pink-500 to-pink-400 hover:from-pink-600 hover:to-pink-500 text-white font-bold py-3 px-8 rounded-full transition">
+                        + ADD TO CART
+                    </button>
+                </div>
+            </div>
+
+            <!-- Nav buttons -->
+            <button id="productPrev"
+                class="absolute left-4 top-1/2 transform -translate-y-1/2 bg-black/70 text-white rounded-full w-10 h-10 flex items-center justify-center z-10 text-xl">
+                ←
+            </button>
+            <button id="productNext"
+                class="absolute right-4 top-1/2 transform -translate-y-1/2 bg-black/70 text-white rounded-full w-10 h-10 flex items-center justify-center z-10 text-xl">
+                →
+            </button>
+        </div>
+
+
+</section>
