@@ -8,6 +8,13 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.cdnfonts.com/css/palanquin" rel="stylesheet">
     <link href="https://fonts.cdnfonts.com/css/palanquin-dark" rel="stylesheet">
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <script type="module" src="./auth.js"></script>
+
+
 
     <style>
         .offset-header {
@@ -150,10 +157,10 @@
     <!-- CSV + JS -->
 
     <!-- CART OVERLAY -->
-    <div id="cartOverlay" class="fixed inset-0 z-40 bg-black/60 hidden" onclick="toggleCart(false)">
+    <!-- <div id="cartOverlay" class="fixed inset-0 z-40 bg-black/60 hidden" onclick="toggleCart(false)">
 
-        <!-- CART SIDEBAR (Desktop) -->
-        <div id="cartSidebar"
+        CART SIDEBAR (Desktop) -->
+    <!-- <div id="cartSidebar"
             class="hidden sm:flex absolute right-0 top-0 h-full w-96 bg-black/90 text-white shadow-lg transform translate-x-full transition-transform duration-300 flex-col"
             onclick="event.stopPropagation()">
             <div class="p-4 border-b border-gray-700 flex justify-between items-center">
@@ -166,6 +173,7 @@
                     <span>Total:</span>
                     <span id="cartTotalDesktop">₹0</span>
                 </div>
+
                 <button onclick="handleCheckout()"
                     class="mt-4 w-full bg-white text-black py-2 rounded hover:bg-pink-500 hover:text-white transition font-semibold">
                     Proceed to Checkout
@@ -173,8 +181,8 @@
             </div>
         </div>
 
-        <!-- CART BOTTOM DRAWER (Mobile) -->
-        <div id="cartDrawer"
+        CART BOTTOM DRAWER (Mobile)
+        <!-- <div id="cartDrawer"
             class="sm:hidden fixed bottom-0 left-0 w-full bg-black/90 text-white shadow-2xl transform translate-y-full transition-transform duration-300 rounded-t-lg flex flex-col"
             onclick="event.stopPropagation()">
             <div class="p-4 border-b border-gray-700 flex justify-between items-center">
@@ -193,7 +201,7 @@
                 </button>
             </div>
         </div>
-    </div>
+    </div> --> -->
 
     <!-- Notification Popups -->
     <div id="cartNotification"

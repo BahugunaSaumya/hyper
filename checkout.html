@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Checkout - HYPER</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.cdnfonts.com/css/monument-extended" rel="stylesheet" />
+</head>
+
+<body class="bg-white text-black">
+  <div id="header" class="outlined-header"></div>
+
+  <main class="offset-header px-6 py-12 max-w-6xl mx-auto">
+    <h1 class="text-3xl font-bold mb-2 text-center">CHECK OUT</h1>
+    <p class="text-sm text-center mb-10">
+      Already have an account?
+      <a href="login.html" class="text-pink-500">Log in</a>
+    </p>
+
+    <!-- WHO IS PLACING THE ORDER -->
+    <section class="mb-10">
+      <h2 class="text-lg font-bold mb-4 uppercase">Who is placing the order ?</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <input type="text" placeholder="Enter full name" class="border-b py-2 outline-none" />
+        <input type="text" placeholder="Enter full name" class="border-b py-2 outline-none" />
+        <input type="tel" placeholder="Enter your 10 digit mobile number" class="border-b py-2 outline-none" />
+        <input type="email" placeholder="Enter your email ID" class="border-b py-2 outline-none" />
+      </div>
+    </section>
+
+    <!-- SHIPPING ADDRESS -->
+    <section class="mb-10">
+      <h2 class="text-lg font-bold mb-4 uppercase">Shipping Address</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <input type="text" placeholder="Enter your country/region" class="border-b py-2 outline-none" />
+        <input type="text" placeholder="Enter any address, street etc" class="border-b py-2 outline-none" />
+        <input type="text" placeholder="Enter apartment, suite, etc" class="border-b py-2 outline-none" />
+        <input type="text" placeholder="Enter the zip code of your area" class="border-b py-2 outline-none" />
+        <div class="md:col-span-2">
+          <select class="border-b py-2 w-full text-gray-500 outline-none">
+            <option selected>Select a city</option>
+            <option>Delhi</option>
+            <option>Mumbai</option>
+            <option>Bangalore</option>
+            <option>Kolkata</option>
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <!-- Submit -->
+    <div class="text-center">
+      <button class="bg-black text-white px-8 py-3 rounded-full hover:bg-pink-500 transition font-bold">
+        Proceed to Payment
+      </button>
+    </div>
+  </main>
+
+  <div id="faq"></div>
+  <div id="contact"></div>
+
+  <script src="./main.js"></script>
+  <script>
+    loadHTML('header', './header.html');
+    loadHTML('faq', './faq.html');
+    loadHTML('contact', './contact.html');
+  </script>
+</body>
+</html>
