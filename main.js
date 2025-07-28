@@ -70,7 +70,7 @@ async function setupProducts() {
     const rows = csv.trim().split('\n').slice(1);
     products = rows.map(row => {
         const parts = row.split(',');
-        console.log("parts" + parts)
+        console.log("parts " + parts)
         if (parts.length < 6) return null; // skip malformed rows
         const [title, desc, price, rating, sizes, image] = parts;
         return {
@@ -82,7 +82,7 @@ async function setupProducts() {
             image
         };
     }).filter(Boolean); // remove nulls
-    console.log("products" + products)
+    console.log("products " + products)
     if (products.length === 0) {
         console.warn('No valid products found.');
         return;
