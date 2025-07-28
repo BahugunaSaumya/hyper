@@ -1,8 +1,36 @@
+<style>
+  #header.outlined-header nav a,
+  #header.outlined-header nav button,
+  #header.outlined-header nav svg {
+    text-shadow: 0 0 1px black;
+    filter: drop-shadow(0 0 1px black);
+  }
+
+  #header.outlined-header nav path {
+    stroke: black !important;
+    stroke-width: 0.4 !important;
+  }
+
+  #header.outlined-header nav a:hover {
+    color: #f472b6 !important;
+  }
+#header.outlined-header nav svg:hover,
+#header.outlined-header nav svg:hover path {
+  color: #f472b6 !important;
+  stroke: #f472b6 !important;
+  stroke-width:  1;
+
+}
+
+
+</style>
+
 <nav class="fixed top-0 left-0 w-full z-50 bg-transparent backdrop-blur-md px-6 py-4">
         <div class="flex items-center justify-between max-w-7xl mx-auto">
             <!-- Logo -->
             <div>
-                <img src="./assets/hyper-logo.png" alt="HYPER Logo" class="h-8 md:h-10 glitch" />
+                <a href="#"></a>
+                <img  src="./assets/hyper-logo.png" alt="HYPER Logo" class="h-8 md:h-10 glitch" />
             </div>
 
             <!-- Navigation Links -->
