@@ -66,9 +66,11 @@ let products = [];
 async function setupProducts() {
     const response = await fetch('./assets/hyper-products-sample.csv');
     const csv = await response.text();
+    console.log("csv= " + csv)
     const rows = csv.trim().split('\n').slice(1);
     products = rows.map(row => {
         const parts = row.split(',');
+        console.log("parts" + parts)
         if (parts.length < 6) return null; // skip malformed rows
         const [title, desc, price, rating, sizes, image] = parts;
         return {
@@ -80,7 +82,7 @@ async function setupProducts() {
             image
         };
     }).filter(Boolean); // remove nulls
-
+    console.log("products" + products)
     if (products.length === 0) {
         console.warn('No valid products found.');
         return;
@@ -441,44 +443,44 @@ function decreaseQuantity(id) {
 
 
 function addToCart(productTitle, productPrice, selectedSize = 'M', productImage) {
-  const key = `${productTitle}_${selectedSize}`;
-  if (window.cart[key]) {
-    window.cart[key].quantity++;
-  } else {
-    window.cart[key] = {
-      name: productTitle,
-      price: productPrice,
-      size: selectedSize,
-      quantity: 1,
-      image: productImage,
-    };
-  }
+    const key = `${productTitle}_${selectedSize}`;
+    if (window.cart[key]) {
+        window.cart[key].quantity++;
+    } else {
+        window.cart[key] = {
+            name: productTitle,
+            price: productPrice,
+            size: selectedSize,
+            quantity: 1,
+            image: productImage,
+        };
+    }
 
-  localStorage.setItem('cart', JSON.stringify(window.cart));
-  updateCartUI();
+    localStorage.setItem('cart', JSON.stringify(window.cart));
+    updateCartUI();
 
-  // ✅ Show "Added to cart" notification like checkout does
-  const notif = document.getElementById("cartNotification");
-  const summary = document.getElementById("cartSummary");
+    // ✅ Show "Added to cart" notification like checkout does
+    const notif = document.getElementById("cartNotification");
+    const summary = document.getElementById("cartSummary");
 
-  const itemCount = Object.values(window.cart).reduce((sum, item) => sum + item.quantity, 0);
-  const total = Object.values(window.cart).reduce((sum, item) =>
-    sum + parseFloat(item.price.replace(/[^\d.]/g, "")) * item.quantity, 0);
+    const itemCount = Object.values(window.cart).reduce((sum, item) => sum + item.quantity, 0);
+    const total = Object.values(window.cart).reduce((sum, item) =>
+        sum + parseFloat(item.price.replace(/[^\d.]/g, "")) * item.quantity, 0);
 
-  notif.textContent = "Added to cart!";
-  notif.classList.remove("opacity-0");
-  notif.classList.add("opacity-100");
+    notif.textContent = "Added to cart!";
+    notif.classList.remove("opacity-0");
+    notif.classList.add("opacity-100");
 
-  summary.textContent = `Items: ${itemCount} | Total: ₹${total}`;
-  summary.classList.remove("opacity-0");
-  summary.classList.add("opacity-100");
+    summary.textContent = `Items: ${itemCount} | Total: ₹${total}`;
+    summary.classList.remove("opacity-0");
+    summary.classList.add("opacity-100");
 
-  setTimeout(() => {
-    notif.classList.remove("opacity-100");
-    notif.classList.add("opacity-0");
-    summary.classList.remove("opacity-100");
-    summary.classList.add("opacity-0");
-  }, 3000);
+    setTimeout(() => {
+        notif.classList.remove("opacity-100");
+        notif.classList.add("opacity-0");
+        summary.classList.remove("opacity-100");
+        summary.classList.add("opacity-0");
+    }, 3000);
 }
 
 
@@ -657,48 +659,48 @@ function renderYouMayAlsoLike(currentProduct) {
 }
 
 document.addEventListener('click', async (e) => {
-  const link = e.target.closest('a');
-  if (!link) return;
+    const link = e.target.closest('a');
+    if (!link) return;
 
-  const href = link.getAttribute('href');
-  if (['#products', '#blogs', '#contact'].includes(href)) {
-    e.preventDefault();
-    const targetId = href.replace('#', '');
+    const href = link.getAttribute('href');
+    if (['#products', '#blogs', '#contact'].includes(href)) {
+        e.preventDefault();
+        const targetId = href.replace('#', '');
 
-    // Load index.html into #mainContent
-    const res = await fetch('./index.html');
-    const html = await res.text();
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, 'text/html');
-    const homepageMain = doc.querySelector('#mainContent');
-    const main = document.getElementById('mainContent');
+        // Load index.html into #mainContent
+        const res = await fetch('./index.html');
+        const html = await res.text();
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        const homepageMain = doc.querySelector('#mainContent');
+        const main = document.getElementById('mainContent');
 
-    if (homepageMain && main) {
-      main.innerHTML = homepageMain.innerHTML;
+        if (homepageMain && main) {
+            main.innerHTML = homepageMain.innerHTML;
 
-      // ✅ Reload dynamic HTML sections
-      await loadHTML('hero', './hero.html');
-      await loadHTML('video', './video.html');
-      await loadHTML('products', './products.html');
-      await loadHTML('testimonials', './testimonials.html');
-      await loadHTML('blogs', './blogs.html');
+            // ✅ Reload dynamic HTML sections
+            await loadHTML('hero', './hero.html');
+            await loadHTML('video', './video.html');
+            await loadHTML('products', './products.html');
+            await loadHTML('testimonials', './testimonials.html');
+            await loadHTML('blogs', './blogs.html');
+        }
+
+        // Reload shared sections
+        await loadHTML('header', './header.html');
+        await loadHTML('faq', './faq.html');
+        await loadHTML('contact', './contact.html');
+
+        document.getElementById('mainContent')?.classList.remove('offset-header');
+
+        // Scroll to the section
+        setTimeout(() => {
+            const targetEl = document.getElementById(targetId);
+            if (targetEl) {
+                targetEl.scrollIntoView({ behavior: 'smooth' });
+            }
+        }, 100);
     }
-
-    // Reload shared sections
-    await loadHTML('header', './header.html');
-    await loadHTML('faq', './faq.html');
-    await loadHTML('contact', './contact.html');
-
-    document.getElementById('mainContent')?.classList.remove('offset-header');
-
-    // Scroll to the section
-    setTimeout(() => {
-      const targetEl = document.getElementById(targetId);
-      if (targetEl) {
-        targetEl.scrollIntoView({ behavior: 'smooth' });
-      }
-    }, 100);
-  }
 });
 
 
