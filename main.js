@@ -66,11 +66,9 @@ let products = [];
 async function setupProducts() {
     const response = await fetch('./assets/hyper-products-sample.csv');
     const csv = await response.text();
-    console.log("csv= " + csv)
     const rows = csv.trim().split('\n').slice(1);
     products = rows.map(row => {
         const parts = row.split(',');
-        console.log("parts " + parts)
         if (parts.length < 6) return null; // skip malformed rows
         const [title, desc, price, rating, sizes, image] = parts;
         return {
@@ -485,28 +483,35 @@ function addToCart(productTitle, productPrice, selectedSize = 'M', productImage)
 
 
 function handleCheckout() {
-    const notif = document.getElementById("cartNotification");
-    const summary = document.getElementById("cartSummary");
+    const cartItems = Object.values(window.cart || {});
+    const itemCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
-    const itemCount = Object.values(window.cart).reduce((sum, item) => sum + item.quantity, 0);
-    const total = Object.values(window.cart).reduce((sum, item) =>
-        sum + parseFloat(item.price.replace(/[^\d.]/g, "")) * item.quantity, 0);
+    if (itemCount === 0) {
+        alert("Your cart is empty. Add items before checking out.");
+        return;
+    }
 
-    notif.classList.remove("opacity-0");
-    notif.classList.add("opacity-100");
-    summary.textContent = `Items: ${itemCount} | Total: ₹${total}`;
-    summary.classList.remove("opacity-0");
-    summary.classList.add("opacity-100");
+    const isGuest = document.getElementById("continueAsGuest")?.checked;
 
-    setTimeout(() => {
-        notif.classList.remove("opacity-100");
-        notif.classList.add("opacity-0");
-        summary.classList.remove("opacity-100");
-        summary.classList.add("opacity-0");
-    }, 3000);
+    if (isGuest) {
+        // Load checkout.html directly
+        const main = document.getElementById('mainContent');
+        if (!main) return;
+
+        fetch('./checkout.html')
+            .then(res => res.text())
+            .then(html => {
+                main.innerHTML = html;
+                loadHTML('header', './header.html');
+                main.classList.add('offset-header');
+            });
+    } else {
+        loadSignupPage();
+    }
 
     toggleCart(false);
 }
+
 
 async function showProductDetail(product) {
     const main = document.getElementById('mainContent');
@@ -684,6 +689,7 @@ document.addEventListener('click', async (e) => {
             await loadHTML('products', './products.html');
             await loadHTML('testimonials', './testimonials.html');
             await loadHTML('blogs', './blogs.html');
+            setupVideoScrollAnimation();
         }
 
         // Reload shared sections
@@ -702,5 +708,110 @@ document.addEventListener('click', async (e) => {
         }, 100);
     }
 });
+async function loadSignupPage() {
+    const main = document.getElementById('mainContent');
+    if (!main) return;
+
+    const res = await fetch('./signup.html');
+    const html = await res.text();
+    main.innerHTML = html;
+
+    // Re-inject header (dynamically loaded)
+    await loadHTML('header', './header.html');
+
+    // Re-execute signup-specific scripts
+    const authScript = document.createElement('script');
+    authScript.type = 'module';
+    authScript.src = './auth.js';
+    document.body.appendChild(authScript);
+}
 
 
+async function loadLoginPage() {
+    const main = document.getElementById('mainContent');
+    if (!main) return;
+
+    const res = await fetch('./login.html');
+    const html = await res.text();
+    main.innerHTML = html;
+
+    await loadHTML('header', './header.html');
+
+    // Re-execute login-specific scripts
+    const authScript = document.createElement('script');
+    authScript.type = 'module';
+    authScript.src = './auth.js';
+    document.body.appendChild(authScript);
+}
+
+
+async function loadCheckoutPage(prefill = {}) {
+    const main = document.getElementById('mainContent');
+    if (!main) return;
+
+    const res = await fetch('./checkout.html');
+    const html = await res.text();
+    main.innerHTML = html;
+
+    await loadHTML('header', './header.html');
+    await loadHTML('faq', './faq.html');
+    await loadHTML('contact', './contact.html');
+    main.classList.add('offset-header');
+
+    // Prefill fields
+    if (prefill.name) document.getElementById('checkoutName').value = prefill.name;
+    if (prefill.email) document.getElementById('checkoutEmail').value = prefill.email;
+    if (prefill.phone) document.getElementById('checkoutPhone').value = prefill.phone;
+    if (prefill.address) document.getElementById('checkoutAddress').value = prefill.address;
+
+    const saveBtn = document.getElementById('saveCheckoutDetails');
+    const formFields = ['checkoutName', 'checkoutEmail', 'checkoutPhone', 'checkoutAddress'];
+
+    formFields.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('input', () => {
+                saveBtn.classList.remove('hidden');
+            });
+        }
+    });
+
+    saveBtn.onclick = async () => {
+        const db = getFirestore();
+        const user = window.currentUser;
+        if (!user) return;
+
+        const data = {
+            name: document.getElementById('checkoutName').value,
+            email: document.getElementById('checkoutEmail').value,
+            phone: document.getElementById('checkoutPhone').value,
+            address: document.getElementById('checkoutAddress').value,
+        };
+
+        await setDoc(doc(db, 'users', user.uid), data, { merge: true });
+        alert("✅ Checkout info saved!");
+        saveBtn.classList.add('hidden');
+    };
+}
+
+document.addEventListener('click', async (e) => {
+    if (e.target.closest('#userIcon')) {
+        e.preventDefault();
+        const user = window.currentUser;
+        if (!user) {
+            loadSignupPage();
+            return;
+        }
+
+        const db = getFirestore();
+        const docSnap = await getDoc(doc(db, "users", user.uid));
+        const extraInfo = docSnap.exists() ? docSnap.data() : {};
+
+        loadCheckoutPage({
+            name: user.displayName || '',
+            email: user.email || '',
+            phone: extraInfo.phone || '',
+            address: extraInfo.address || ''
+        });
+    }
+});
