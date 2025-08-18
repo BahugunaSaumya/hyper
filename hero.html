@@ -1,10 +1,24 @@
-<section id="hero" class="h-screen relative bg-cover bg-center" style="background-image: url('./assets/cage-bg.png');">
-    <div class="absolute inset-0 bg-black/40 z-0"></div> <!-- Optional dark overlay -->
+<section id="heroSection"
+  class="relative bg-black text-white overflow-hidden"
+  style="padding-top: calc(var(--nav-h, 88px) + 12px);">
 
-    <!-- Content Wrapper -->
-    <div class="absolute bottom-12 left-1/2 transform -translate-x-1/2 z-10 w-full px-4 text-center">
-        <h1 class="text-white font-extrabold uppercase leading-tight text-3xl sm:text-4xl md:text-5xl lg:text-6xl">
-            Where Innovation Begins<br />And a New Era Rises
-        </h1>
-    </div>
+  <!-- Heading + copy -->
+  <div class="max-w-6xl mx-auto px-6 pt-6 pb-2 text-center">
+    <h1 class="text-3xl sm:text-5xl font-extrabold tracking-wide">
+      PRE — LAUNCH SALE IS LIVE <span class="align-middle">💥</span>
+    </h1>
+    <p class="mt-4 max-w-3xl mx-auto text-white/80 text-sm sm:text-base leading-relaxed">
+      Get your premium shorts at an exclusive 30% off! Be the first to own the gear that sets
+      champions apart. Elevate your game, stay ahead, and stand out in style. Don’t miss this
+      limited pre-launch offer—grab yours now and dominate!
+    </p>
+  </div>
+
+  <!-- Image block: fits without zoom, anchored to bottom -->
+  <div class="max-w-7xl mx-auto px-4">
+    <img src="./assets/cage-bg.png"
+         alt="Hero models"
+         class="w-full h-[48vh] sm:h-[56vh] md:h-[62vh] lg:h-[68vh]
+                object-contain object-bottom select-none pointer-events-none" />
+  </div>
 </section>

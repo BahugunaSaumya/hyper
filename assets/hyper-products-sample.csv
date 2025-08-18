@@ -1,11 +1,16 @@
-title,desc,price,rating,sizes,image
-Pink Blast MMA Shorts,High-quality fight wear,₹1500.00,4.5,S|M|L|XL,./assets/model.png
-Flag Wave Combat Set,Bold design for champions,₹1600.00,4.8,M|L|XL,./assets/model.png
-Desert Shadow Gear,Camouflage style outfit,₹1700.00,4.6,S|M,./assets/model.png
-Night Ops Grapple,Stealthy nighttime gear,₹1550.00,4.7,S|M|L,./assets/model.png
-Crimson Strike Shorts,Red hot combat shorts,₹1500.00,4.9,M|L|XL,./assets/model.png
-Arctic Rush Set,Cool and comfortable,₹1650.00,4.3,S|L,./assets/model.png
-Midnight Raider Wear,Ultimate night warrior kit,₹1800.00,4.4,M|L|XL,./assets/model.png
-Volt Shock Shorts,Electrifying design,₹1450.00,4.6,M|L,./assets/model.png
-Urban Stealth Set,Silent but strong,₹1750.00,4.7,S|M|L|XL,./assets/model.png
-Blaze Core Kit,Core training essentials,₹1600.00,4.5,M|L,./assets/model.png
+title,desc,MRP,discounted price,discount percentage,presale price,presale price percentage,category,sizes,image
+Neon Bone Blitz,"• Premium MMA shorts engineered for superior comfort, strength, and agility.
+• Reinforced stitching and stress points for lasting durability.
+• Crafted from premium, quick-drying fabric that keeps you cool and dry during intense sessions.",₹1799.00,₹1529.00,15%,₹1259.00,30%,Male,S|M|L|XL,./assets/models/Neon Bone Blitz.png
+Thunder Fang - Grey,"• Premium MMA shorts engineered for superior comfort, strength, and agility.
+• Reinforced stitching and stress points for lasting durability.
+• Crafted from premium, quick-drying fabric that keeps you cool and dry during intense sessions.",₹1799.00,₹1529.00,15%,₹1259.00,30%,Male,S|M|L|XL,./assets/models/Thunder Fang - Grey.png
+Thunder Fang - Green,"• Premium MMA shorts engineered for superior comfort, strength, and agility.
+• Reinforced stitching and stress points for lasting durability.
+• Crafted from premium, quick-drying fabric that keeps you cool and dry during intense sessions.",₹1799.00,₹1529.00,15%,₹1259.00,30%,Male,S|M|L|XL,./assets/models/Thunder Fang - Green.png
+Neon Bone Blitz - Female,"• Premium MMA shorts engineered for superior comfort, strength, and agility.
+• Reinforced stitching and stress points for lasting durability.
+• Crafted from premium, quick-drying fabric that keeps you cool and dry during intense sessions.",₹1799.00,₹1529.00,15%,₹1259.00,30%,Female,S|M,./assets/models/Neon Bone Blitz - Female.png
+Crimson Eclipse,"• Premium MMA shorts engineered for superior comfort, strength, and agility.
+• Reinforced stitching and stress points for lasting durability.
+• Crafted from premium, quick-drying fabric that keeps you cool and dry during intense sessions.",₹1799.00,₹1529.00,15%,₹1259.00,30%,Female,S|M,./assets/models/Crimson Eclipse.png

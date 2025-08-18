@@ -1,48 +1,76 @@
-<section id="products" class="relative py-20 bg-cover bg-center" style="background-image: url('./assets/design.png'); background-color: rgba(0, 0, 0, 0.7);">
-    <div class="absolute inset-0 bg-black/60 z-0"></div>
-    <div class="relative z-10">
-        <div class="text-center mb-12">
+<section id="products" class="relative py-24 bg-cover bg-center" style="background-image: url('./assets/design.png');">
+    <!-- if you still want a subtle dark veil on the pattern, use /30. bump to /40 if needed -->
+    <div class="absolute inset-0 bg-black/90 z-0 pointer-events-none"></div>
+
+    <div class="relative z-10 max-w-[1200px] mx-auto">
+        <!-- section heading -->
+        <div class="text-center mb-10">
             <img src="./assets/our-products-heading.png" alt="Our Products"
-                class="mx-auto w-[250px] sm:w-[300px] md:w-[350px] h-auto" />
+                class="mx-auto w-[260px] sm:w-[320px] md:w-[360px] h-auto" />
         </div>
 
-        <!-- Product Showcase -->
-
+        <!-- Showcase area -->
         <div
-            class="relative z-0 min-h-[620px] sm:min-h-[680px] md:min-h-[750px] flex justify-center items-center overflow-hidden">
-            <!-- Floating models -->
+            class="relative min-h-[720px] sm:min-h-[760px] md:min-h-[820px] flex items-center justify-center overflow-visible">
+
+            <!-- Floating models injected by JS -->
             <div id="carouselContainer"
-                class="absolute top-0 left-1/2 transform -translate-x-1/2 flex justify-center items-center h-full w-full z-0 min-h-[400px]">
+                class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-full w-full"></div>
 
-                <!-- JS will inject model images here -->
-            </div>
+            <!-- Overlay content (title, price, CTA) -->
+          <div class="relative z-20 text-center px-4 pt-[400px] sm:pt-[470px] md:pt-[570px] lg:pt-[795px]">
 
-            <!-- Product info overlayed -->
-            <div class="relative z-10 text-center mt-32 sm:mt-40 px-4">
-                <h2 id="highlightedTitle" class="text-3xl sm:text-4xl font-extrabold text-white mb-1"></h2>
-                <p class="text-pink-400 text-sm uppercase mb-2">MMA Shorts</p>
-                <p id="highlightedDesc" class="text-white/80 text-sm mb-2 max-w-lg mx-auto"></p>
-                <p id="highlightedPrice" class="text-white ext-2xl font-bold mt-4"></p>
-                <div id="highlightedRating" class="text-yellow-400 text-xl mb-3"></div>
 
-                <div class="mt-4">
-                    <button id="highlightedAddToCart"
-                        class="bg-gradient-to-r from-pink-500 to-pink-400 hover:from-pink-600 hover:to-pink-500 text-white font-bold py-3 px-8 rounded-full transition">
+
+                <!-- optional tiny labels -->
+                <div class="mt-2 flex items-center justify-center gap-2">
+                    <button id="campaignPresale"
+                        class="px-3 py-1 rounded-full border border-white/40 text-white/90 text-xs hover:bg-white/10">
+                        Presale
+                    </button>
+                    <button id="campaignDiscounted"
+                        class="px-3 py-1 rounded-full border border-white/40 text-white/90 text-xs hover:bg-white/10">
+                        Discounted
+                    </button>
+                </div>
+
+                <h2 id="highlightedTitle"
+                    class="text-white font-extrabold tracking-tight text-4xl sm:text-5xl drop-shadow-[0_2px_0_rgba(0,0,0,0.25)]">
+                </h2>
+
+                <p class="text-pink-400 text-[11px] sm:text-xs uppercase tracking-[0.2em] mt-1">MMA SHORTS</p>
+
+                <!-- <p id="highlightedDesc"
+                    class="text-white/80 text-sm sm:text-base leading-relaxed max-w-xl mx-auto mt-2">
+                </p> -->
+
+                <!-- price row: MRP (strike) + active price + pill -->
+                <p id="highlightedPrice"
+                    class="text-white text-3xl sm:text-4xl font-extrabold mt-4 flex items-center justify-center gap-2">
+                </p>
+
+                <div id="highlightedRating" class="text-yellow-400 text-xl sm:text-2xl mt-2"></div>
+
+                <div class="mt-6">
+                    <button id="highlightedAddToCart" class="px-8 sm:px-10 py-3 sm:py-3.5 rounded-full font-extrabold transition
+                         bg-pink-600 text-white hover:bg-pink-500 focus:outline-none
+                         focus:ring-2 focus:ring-pink-400/50 shadow-md">
                         + ADD TO CART
                     </button>
                 </div>
             </div>
 
-            <!-- Nav buttons -->
+            <!-- Arrows -->
             <button id="productPrev"
-                class="absolute left-4 top-1/2 transform -translate-y-1/2 bg-black/70 text-white rounded-full w-10 h-10 flex items-center justify-center z-10 text-xl">
+                class="absolute left-4 md:left-6 top-1/2 -translate-y-1/2 bg-white/85 hover:bg-white text-black
+               rounded-full w-10 h-10 md:w-12 md:h-12 flex items-center justify-center z-30 text-xl md:text-2xl shadow">
                 ←
             </button>
             <button id="productNext"
-                class="absolute right-4 top-1/2 transform -translate-y-1/2 bg-black/70 text-white rounded-full w-10 h-10 flex items-center justify-center z-10 text-xl">
+                class="absolute right-4 md:right-6 top-1/2 -translate-y-1/2 bg-white/85 hover:bg-white text-black
+               rounded-full w-10 h-10 md:w-12 md:h-12 flex items-center justify-center z-30 text-xl md:text-2xl shadow">
                 →
             </button>
         </div>
-
-
+    </div>
 </section>
