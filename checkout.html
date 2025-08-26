@@ -1,14 +1,20 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Checkout - HYPER</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.cdnfonts.com/css/monument-extended" rel="stylesheet" />
+  <style>
+    body {
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Inter, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
+    }
+  </style>
 </head>
 
-<body class="bg-white text-black">
+<body class="bg-white text-black overflow-x-hidden">
   <div id="header" class="outlined-header"></div>
 
   <main class="offset-header px-6 py-12 max-w-6xl mx-auto">
@@ -20,51 +26,329 @@
 
     <!-- WHO IS PLACING THE ORDER -->
     <section class="mb-10">
-      <h2 class="text-lg font-bold mb-4 uppercase">Who is placing the order ?</h2>
+      <h2 class="text-lg font-bold mb-4 uppercase">Who is placing the order?</h2>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <input type="text" placeholder="Enter full name" class="border-b py-2 outline-none" />
-        <input type="text" placeholder="Enter full name" class="border-b py-2 outline-none" />
-        <input type="tel" placeholder="Enter your 10 digit mobile number" class="border-b py-2 outline-none" />
-        <input type="email" placeholder="Enter your email ID" class="border-b py-2 outline-none" />
+        <input id="firstName" type="text" placeholder="First name" class="border-b py-2 outline-none" />
+        <input id="lastName" type="text" placeholder="Last name" class="border-b py-2 outline-none" />
+        <input id="phone" type="tel" placeholder="10 digit mobile number" class="border-b py-2 outline-none" />
+        <input id="email" type="email" placeholder="Email address" class="border-b py-2 outline-none" />
       </div>
     </section>
 
     <!-- SHIPPING ADDRESS -->
     <section class="mb-10">
       <h2 class="text-lg font-bold mb-4 uppercase">Shipping Address</h2>
+
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <input type="text" placeholder="Enter your country/region" class="border-b py-2 outline-none" />
-        <input type="text" placeholder="Enter any address, street etc" class="border-b py-2 outline-none" />
-        <input type="text" placeholder="Enter apartment, suite, etc" class="border-b py-2 outline-none" />
-        <input type="text" placeholder="Enter the zip code of your area" class="border-b py-2 outline-none" />
-        <div class="md:col-span-2">
-          <select class="border-b py-2 w-full text-gray-500 outline-none">
-            <option selected>Select a city</option>
-            <option>Delhi</option>
-            <option>Mumbai</option>
-            <option>Bangalore</option>
-            <option>Kolkata</option>
-          </select>
-        </div>
+        <!-- Country (fixed to India) -->
+        <select id="country" class="border-b py-2 outline-none">
+          <option value="India" selected>India</option>
+        </select>
+
+        <!-- 6-digit PIN (autofills state/city + locality suggestions) -->
+        <input id="postal" type="text" inputmode="numeric" maxlength="6" placeholder="PIN code (6 digits)"
+          class="border-b py-2 outline-none" />
+        <div id="pinHelp" class="md:col-span-2 text-xs text-gray-500"></div>
+
+        <!-- State & City (City is an input with suggestions) -->
+        <select id="state" class="border-b py-2 outline-none">
+          <option value="">State</option>
+        </select>
+
+        <input id="city" list="citySuggestions" type="text" placeholder="City / District"
+          class="border-b py-2 outline-none" />
+        <datalist id="citySuggestions"></datalist>
+
+        <!-- Address line 1 with locality suggestions from the PIN lookup -->
+        <input id="addr1" list="addr1Suggestions" type="text" placeholder="House / Street / Area"
+          class="border-b py-2 outline-none" />
+        <datalist id="addr1Suggestions"></datalist>
+
+        <!-- Optional address line 2 -->
+        <input id="addr2" type="text" placeholder="Address line 2 (apt, suite, etc.)"
+          class="border-b py-2 outline-none" />
       </div>
     </section>
 
     <!-- Submit -->
     <div class="text-center">
-      <button class="bg-black text-white px-8 py-3 rounded-full hover:bg-pink-500 transition font-bold">
+      <button id="btnCheckout" type="button" onclick="window.__onCheckoutClick && window.__onCheckoutClick()"
+        class="bg-black text-white px-8 py-3 rounded-full hover:bg-pink-500 transition font-bold">
         Proceed to Payment
       </button>
+      <p id="saveStatus" class="text-sm text-gray-500 mt-3"></p>
     </div>
+
+    <div id="faq"></div>
+    <div id="contact"></div>
   </main>
 
-  <div id="faq"></div>
-  <div id="contact"></div>
-
+  <!-- 1) CryptoJS for config decryption used in auth.js -->
+  <script src="https://cdn.jsdelivr.net/npm/crypto-js@4.2.0/crypto-js.min.js"></script>
+  <!-- 2) Firebase app/auth/db + exports to window -->
+  <script type="module" src="./auth.js"></script>
+  <!-- 3) Shared utilities / header/faq/contact loaders -->
   <script src="./main.js"></script>
+
+  <!-- Checkout logic (robust PIN + Firestore sanitize) -->
   <script>
-    loadHTML('header', './header.html');
-    loadHTML('faq', './faq.html');
-    loadHTML('contact', './contact.html');
+    (function initCheckoutScript() {
+      const $ = (id) => document.getElementById(id);
+      const log = (...a) => console.log('[checkout]', ...a);
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', setup);
+      } else {
+        setup();
+      }
+
+      function setup() {
+        log('setup start');
+
+        // A) Fill Indian states once
+        const IN_STATES = [
+          "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh", "Goa",
+          "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka", "Kerala",
+          "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya", "Mizoram", "Nagaland",
+          "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana", "Tripura",
+          "Uttar Pradesh", "Uttarakhand", "West Bengal", "Andaman & Nicobar Islands",
+          "Chandigarh", "Dadra & Nagar Haveli & Daman & Diu", "Delhi", "Jammu & Kashmir",
+          "Ladakh", "Lakshadweep", "Puducherry"
+        ];
+        const st = $('state');
+        if (st) {
+          st.innerHTML = '<option value="">State</option>';
+          IN_STATES.forEach(s => {
+            const o = document.createElement('option');
+            o.value = o.textContent = s;
+            st.appendChild(o);
+          });
+        }
+
+        // B) Robust PIN lookup (non-throwing, debounced, abortable)
+        const debounce = (fn, ms = 350) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
+        let pinAbortCtrl = null;
+
+        async function lookupPin(pin) {
+          try {
+            if (pinAbortCtrl) pinAbortCtrl.abort();
+            pinAbortCtrl = new AbortController();
+            const r = await fetch(`https://api.postalpincode.in/pincode/${pin}`, { signal: pinAbortCtrl.signal });
+            const j = await r.json().catch(() => null);
+            if (!j || !Array.isArray(j) || !j[0] || j[0].Status !== 'Success') return null;
+            const offices = j[0].PostOffice || [];
+            const state = offices[0]?.State || '';
+            const district = offices[0]?.District || '';
+            const localities = [...new Set(offices.map(po => po?.Name).filter(Boolean))];
+            return { state, district, localities };
+          } catch {
+            return null;
+          }
+        }
+
+        const onPinInput = debounce(async () => {
+          const pin = ($('postal')?.value || '').replace(/\D/g, '');
+          const help = $('pinHelp'); if (!help) return;
+          const stateEl = $('state'), cityEl = $('city');
+          const cityList = $('citySuggestions'), addrList = $('addr1Suggestions');
+
+          if (!pin || pin.length !== 6) {
+            help.textContent = 'Enter a valid 6-digit PIN (e.g., 560001, 110001, 400001).';
+            return;
+          }
+
+          help.textContent = 'Validating PIN…';
+          const data = await lookupPin(pin);
+
+          if (!data) {
+            help.textContent = 'Could not validate this PIN. Please double-check.';
+            return;
+          }
+
+          const { state, district, localities } = data;
+
+          // state
+          if (stateEl && state) {
+            if (![...stateEl.options].some(o => o.value === state)) {
+              const o = document.createElement('option'); o.value = o.textContent = state; stateEl.appendChild(o);
+            }
+            stateEl.value = state;
+          }
+
+          // district → city suggestions
+          if (cityList) {
+            cityList.innerHTML = '';
+            if (district) { const o = document.createElement('option'); o.value = district; cityList.appendChild(o); }
+          }
+          if (cityEl && district) cityEl.value = district;
+
+          // localities → address1 suggestions
+          if (addrList) {
+            addrList.innerHTML = '';
+            (localities || []).forEach(a => { const o = document.createElement('option'); o.value = a; addrList.appendChild(o); });
+          }
+
+          help.textContent = (district && state) ? `Detected: ${district}, ${state}` : 'PIN found.';
+          log('PIN ok', { pin, state, district, localities: (localities || []).length });
+        }, 400);
+
+        $('postal')?.addEventListener('input', onPinInput);
+        $('postal')?.addEventListener('blur', onPinInput);
+
+        // C) Checkout helpers
+        function parseINR(v) { const n = parseFloat(String(v || '').replace(/[^0-9.]/g, '')); return isNaN(n) ? 0 : n; }
+        function loadCart() { try { return JSON.parse(localStorage.getItem('cart') || '{}'); } catch { return {}; } }
+
+        // Hardened cart mapping
+        function cartToItems(c) {
+          const list = Object.values(c || {});
+          return list.map(it => ({
+            id: String(it?.id ?? ''),
+            title: String(it?.name ?? it?.title ?? ''),
+            size: String(it?.size ?? ''),
+            qty: Number(it?.quantity ?? it?.qty ?? 1),
+            unitPrice: Number(parseINR(it?.price)),
+            currency: 'INR',
+            image: String(it?.image ?? '')
+          }));
+        }
+
+        function totals(items) {
+          const subtotal = items.reduce((s, i) => s + i.unitPrice * i.qty, 0);
+          return { subtotal, shipping: 0, discount: 0, total: subtotal, currency: 'INR' };
+        }
+
+        function need(fields) {
+          for (const [id, label] of fields) { const el = $(id); if (!el || !el.value.trim()) return label; }
+          return null;
+        }
+
+        function makeOrderNo() {
+          const d = new Date(), y = ('' + d.getFullYear()).slice(-2),
+            m = ('0' + (d.getMonth() + 1)).slice(-2),
+            day = ('0' + d.getDate()).slice(-2);
+          return `HYP-${y}${m}${day}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
+        }
+
+        // undefined → null sanitizer + diagnostics
+        function findUndefinedPaths(obj) {
+          const paths = [];
+          const walk = (val, p) => {
+            if (val === undefined) { paths.push(p); return; }
+            if (Array.isArray(val)) val.forEach((v, i) => walk(v, `${p}[${i}]`));
+            else if (val && typeof val === 'object') Object.keys(val).forEach(k => walk(val[k], `${p}.${k}`));
+          };
+          walk(obj, '$'); return paths;
+        }
+        function cleanUndefinedDeep(v) {
+          if (Array.isArray(v)) return v.map(cleanUndefinedDeep);
+          if (v && typeof v === 'object') {
+            const out = {};
+            Object.keys(v).forEach(k => {
+              const val = cleanUndefinedDeep(v[k]);
+              out[k] = (val === undefined) ? null : val;
+            });
+            return out;
+          }
+          return (v === undefined) ? null : v;
+        }
+
+        async function onCheckoutClick() {
+          const btn = $('btnCheckout'), status = $('saveStatus');
+          btn && (btn.disabled = true);
+          status && (status.textContent = 'Saving order…');
+          log('click');
+
+          try {
+            const missing = need([
+              ['firstName', 'First name'], ['lastName', 'Last name'],
+              ['phone', 'Mobile'], ['email', 'Email'],
+              ['country', 'Country'], ['state', 'State'], ['city', 'City / District'],
+              ['addr1', 'Address line 1'], ['postal', 'PIN']
+            ]);
+            if (missing) { alert(`Please fill: ${missing}`); return; }
+
+            const items = cartToItems(loadCart());
+            if (!items.length) { alert('Your cart is empty.'); return; }
+
+            const t = totals(items);
+            const orderNo = makeOrderNo();
+
+            // Build order without createdAt first
+            const orderBase = {
+              orderNo,
+              status: 'pending',
+              currency: t.currency,
+              totals: t,
+              items,
+              customer: {
+                firstName: String($('firstName').value.trim()),
+                lastName: String($('lastName').value.trim()),
+                phone: String($('phone').value.trim()),
+                email: String($('email').value.trim()),
+                userId: window.currentUser?.uid ?? null,
+                displayName: window.currentUser?.displayName ?? null
+              },
+              shipping: {
+                country: String($('country').value.trim()),
+                state: String($('state').value.trim()),
+                city: String($('city').value.trim()),
+                postal: String($('postal').value.trim()),
+                address1: String($('addr1').value.trim()),
+                address2: String($('addr2').value.trim())
+              },
+              context: {
+                campaignMode: localStorage.getItem('campaignMode') || 'presale',
+                device: navigator.userAgent || '',
+                referer: document.referrer || null
+              }
+            };
+
+            const undef = findUndefinedPaths(orderBase);
+            if (undef.length) console.warn('[checkout] undefined fields detected:', undef);
+
+            const cleanOrder = cleanUndefinedDeep(orderBase);
+
+            const { db } = await window.firebaseReady; // from auth.js
+            const { addDoc, setDoc, doc, collection, serverTimestamp } = window.fs;
+
+            // Set server timestamp last
+            cleanOrder.createdAt = serverTimestamp();
+
+            const ref = await addDoc(collection(db, 'orders'), cleanOrder);
+            console.log('✅ order saved:', ref.id);
+
+            if (window.currentUser?.uid) {
+              await setDoc(
+                doc(db, 'users', window.currentUser.uid, 'orders', ref.id),
+                { orderId: ref.id, orderNo, total: t.total, currency: t.currency, status: cleanOrder.status, createdAt: serverTimestamp() }
+              );
+            }
+
+            localStorage.setItem('lastOrderId', ref.id);
+            status && (status.textContent = 'Order saved!');
+            alert(`Order created: ${orderNo}`);
+            location.href = `thank-you.html?order=${encodeURIComponent(ref.id)}`;
+          } catch (e) {
+            console.error('❌ order save failed:', e.code, e.message, e);
+            alert('Order save failed. Please check the console for details.');
+          } finally {
+            btn && (btn.disabled = false);
+            if (status && status.textContent === 'Saving order…') status.textContent = '';
+          }
+        }
+
+        const btn = $('btnCheckout');
+        if (btn) {
+          btn.addEventListener('click', onCheckoutClick);
+          window.__onCheckoutClick = onCheckoutClick; // inline fallback
+          log('handler attached');
+        } else {
+          console.warn('#btnCheckout not found');
+        }
+      }
+    })();
   </script>
 </body>
+
 </html>

@@ -196,21 +196,21 @@ function renderPriceBlock(product) {
 // --- Global "You may also like" (3 wide cards + rotates every 10s) ---
 // --- Global "You may also like" (respects existing count; rotates every 10s) ---
 async function renderGlobalRecommendations(containerId, count = 3, excludeTitle = null, rotateMs = 10000) {
-  const el = document.getElementById(containerId);
-  if (!el || !products?.length) return;
+    const el = document.getElementById(containerId);
+    if (!el || !products?.length) return;
 
-  const pool = excludeTitle ? products.filter(p => p.title !== excludeTitle) : [...products];
+    const pool = excludeTitle ? products.filter(p => p.title !== excludeTitle) : [...products];
 
-  const build = async (picks) => {
-    el.innerHTML = picks.map(p => {
-      const active = getActivePrice(p); // { label, value, badge }
-      const stars = p.rating
-        ? `<div class="flex items-center justify-end gap-0.5 text-pink-500 text-sm">
+    const build = async (picks) => {
+        el.innerHTML = picks.map(p => {
+            const active = getActivePrice(p); // { label, value, badge }
+            const stars = p.rating
+                ? `<div class="flex items-center justify-end gap-0.5 text-pink-500 text-sm">
              ${'★'.repeat(Math.round(p.rating))}${'☆'.repeat(5 - Math.round(p.rating))}
            </div>`
-        : '';
+                : '';
 
-      return `
+            return `
         <div class="bg-gray-50 rounded-2xl shadow p-5 hover:shadow-lg transition text-left">
           <button class="block w-full mb-4" data-title="${p.title}" data-role="open">
             <img data-title="${p.title}" data-role="img"
@@ -224,7 +224,7 @@ async function renderGlobalRecommendations(containerId, count = 3, excludeTitle 
           </h4>
 
           <div class="flex items-center justify-between">
-            <div class="text-base font-bold">₹ ${active.value.replace(/[^\d.]/g,'') || active.value}</div>
+            <div class="text-base font-bold">₹ ${active.value.replace(/[^\d.]/g, '') || active.value}</div>
             ${stars}
           </div>
 
@@ -234,48 +234,48 @@ async function renderGlobalRecommendations(containerId, count = 3, excludeTitle 
           </button>
         </div>
       `;
-    }).join('');
+        }).join('');
 
-    // detail open
-    el.querySelectorAll('button[data-role="open"]').forEach(btn => {
-      const title = btn.getAttribute('data-title');
-      const prod = products.find(x => x.title === title);
-      if (prod) btn.addEventListener('click', () => showProductDetail(prod));
-    });
+        // detail open
+        el.querySelectorAll('button[data-role="open"]').forEach(btn => {
+            const title = btn.getAttribute('data-title');
+            const prod = products.find(x => x.title === title);
+            if (prod) btn.addEventListener('click', () => showProductDetail(prod));
+        });
 
-    // add to cart
-    el.querySelectorAll('button[data-role="add"]').forEach(btn => {
-      const title = btn.getAttribute('data-title');
-      const prod = products.find(x => x.title === title);
-      if (!prod) return;
-      btn.addEventListener('click', () => {
-        const active = getActivePrice(prod);
-        const size = (prod.sizes && prod.sizes[0]) || 'M';
-        addToCart(prod.title, active.value, size, prod.image);
-      });
-    });
+        // add to cart
+        el.querySelectorAll('button[data-role="add"]').forEach(btn => {
+            const title = btn.getAttribute('data-title');
+            const prod = products.find(x => x.title === title);
+            if (!prod) return;
+            btn.addEventListener('click', () => {
+                const active = getActivePrice(prod);
+                const size = (prod.sizes && prod.sizes[0]) || 'M';
+                addToCart(prod.title, active.value, size, prod.image);
+            });
+        });
 
-    // per-card 5s image cycling (gallery from same helper as detail page)
-    el.querySelectorAll('img[data-role="img"]').forEach(async (imgEl) => {
-      const title = imgEl.getAttribute('data-title');
-      const prod = products.find(x => x.title === title);
-      if (!prod) return;
-      const gallery = await discoverGalleryImages(prod.image);
-      startCardImageCycler(imgEl, gallery);
-    });
-  };
+        // per-card 5s image cycling (gallery from same helper as detail page)
+        el.querySelectorAll('img[data-role="img"]').forEach(async (imgEl) => {
+            const title = imgEl.getAttribute('data-title');
+            const prod = products.find(x => x.title === title);
+            if (!prod) return;
+            const gallery = await discoverGalleryImages(prod.image);
+            startCardImageCycler(imgEl, gallery);
+        });
+    };
 
-  const pick = () => [...pool].sort(() => Math.random() - 0.5).slice(0, count);
+    const pick = () => [...pool].sort(() => Math.random() - 0.5).slice(0, count);
 
-  // avoid duplicate timers on re-render
-  if (el._recsInterval) clearInterval(el._recsInterval);
+    // avoid duplicate timers on re-render
+    if (el._recsInterval) clearInterval(el._recsInterval);
 
-  await build(pick());
-
-  // rotate entire set every 10s (or whatever you pass as rotateMs)
-  el._recsInterval = setInterval(async () => {
     await build(pick());
-  }, rotateMs);
+
+    // rotate entire set every 10s (or whatever you pass as rotateMs)
+    el._recsInterval = setInterval(async () => {
+        await build(pick());
+    }, rotateMs);
 }
 
 
@@ -342,24 +342,24 @@ function updateProductCarousel() {
 }
 // Cycles the card image every 5s through its gallery (no immediate repeats)
 function startCardImageCycler(imgEl, gallery) {
-  const imgs = (gallery && gallery.length) ? gallery.map(src => encodeURI(src)) : [imgEl.src];
-  let idx = 0;
+    const imgs = (gallery && gallery.length) ? gallery.map(src => encodeURI(src)) : [imgEl.src];
+    let idx = 0;
 
-  // set a random starting image (but keep current if it's already one of them)
-  const current = imgEl.src;
-  const startIndex = Math.max(0, imgs.findIndex(s => s === current));
-  idx = startIndex >= 0 ? startIndex : Math.floor(Math.random() * imgs.length);
+    // set a random starting image (but keep current if it's already one of them)
+    const current = imgEl.src;
+    const startIndex = Math.max(0, imgs.findIndex(s => s === current));
+    idx = startIndex >= 0 ? startIndex : Math.floor(Math.random() * imgs.length);
 
-  // Safety: avoid double intervals if re-rendering
-  if (imgEl._cycler) clearInterval(imgEl._cycler);
+    // Safety: avoid double intervals if re-rendering
+    if (imgEl._cycler) clearInterval(imgEl._cycler);
 
-  imgEl._cycler = setInterval(() => {
-    if (imgs.length < 2) return;
-    let next = Math.floor(Math.random() * imgs.length);
-    if (next === idx) next = (idx + 1) % imgs.length;
-    idx = next;
-    imgEl.src = imgs[idx];
-  }, 5000);
+    imgEl._cycler = setInterval(() => {
+        if (imgs.length < 2) return;
+        let next = Math.floor(Math.random() * imgs.length);
+        if (next === idx) next = (idx + 1) % imgs.length;
+        idx = next;
+        imgEl.src = imgs[idx];
+    }, 5000);
 }
 
 
@@ -549,26 +549,26 @@ async function toggleCart(forceShow = true) {
 
 
 function updateCartUI() {
-  // Overlay elements (they don't exist when the overlay is commented out or on cart.html)
-  const totalDesktop    = document.getElementById("cartTotalDesktop");
-  const totalMobile     = document.getElementById("cartTotalMobile");
-  const desktopContainer= document.getElementById("cartItemsDesktop");
-  const mobileContainer = document.getElementById("cartItemsMobile");
+    // Overlay elements (they don't exist when the overlay is commented out or on cart.html)
+    const totalDesktop = document.getElementById("cartTotalDesktop");
+    const totalMobile = document.getElementById("cartTotalMobile");
+    const desktopContainer = document.getElementById("cartItemsDesktop");
+    const mobileContainer = document.getElementById("cartItemsMobile");
 
-  // If NONE of the overlay elements are present, bail safely.
-  if (!totalDesktop && !totalMobile && !desktopContainer && !mobileContainer) return;
+    // If NONE of the overlay elements are present, bail safely.
+    if (!totalDesktop && !totalMobile && !desktopContainer && !mobileContainer) return;
 
-  let total = 0;
+    let total = 0;
 
-  if (desktopContainer) desktopContainer.innerHTML = '';
-  if (mobileContainer)  mobileContainer.innerHTML  = '';
+    if (desktopContainer) desktopContainer.innerHTML = '';
+    if (mobileContainer) mobileContainer.innerHTML = '';
 
-  Object.entries(window.cart || {}).forEach(([key, item]) => {
-    const unit = parseFloat(String(item.price).replace(/[^\d.]/g, "")) || 0;
-    const line = unit * (item.quantity || 0);
-    total += line;
+    Object.entries(window.cart || {}).forEach(([key, item]) => {
+        const unit = parseFloat(String(item.price).replace(/[^\d.]/g, "")) || 0;
+        const line = unit * (item.quantity || 0);
+        total += line;
 
-    const rowHTML = `
+        const rowHTML = `
       <div class="flex justify-between items-center border-b border-gray-700 pb-4">
         <div class="flex-1">
           <h4 class="font-bold text-base">${item.name}</h4>
@@ -583,13 +583,13 @@ function updateCartUI() {
       </div>
     `;
 
-    if (desktopContainer) desktopContainer.insertAdjacentHTML('beforeend', rowHTML);
-    if (mobileContainer)  mobileContainer.insertAdjacentHTML('beforeend', rowHTML);
-  });
+        if (desktopContainer) desktopContainer.insertAdjacentHTML('beforeend', rowHTML);
+        if (mobileContainer) mobileContainer.insertAdjacentHTML('beforeend', rowHTML);
+    });
 
-  const formatted = `₹${Number(total).toLocaleString('en-IN')}`;
-  if (totalDesktop) totalDesktop.textContent = formatted;
-  if (totalMobile)  totalMobile.textContent  = formatted;
+    const formatted = `₹${Number(total).toLocaleString('en-IN')}`;
+    if (totalDesktop) totalDesktop.textContent = formatted;
+    if (totalMobile) totalMobile.textContent = formatted;
 }
 
 
@@ -676,53 +676,53 @@ function updateCartPageUI() {
 
 
 function saveCartAndRender() {
-  localStorage.setItem('cart', JSON.stringify(window.cart));
-  // mini icon / overlay, etc.
-  if (typeof updateCartUI === 'function') updateCartUI();
-  // cart page (two-column layout)
-  if (typeof updateCartPageUI === 'function') updateCartPageUI();
+    localStorage.setItem('cart', JSON.stringify(window.cart));
+    // mini icon / overlay, etc.
+    if (typeof updateCartUI === 'function') updateCartUI();
+    // cart page (two-column layout)
+    if (typeof updateCartPageUI === 'function') updateCartPageUI();
 }
 
 function removeFromCart(id) {
-  if (!window.cart?.[id]) return;
-  delete window.cart[id];
-  saveCartAndRender();
+    if (!window.cart?.[id]) return;
+    delete window.cart[id];
+    saveCartAndRender();
 }
 
 
 function addToCart(name, price, size, image) {
-  if (!window.cart) window.cart = {};
-  // make a stable key per product+size
-  const id = `${name}__${size || 'M'}`;
+    if (!window.cart) window.cart = {};
+    // make a stable key per product+size
+    const id = `${name}__${size || 'M'}`;
 
-  const qty = window.cart[id]?.quantity || 0;
-  window.cart[id] = {
-    id,
-    name,
-    size: size || 'M',
-    price,                 // keep the ₹ string as you had
-    image,
-    quantity: qty + 1
-  };
+    const qty = window.cart[id]?.quantity || 0;
+    window.cart[id] = {
+        id,
+        name,
+        size: size || 'M',
+        price,                 // keep the ₹ string as you had
+        image,
+        quantity: qty + 1
+    };
 
-  saveCartAndRender();
+    saveCartAndRender();
 }
 
 function increaseQuantity(id) {
-  if (!window.cart?.[id]) return;
-  window.cart[id].quantity = (window.cart[id].quantity || 1) + 1;
-  saveCartAndRender();
+    if (!window.cart?.[id]) return;
+    window.cart[id].quantity = (window.cart[id].quantity || 1) + 1;
+    saveCartAndRender();
 }
 
 function decreaseQuantity(id) {
-  if (!window.cart?.[id]) return;
-  const next = (window.cart[id].quantity || 1) - 1;
-  if (next <= 0) {
-    delete window.cart[id];      // remove when it hits 0
-  } else {
-    window.cart[id].quantity = next;
-  }
-  saveCartAndRender();
+    if (!window.cart?.[id]) return;
+    const next = (window.cart[id].quantity || 1) - 1;
+    if (next <= 0) {
+        delete window.cart[id];      // remove when it hits 0
+    } else {
+        window.cart[id].quantity = next;
+    }
+    saveCartAndRender();
 }
 
 
@@ -742,13 +742,9 @@ function handleCheckout() {
         const main = document.getElementById('mainContent');
         if (!main) return;
 
-        fetch('./checkout.html')
-            .then(res => res.text())
-            .then(html => {
-                main.innerHTML = html;
-                loadHTML('header', './header.html');
-                main.classList.add('offset-header');
-            });
+// Instead of fetching checkout into #mainContent, just navigate:
+        location.href = './checkout.html';
+
     } else {
         loadSignupPage();
     }
