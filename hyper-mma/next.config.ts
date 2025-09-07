@@ -1,22 +1,12 @@
-import type { NextConfig } from 'next';
-
-const nextConfig: NextConfig = {
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   reactStrictMode: true,
-
   eslint: {
-    // ✅ Prevent Netlify build from failing due to ESLint errors
-    ignoreDuringBuilds: true,
+    ignoreDuringBuilds: true, // Prevent ESLint errors from breaking Netlify build
   },
-
   typescript: {
-    // ✅ Prevent Netlify build from failing due to TypeScript errors
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: true,  // Prevent TypeScript errors from breaking Netlify build
   },
-
-  // ✅ Use type assertion to bypass TS error
-  experimental: {
-    outputFileTracingRoot: __dirname as unknown as never,
-  } as unknown as NextConfig['experimental'],
 };
 
-export default nextConfig;
+module.exports = nextConfig;
