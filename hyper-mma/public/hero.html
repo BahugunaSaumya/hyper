@@ -1,0 +1,104 @@
+<section id="heroSection"
+  class="relative bg-black text-white overflow-hidden"
+  style="
+    padding-top: calc(var(--nav-h, 88px) + 16px);
+    --tape-speed: 10s;                 /* slower = bigger number */
+    --tape-h: clamp(80px, 9vw, 140px); /* BIG and responsive */
+    --tape-span: 190vw;                /* extra width so rotation doesn’t clip */
+  ">
+
+  <style>
+    /* ---------- TWO TAPES, ONE LEFT + ONE RIGHT ---------- */
+
+    .tape {
+      position: absolute;
+      left: calc(-0.1 * var(--tape-span));
+      width: var(--tape-span);
+      height: var(--tape-h);          /* << IMPORTANT: give it height */
+      overflow: hidden;
+      pointer-events: none;
+      filter: drop-shadow(0 3px 10px rgba(0,0,0,.35));
+    }
+
+    .tape__inner { position: relative; width: 100%; height: 100%; }
+
+    .tape__track {
+      position: relative;
+      display: flex;
+      width: max-content;
+      will-change: transform;
+      gap: 0;
+    }
+
+    .tape__img {
+      flex: 0 0 auto;
+      height: var(--tape-h);
+    }
+
+    /* positions */
+    .tape--white { top: 70%; }   /* mid stripe, behind models  */
+    .tape--black { top: 70%; }   /* bottom stripe, in front     */
+
+    /* angles */
+    .tape--white .tape__inner { transform: rotate(-8deg); }
+    .tape--black .tape__inner { transform: rotate(-10deg); }
+
+    /* directions */
+    .tape--white .tape__track { animation: tape-right var(--tape-speed) linear infinite; }
+    .tape--black .tape__track { animation: tape-left  var(--tape-speed) linear infinite; }
+
+    /* seamless loop (two images → 50% shift) */
+    @keyframes tape-left  { from { transform: translateX(0);    } to { transform: translateX(-50%); } }
+    @keyframes tape-right { from { transform: translateX(-50%); } to { transform: translateX(0);    } }
+
+    .hero-veil {
+      background: radial-gradient(ellipse at 50% 20%, rgba(255,255,255,0.06) 0%, rgba(0,0,0,0) 55%),
+                  linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,.18) 100%);
+    }
+
+    @media (min-width: 1024px){
+      .hero-models { height: 72vh; }
+    }
+  </style>
+
+  <!-- Heading + copy -->
+  <div class="max-w-6xl mx-auto px-6 pt-6 pb-2 text-center">
+    <h1 class="text-3xl sm:text-5xl font-extrabold tracking-wide">
+      PRE — LAUNCH SALE IS LIVE <span class="align-middle">💥</span>
+    </h1>
+    <p class="mt-4 max-w-3xl mx-auto text-white/80 text-sm sm:text-base leading-relaxed">
+      Get your premium shorts at an exclusive 30% off! Be the first to own the gear that sets
+      champions apart. Elevate your game, stay ahead, and stand out in style. Don’t miss this
+      limited pre-launch offer—grab yours now and dominate!
+    </p>
+  </div>
+
+  <div class="absolute inset-0 hero-veil"></div>
+
+  <!-- WHITE tape (RIGHT, behind models) -->
+  <div class="tape tape--white z-10">
+    <div class="tape__inner">
+      <div class="tape__track">
+        <img src="./assets/back.png"  alt="" class="tape__img" />
+        <img src="./assets/back.png"  alt="" class="tape__img" /> 
+        <!-- div is small -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Models -->
+  <div class="relative z-20 max-w-7xl mx-auto px-4">
+    <img src="./assets/cage-bg.png" alt="Hero models"
+      class="hero-models w-full h-[58vh] sm:h-[64vh] md:h-[68vh] lg:h-[70vh] object-contain object-bottom select-none pointer-events-none" />
+  </div>
+
+  <!-- BLACK tape (LEFT, in front) -->
+  <div class="tape tape--black z-30">
+    <div class="tape__inner">
+      <div class="tape__track">
+        <img src="./assets/front.png" alt="" class="tape__img" />
+        <img src="./assets/front.png" alt="" class="tape__img" />
+      </div>
+    </div>
+  </div>
+</section>

@@ -1,0 +1,120 @@
+// src/components/CartItemTile.tsx
+"use client";
+
+import { useRouter } from "next/navigation";
+
+type Props = {
+  id: string;
+  title: string;
+  image: string;
+  unitPrice: string | number;
+  size?: string;
+  qty: number;
+  onIncrease: () => void;
+  onDecrease: () => void;
+  onRemove: () => void;
+};
+
+export default function CartItemTile({
+  id,
+  title,
+  image,
+  unitPrice,
+  size,
+  qty,
+  onIncrease,
+  onDecrease,
+  onRemove,
+}: Props) {
+  const router = useRouter();
+  const open = () => router.push(`/product/${encodeURIComponent(title)}`);
+
+  return (
+    <div className="py-6 border-b border-black/10 last:border-b-0">
+      <div className="flex items-start gap-6 sm:gap-8">
+        {/* LEFT: Product Image */}
+        <button
+          onClick={open}
+          className="flex-shrink-0 rounded-2xl bg-neutral-100 p-4 
+                     w-[160px] h-[130px] sm:w-[200px] sm:h-[150px] 
+                     flex items-center justify-center hover:shadow transition"
+          aria-label={`Open ${title}`}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={image}
+            alt={title}
+            className="max-h-full max-w-full object-contain"
+          />
+        </button>
+
+        {/* RIGHT: Product Details */}
+        <div className="flex-1 flex flex-col justify-between">
+          <div>
+            <button
+              onClick={open}
+              className="text-left text-lg sm:text-xl md:text-2xl font-semibold leading-snug hover:underline"
+              aria-label={`Open ${title}`}
+            >
+              {title}
+            </button>
+
+            {size && (
+              <div className="mt-1 text-sm text-gray-500">
+                Size: <span className="font-medium">{size}</span>
+              </div>
+            )}
+
+            <div className="mt-2 text-lg sm:text-xl font-bold">
+              {String(unitPrice).startsWith("₹") ? unitPrice : `₹ ${unitPrice}`}
+            </div>
+          </div>
+
+          {/* Quantity Controls */}
+          <div className="mt-4 inline-flex items-center rounded-full border px-2 py-1 sm:px-3 sm:py-1.5 w-fit">
+            <button
+              className="w-8 h-8 sm:w-9 sm:h-9 inline-flex items-center justify-center text-lg font-bold"
+              onClick={onDecrease}
+              aria-label="Decrease quantity"
+            >
+              −
+            </button>
+            <span className="mx-3 text-sm sm:text-base font-semibold w-7 text-center">
+              {qty}
+            </span>
+            <button
+              className="w-8 h-8 sm:w-9 sm:h-9 inline-flex items-center justify-center text-lg font-bold"
+              onClick={onIncrease}
+              aria-label="Increase quantity"
+            >
+              +
+            </button>
+          </div>
+        </div>
+
+        {/* Trash Button */}
+        <button
+          onClick={onRemove}
+          className="text-gray-400 hover:text-black self-start mt-1"
+          title="Remove item"
+          aria-label="Remove item"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="w-5 h-5 sm:w-6 sm:h-6"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M3 6h18M8 6V4h8v2m-1 0l-.6 12.01A2 2 0 0112.4 20h-.8a2 2 0 01-1.99-1.99L9 6"
+            />
+          </svg>
+        </button>
+      </div>
+    </div>
+  );
+}
