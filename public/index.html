@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HYPER</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.cdnfonts.com/css/palanquin" rel="stylesheet">
+    <link href="https://fonts.cdnfonts.com/css/palanquin-dark" rel="stylesheet">
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <script type="module" src="./auth.js"></script>
+
+
+
+    <style>
+        .offset-header {
+            padding-top: 180px;
+        }
+
+        @font-face {
+            font-family: 'Monument Extended';
+            font-style: normal;
+            font-weight: 400;
+            src: local('Monument Extended'),
+                url('https://fonts.cdnfonts.com/s/19595/MonumentExtended-Regular.woff') format('woff');
+        }
+
+        @font-face {
+            font-family: 'Monument Extended';
+            font-style: normal;
+            font-weight: 800;
+            src: local('Monument Extended'),
+                url('https://fonts.cdnfonts.com/s/19595/MonumentExtended-Ultrabold.woff') format('woff');
+        }
+    </style>
+
+    <style>
+        @keyframes spin-slow {
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .animate-spin-slow {
+            animation: spin-slow 12s linear infinite;
+        }
+
+
+        .carousel-item {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform-origin: center;
+            object-fit: contain;
+            max-height: 480px;
+            /* bigger images */
+            opacity: 0.8;
+            transition: transform 1s ease, opacity 1s ease, filter 1s ease;
+            transform: translate(-50%, -50%);
+        }
+
+        /* center product */
+        .carousel-center {
+            transform: translate(-50%, -50%) scale(1.1);
+            z-index: 20;
+            opacity: 1 !important;
+            filter: blur(0) brightness(1.05);
+        }
+
+        /* left product */
+        .carousel-left {
+            transform: translate(-180%, -50%) scale(0.85);
+            z-index: 10;
+            filter: blur(1px) brightness(0.9);
+        }
+
+        /* right product */
+        .carousel-right {
+            transform: translate(80%, -50%) scale(0.85);
+            z-index: 10;
+            filter: blur(1px) brightness(0.9);
+        }
+
+        /* further sides (if you cycle more items) */
+        .carousel-far-left {
+            transform: translate(-280%, -50%) scale(0.7);
+            z-index: 5;
+            opacity: 0.5;
+            filter: blur(2px) brightness(0.7);
+        }
+
+        .carousel-far-right {
+            transform: translate(180%, -50%) scale(0.7);
+            z-index: 5;
+            opacity: 0.5;
+            filter: blur(2px) brightness(0.7);
+        }
+    </style>
+
+
+    <style>
+        @keyframes glitch {
+            0% {
+                transform: translate(0);
+            }
+
+            20% {
+                transform: translate(-1px, 1px);
+            }
+
+            40% {
+                transform: translate(-1px, -1px);
+            }
+
+            60% {
+                transform: translate(1px, 1px);
+            }
+
+            80% {
+                transform: translate(1px, -1px);
+            }
+
+            100% {
+                transform: translate(0);
+            }
+        }
+
+        .glitch {
+            animation: glitch 1s infinite;
+        }
+
+        .scroll-container::-webkit-scrollbar {
+            display: none;
+        }
+    </style>
+</head>
+
+<body class="overflow-x-hidden" style="font-family: 'Monument Extended', sans-serif;">
+    
+    <script src="./main.js"></script>
+    <div id="mainContent">
+        <div id="header"></div>
+        <div id="hero"></div>
+        <div id="video"></div>
+        <div id="products"></div>
+        <div id="testimonials"></div>
+        <div id="blogs"></div>
+        <div id="faq"></div>
+        <div id="contact"></div>
+    </div>
+    <!-- Include loader script -->
+
+
+
+
+
+    <!-- CTA -->
+
+    <!-- CSV + JS -->
+
+    <!-- CART OVERLAY -->
+    <!-- <div id="cartOverlay" class="fixed inset-0 z-40 bg-black/60 hidden" onclick="toggleCart(false)">
+
+        CART SIDEBAR (Desktop) -->
+    <!-- <div id="cartSidebar"
+            class="hidden sm:flex absolute right-0 top-0 h-full w-96 bg-black/90 text-white shadow-lg transform translate-x-full transition-transform duration-300 flex-col"
+            onclick="event.stopPropagation()">
+            <div class="p-4 border-b border-gray-700 flex justify-between items-center">
+                <h3 class="font-bold text-lg">Your Cart</h3>
+                <button onclick="toggleCart(false)" class="text-white text-2xl font-bold">&times;</button>
+            </div>
+            <div id="cartItemsDesktop" class="flex-1 overflow-y-auto max-h-[60vh] p-4 space-y-4"></div>
+            <div class="p-4 border-t border-gray-700">
+                <div class="flex justify-between font-semibold text-lg">
+                    <span>Total:</span>
+                    <span id="cartTotalDesktop">₹0</span>
+                </div>
+
+                <button onclick="handleCheckout()"
+                    class="mt-4 w-full bg-white text-black py-2 rounded hover:bg-pink-500 hover:text-white transition font-semibold">
+                    Proceed to Checkout
+                </button>
+            </div>
+        </div>
+
+        CART BOTTOM DRAWER (Mobile)
+        <!-- <div id="cartDrawer"
+            class="sm:hidden fixed bottom-0 left-0 w-full bg-black/90 text-white shadow-2xl transform translate-y-full transition-transform duration-300 rounded-t-lg flex flex-col"
+            onclick="event.stopPropagation()">
+            <div class="p-4 border-b border-gray-700 flex justify-between items-center">
+                <h3 class="font-bold text-lg">Your Cart</h3>
+                <button onclick="toggleCart(false)" class="text-white text-2xl font-bold">&times;</button>
+            </div>
+            <div id="cartItemsMobile" class="flex-1 overflow-y-auto max-h-[50vh] p-4 space-y-4"></div>
+            <div class="p-4 border-t border-gray-700">
+                <div class="flex justify-between font-semibold text-lg">
+                    <span>Total:</span>
+                    <span id="cartTotalMobile">₹0</span>
+                </div>
+                <button onclick="handleCheckout()"
+                    class="mt-4 w-full bg-white text-black py-2 rounded hover:bg-pink-500 hover:text-white transition font-semibold">
+                    Proceed to Checkout
+                </button>
+            </div>
+        </div>
+    </div> --> -->
+
+    <!-- Notification Popups -->
+    <div id="cartNotification"
+        class="fixed bottom-6 right-6 bg-pink-600 text-white px-4 py-2 rounded shadow-lg opacity-0 transition-opacity duration-300 z-50">
+        To be linked with Stripe
+    </div>
+
+    <div id="cartSummary"
+        class="fixed bottom-24 right-6 bg-black text-white px-4 py-2 rounded shadow-lg opacity-0 transition-opacity duration-300 z-50">
+    </div>
+
+</body>
+
+</html>
