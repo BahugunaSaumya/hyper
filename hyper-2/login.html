@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Login - HYPER</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.cdnfonts.com/css/monument-extended" rel="stylesheet" />
+    <link href="https://fonts.cdnfonts.com/css/palanquin" rel="stylesheet">
+
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js"></script>
+    <script type="module">
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+        const auth = getAuth();
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                // Redirect logged in user
+               window.navigate ? window.navigate('/index.html') : (window.location.href = 'index.html');
+
+            }
+        });
+
+    </script>
+    <style>
+        body {
+            font-family: 'Monument Extended', sans-serif;
+        }
+    </style>
+</head>
+
+<body class="bg-white text-black">
+    <script src="./main.js"></script>
+    <div id="header" class="outlined-header"></div>
+
+    <main class="offset-header min-h-screen flex flex-col md:flex-row">
+        <!-- Left side image -->
+        <div class="hidden md:block w-1/2 bg-cover bg-center" style="background-image: url('./assets/signup-gym.png')">
+        </div>
+
+        <!-- Right side form -->
+        <div class="w-full md:w-1/2 flex items-center justify-center px-6 py-12">
+            <div class="max-w-md w-full space-y-6">
+                <h1 class="text-3xl font-extrabold">WELCOME BACK</h1>
+                <p class="text-sm">Don't have an account? <a href="#" onclick="loadSignupPage()"
+                        class="text-pink-500">Sign up</a></p>
+
+                <div class="space-y-4">
+                    <input type="email" id="loginEmail" placeholder="Email Address"
+                        class="w-full px-4 py-3 border rounded-md" />
+                    <div class="relative">
+                        <input type="password" id="loginPassword" placeholder="Password"
+                            class="w-full px-4 py-3 border rounded-md" />
+                        <button type="button" onclick="togglePassword('loginPassword')"
+                            class="absolute right-3 top-3 text-gray-500 text-sm">👁️</button>
+                    </div>
+                </div>
+
+                <button onclick="dummyLogin()"
+                    class="w-full py-3 rounded-full border-2 border-black font-semibold hover:bg-black hover:text-white transition">
+                    LOG IN
+                </button>
+
+                <div class="my-6 flex items-center justify-between">
+                    <hr class="w-1/3" />
+                    <span class="text-sm">OR</span>
+                    <hr class="w-1/3" />
+                </div>
+
+                <div class="flex justify-center gap-6">
+                    <button onclick="dummyGoogleLogin()" class="bg-white p-3 rounded-full shadow-md">
+                        <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg"
+                            class="w-6 h-6" />
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script type="module" src="./auth.js"></script>
+    <script>
+        loadHTML('header', './header.html');
+    </script>
+</body>
+
+</html>

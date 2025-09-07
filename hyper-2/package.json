@@ -1,0 +1,20 @@
+{
+      "name": "hyper-mma-app",
+      "version": "1.0.0",
+      "description": "Premium MMA Apparel",
+      "scripts": {
+            "start": "npx --yes serve",
+            "dev": "npx --yes serve"
+      },
+      "dependencies": {
+            "connect-history-api-fallback": "^2.0.0",
+            "express": "^5.1.0",
+            "page": "^1.11.6",
+            "serve-static": "^2.2.0"
+      },
+      "devDependencies": {
+            "autoprefixer": "^10.4.21",
+            "postcss": "^8.5.6",
+            "tailwindcss": "^4.1.12"
+      }
+}
