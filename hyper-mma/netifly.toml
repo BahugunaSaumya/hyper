@@ -1,5 +1,4 @@
 [build]
-  base = "hyper-mma"
   command = "npm run build"
   publish = ".next"
 
