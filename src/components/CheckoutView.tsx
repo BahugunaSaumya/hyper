@@ -28,8 +28,8 @@ export default function CheckoutView() {
   const [loadingMsg, setLoadingMsg] = useState<string>("");
 
   const startWait = (msg: string) => { setLoading(true); setLoadingMsg(msg); };
-  const stepWait  = (msg: string) => setLoadingMsg(msg);
-  const stopWait  = () => { setLoading(false); setLoadingMsg(""); };
+  const stepWait = (msg: string) => setLoadingMsg(msg);
+  const stopWait = () => { setLoading(false); setLoadingMsg(""); };
 
   // form state
   const [firstName, setFirst] = useState("");
@@ -237,10 +237,53 @@ export default function CheckoutView() {
       },
     } as const;
 
+    // inside CheckoutView.tsx → function saveOrderToFirestore(paymentResponse: any) { ... }
+
     try {
       stepWait("saving your order…");
-      const orderId = await createOrder(payload);   // <— get id back from your lib
+      const orderId = await createOrder(payload);   // <— you already have this
       console.log("[checkout] order saved:", orderId);
+
+      /* ✅ NEW: persist a client-side snapshot for the Thank-You page */
+      try {
+        const snapshot = {
+          orderId,
+          placedAt: new Date().toISOString(),
+          customer: payload.customer,
+          shipping: payload.shipping,
+          // items in the exact shape your Thank-You component expects
+          items: payload.items.map(it => ({
+            id: it.id,
+            title: it.title,
+            size: it.size,
+            qty: it.qty,
+            unitPrice: it.unitPrice,
+            image: it.image,
+          })),
+          amounts: {
+            subtotal: payload.amounts.subtotal,
+            shipping: payload.amounts.shipping,
+            // include these if you later add them to your payload
+            discount: (payload as any).amounts?.discount ?? undefined,
+            tax: (payload as any).amounts?.tax ?? 0,
+            total: payload.amounts.total,
+            currency: payload.amounts.currency,
+          },
+          paymentInfo: {
+            razorpay_order_id: paymentResponse.razorpay_order_id,
+            razorpay_payment_id: paymentResponse.razorpay_payment_id,
+            razorpay_signature: paymentResponse.razorpay_signature,
+            // brand/last4 can be filled later if you fetch them server-side
+          },
+        };
+
+        // store for the Thank-You page to read
+        sessionStorage.setItem("lastOrderSnapshot", JSON.stringify(snapshot));
+      } catch (e) {
+        // never block checkout if storage fails
+        console.warn("[checkout] failed to write lastOrderSnapshot:", e);
+      }
+      /* ✅ END NEW BLOCK */
 
       // fire-and-forget email (don’t block the UX)
       stepWait("sending confirmation emails…");
@@ -255,6 +298,7 @@ export default function CheckoutView() {
       console.error("[checkout] Failed to save order:", e);
       throw e;
     }
+
   }
 
   async function devPing() {

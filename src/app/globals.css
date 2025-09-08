@@ -1,4 +1,70 @@
 @import "tailwindcss";
+/* ===== Fluid scale & site-wide tokens ================================== */
+:root{
+  /* single proportional scale: desktop comp @ 1440px → phones @ 360px */
+  --scale: clamp(0.78, calc(100vw / 1440), 1);
+
+  /* page width + gutters (change once, affects all) */
+  --page-max: 1280px;
+  --gutter: clamp(16px, 4vw, 28px);
+
+  /* header height (Header reads its own size; this is the fallback) */
+  --nav-h: 88px;
+
+  /* brand tokens (tweak freely) */
+  --bg: #000;
+  --surface: #0b0b0b;
+  --text: #fff;
+  --muted: #9ca3af;
+  --brand: #f472b6;
+  --brand-600: #db61a3;
+
+  /* scalable radii/shadows */
+  --radius-md: calc(10px * var(--scale));
+  --radius-lg: calc(20px * var(--scale));
+  --shadow-lg: 0 10px 40px rgba(0,0,0,.25);
+}
+
+/* make Tailwind rem utilities scale proportionally */
+html { font-size: calc(16px * var(--scale)); }
+body { background: var(--bg); color: var(--text); }
+
+/* ===== Page layout helpers ============================================= */
+
+/* 1) The default page shell: centers content with consistent gutters.   */
+/*    We’ll wrap all pages with this in layout.tsx.                       */
+.page-shell{
+  max-width: var(--page-max);
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+}
+
+/* 2) Sections that need to go full-bleed (ribbons, big video, etc.).     */
+/*    Just add className="bleed" on that section.                         */
+.bleed{
+  position: relative;
+  left: 50%;
+  right: 50%;
+  margin-left: -50vw;
+  margin-right: -50vw;
+  width: 100vw;
+}
+
+/* 3) Offset the fixed header without hard-coding a number everywhere.    */
+/*    Your <main class="offset-header"> already uses this.                */
+.offset-header{
+  padding-top: var(--nav-h);
+}
+
+/* Optional, handy utilities you can use gradually */
+.card{ background: var(--surface); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); }
+.btn-brand{
+  background: var(--brand); color:#fff; font-weight:700; border-radius:9999px;
+  padding: calc(10px * var(--scale)) calc(18px * var(--scale));
+  transition: transform .15s ease, background .15s ease;
+}
+.btn-brand:hover{ background: var(--brand-600); transform: translateY(-1px); }
+.btn-brand:active{ transform: translateY(0); }
 
 /* base */
 html,
@@ -216,30 +282,53 @@ body {
 
 /* ===== Cart badge polish (tiny ring, crisp text) ===== */
 .cart-badge {
-  transform: translateZ(0); /* avoid blur on scaled text */
+  transform: translateZ(0);
+  /* avoid blur on scaled text */
 }
 
 /* ===== Trim stray vertical gaps between stacked sections ===== */
 /* remove default margins that sneak in from headings/paragraphs, only inside sections */
-section :is(h1, h2, h3, h4, h5, h6) { margin-top: 0; }
-section :is(p, ul, ol) { margin-top: 0; }
-section > :first-child { margin-top: 0; }
-section > :last-child { margin-bottom: 0; }
+section :is(h1, h2, h3, h4, h5, h6) {
+  margin-top: 0;
+}
+
+section :is(p, ul, ol) {
+  margin-top: 0;
+}
+
+section> :first-child {
+  margin-top: 0;
+}
+
+section> :last-child {
+  margin-bottom: 0;
+}
 
 /* kill browser default section margins (none by spec, but some libs add) */
-section { margin-block: 0; }
+section {
+  margin-block: 0;
+}
 
 /* ensure there’s no extra gap when two sections are adjacent */
-section + section { margin-top: 0 !important; }
+section+section {
+  margin-top: 0 !important;
+}
 
 /* images shouldn’t create inline gaps */
-img { display: block; }
+img {
+  display: block;
+}
 
 /* if you use the offset-header helper, don’t add extra gap after it */
-.offset-header + section { margin-top: 0 !important; }
+.offset-header+section {
+  margin-top: 0 !important;
+}
 
 /* optional: zero out the default body margin if any */
-html, body { margin: 0; }
+html,
+body {
+  margin: 0;
+}
 
 /* Reduce the visual gap under the fixed header for the hero only */
 .hero-tight {
@@ -260,11 +349,33 @@ html, body { margin: 0; }
 }
 
 /* left/right motion (the wrapper is already rotated in JSX) */
-@keyframes hero-left  { 0% { transform: translateX(0); }     100% { transform: translateX(-50%); } }
-@keyframes hero-right { 0% { transform: translateX(-50%); }  100% { transform: translateX(0); } }
+@keyframes hero-left {
+  0% {
+    transform: translateX(0);
+  }
 
-.hero-anim-left  { animation: hero-left 16s linear infinite; }
-.hero-anim-right { animation: hero-right 16s linear infinite; }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes hero-right {
+  0% {
+    transform: translateX(-50%);
+  }
+
+  100% {
+    transform: translateX(0);
+  }
+}
+
+.hero-anim-left {
+  animation: hero-left 16s linear infinite;
+}
+
+.hero-anim-right {
+  animation: hero-right 16s linear infinite;
+}
 
 /* (no masks/clip-path here; the vertical join alignment is handled in the component
    with translateY(Δy) using Δy = tan(angle)*tileWidth so the two tiles connect
