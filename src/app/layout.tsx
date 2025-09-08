@@ -17,7 +17,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <AuthProvider>
         <CartProvider>
           <Header />
-          <main className="offset-header">{children}</main>
+          <main className="offset-header">
+           <div className="page-shell">{children}</div>
+           </main>
         </CartProvider>
         </AuthProvider>
       </body>
