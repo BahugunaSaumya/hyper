@@ -15,7 +15,7 @@ export default function LoginPage() {
   const { loginEmail, loginGoogle, loading, user } = useAuth();
   const router = useRouter();
   const qs = useSearchParams();
-  const redirectTo = qs.get("next") || "/checkout";
+  const redirectTo = qs.get("next") || "/";
 
   const [email, setEmail] = useState("");
   const [pw, setPw] = useState("");
