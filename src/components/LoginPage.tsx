@@ -1,7 +1,7 @@
-// src/app/login/page.tsx
+// src/components/LoginPage.tsx
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 
@@ -12,10 +12,11 @@ const HERO_SLIDES = [
 ];
 
 export default function LoginPage() {
-  const { loginEmail, loginGoogle, loading, user } = useAuth();
+  const { loginEmail, loginGoogle, loading, user } = useAuth() as any;
   const router = useRouter();
   const qs = useSearchParams();
-  const redirectTo = qs.get("next") || "/";
+  // 👇 only change from your snippet: default to /dashboard instead of "/"
+  const redirectTo = qs.get("next") || "/dashboard";
 
   const [email, setEmail] = useState("");
   const [pw, setPw] = useState("");
@@ -29,7 +30,7 @@ export default function LoginPage() {
     return () => clearInterval(id);
   }, []);
 
-  // If already logged in, go straight to checkout (or ?next=…)
+  // If already logged in, go straight to next (usually /dashboard)
   useEffect(() => {
     if (!loading && user) router.replace(redirectTo);
   }, [loading, user, router, redirectTo]);
@@ -59,17 +60,13 @@ export default function LoginPage() {
       <div className="mx-auto max-w-7xl grid grid-cols-1 lg:grid-cols-2 gap-0">
         {/* LEFT: image carousel */}
         <aside className="relative hidden lg:block">
-          {/* current slide */}
           <img
             key={slide}
             src={HERO_SLIDES[slide]}
             alt=""
             className="absolute inset-0 h-full w-full object-cover transition-opacity duration-500"
           />
-          {/* gradient veil for contrast (optional) */}
           <div className="absolute inset-0 bg-black/10" />
-
-          {/* dots */}
           <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2">
             {HERO_SLIDES.map((_, i) => (
               <button
@@ -132,7 +129,6 @@ export default function LoginPage() {
                 onClick={() => setShowPw((s) => !s)}
                 className="absolute inset-y-0 right-0 px-3 grid place-items-center text-gray-500 hover:text-gray-700"
               >
-                {/* eye icon */}
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   className="h-5 w-5"
@@ -180,12 +176,12 @@ export default function LoginPage() {
               <span className="h-px flex-1 bg-gray-200" />
             </div>
 
-            {/* Google buttons (two, to mimic your mock; both call same handler) */}
+            {/* Google */}
             <div className="mt-6 flex items-center justify-center gap-6">
               <button
                 onClick={handleGoogle}
                 className="h-12 w-12 rounded-2xl shadow-md grid place-items-center border border-gray-200 hover:shadow-lg transition"
-                aria-label="Continue with Google (alt)"
+                aria-label="Continue with Google"
               >
                 <img src="/assets/google.png" alt="" className="h-6 w-6" />
               </button>

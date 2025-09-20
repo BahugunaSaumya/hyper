@@ -90,6 +90,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setProfile(prev => ({ ...(prev || {}), ...p }));
     }
   }), [user, profile, loading]);
+ if (typeof window !== "undefined") {
+    (window as any)._auth = auth;
+  }
 
   return <Ctx.Provider value={api}>{children}</Ctx.Provider>;
 }

@@ -11,7 +11,7 @@ export default async function Page(props: { params: Promise<{ slug: string }> })
 
   let product: any | undefined;
   try {
-    const csvPath = path.join(process.cwd(), "public", "assets", "products.csv");
+    const csvPath = path.join(process.cwd(), "public", "assets", "hyper-products-sample.csv");
     const csv = await fs.readFile(csvPath, "utf8");
     const products = mapProducts(csv);
 

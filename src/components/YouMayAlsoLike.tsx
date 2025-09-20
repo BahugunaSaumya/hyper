@@ -1,60 +1,203 @@
 // src/components/YouMayAlsoLike.tsx
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { parseCSV, mapProducts, type ProductModel } from "@/lib/csv";
+import { useEffect, useMemo, useRef, useState } from "react";
 import ProductTile from "@/components/ProductTile";
 
-type Props = {
-  excludeTitle?: string;
-  limit?: number; // default 3 on mobile, 4 on desktop
-  headingImg?: string; // optional header asset (PNG text "YOU MAY ALSO LIKE")
+type Product = {
+  id: string;
+  slug?: string;
+  title?: string;
+  name?: string;
+  price?: number | string;
+  discountedPrice?: number | string;
+  presalePrice?: number | string;
+  salePrice?: number | string;
+  mrp?: number | string;
 };
+
+const fmtINR = (n: number | string | undefined) =>
+  "₹ " + Number(n || 0).toLocaleString("en-IN");
+
+const toNumber = (v: any) =>
+  Number.isFinite(+v) ? +v : (typeof v === "string" ? parseFloat(v.replace(/[^0-9.]/g, "")) : 0);
+
+const dirFrom = (p: Product) => (p.slug || p.title || p.name || p.id || "").trim();
+const IMG_NAMES = ["1", "2", "3", "4", "5", "6"];
+const oneRandomImg = (dir: string) => {
+  const idx = Math.floor(Math.random() * IMG_NAMES.length);
+  return `/assets/models/products/${dir}/${IMG_NAMES[idx]}.jpg`;
+};
+const fallbackSeq = (dir: string) => IMG_NAMES.map(n => `/assets/models/products/${dir}/${n}.jpg`);
+
+const hrefFor = (p: Product) =>
+  `/product/${encodeURIComponent(String(p.slug || p.title || p.name || p.id || ""))}`;
+
+function shuffle<T>(xs: T[]) {
+  const a = [...xs];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = (Math.random() * (i + 1)) | 0;
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+/** Picks ONE image; no rotation. If it 404s, tries the remaining candidates once. */
+function OneShotImage({ dir, alt }: { dir: string; alt: string }) {
+  const tried = useRef<Set<string>>(new Set());
+  const [src, setSrc] = useState(() => oneRandomImg(dir));
+  const fallbacks = useMemo(() => fallbackSeq(dir), [dir]);
+
+  useEffect(() => {
+    tried.current.clear();
+    setSrc(oneRandomImg(dir));
+  }, [dir]);
+
+  const onError = () => {
+    tried.current.add(src);
+    const next = fallbacks.find(u => !tried.current.has(u));
+    if (next) {
+      console.warn("[ymal] image failed, trying fallback:", { failed: src, next });
+      setSrc(next);
+    } else {
+      console.warn("[ymal] all images failed for dir:", dir);
+      setSrc("/assets/placeholder.png");
+    }
+  };
+
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={src}
+      alt={alt}
+      onError={onError}
+      className="h-full w-full object-cover"
+      loading="lazy"
+      decoding="async"
+    />
+  );
+}
 
 export default function YouMayAlsoLike({
   excludeTitle = "",
   limit = 4,
   headingImg = "/assets/ymal-header.png",
-}: Props) {
-  const [data, setData] = useState<ProductModel[]>([]);
+  debug = true,
+}: {
+  excludeTitle?: string;
+  limit?: number;
+  headingImg?: string;
+  debug?: boolean;
+}) {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [err, setErr] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
+  // MOUNT logs
   useEffect(() => {
+    console.info("[ymal] MOUNT — excludeTitle:", excludeTitle || "—");
+    window.dispatchEvent(new CustomEvent("ymal:mounted", { detail: { excludeTitle } }));
+    return () => console.info("[ymal] UNMOUNT");
+  }, [excludeTitle]);
+
+  // FETCH from Firestore-backed API (no CSV)
+  useEffect(() => {
+    let mounted = true;
     (async () => {
       try {
-        const res = await fetch("/assets/hyper-products-sample.csv", { cache: "no-cache" });
-        const text = await res.text();
-        setData(mapProducts(parseCSV(text)));
-      } catch {}
+        setErr(null);
+        setLoading(true);
+        console.info("[ymal] GET /api/products?limit=50");
+        const res = await fetch("/api/products?limit=50", { cache: "no-store" });
+        const body = await res.json().catch(() => null);
+        if (!res.ok) throw new Error(body?.error || "Failed to load products");
+        const list: Product[] = Array.isArray(body?.products) ? body.products : [];
+        if (!mounted) return;
+        console.info("[ymal] fetched", list.length, "products");
+        setProducts(list);
+      } catch (e: any) {
+        if (!mounted) return;
+        console.error("[ymal] fetch error:", e);
+        setErr(e?.message || "Failed to load products.");
+      } finally {
+        if (mounted) setLoading(false);
+      }
     })();
+    return () => { mounted = false; };
   }, []);
 
-  const list = useMemo(() => {
+  // PICK visible items (we can shuffle products; images themselves are NOT rotated)
+  const visible = useMemo(() => {
     const ex = excludeTitle.toLowerCase();
-    return data.filter((p) => (p.title || "").toLowerCase() !== ex).slice(0, limit);
-  }, [data, excludeTitle, limit]);
+    const pool = products.filter(p => (p.title || p.name || "").toLowerCase() !== ex);
+    const pick = shuffle(pool).slice(0, limit);
+    if (pick.length) {
+      console.info("[ymal] rendering", pick.length, "→", pick.map(p => p.title || p.name || p.id));
+    }
+    return pick;
+  }, [products, excludeTitle, limit]);
 
-  if (!list.length) return null;
+  // Debug badge (visible in DOM even if console is stripped)
+  const DebugBadge = debug ? (
+    <div className="text-[11px] text-gray-400 mt-2">
+      [ymal] ✓ products:{products.length} showing:{visible.length}{err ? ` — ${err}` : ""}
+    </div>
+  ) : null;
+
+  if (loading && !products.length) {
+    return (
+      <div className="mt-14" data-ymal>
+        <div className="text-center mb-6">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={headingImg} alt="You may also like" className="mx-auto w-64 sm:w-80" />
+        </div>
+        <div className="text-sm text-gray-500 text-center">Loading…</div>
+        {DebugBadge}
+      </div>
+    );
+  }
+  if (err || !visible.length) {
+    return debug ? <div className="mt-6" data-ymal>{DebugBadge}</div> : null;
+  }
 
   return (
-    <div className="mt-14">
+    <div className="mt-14" data-ymal>
       <div className="text-center mb-6">
+        {/* header image to match product detail page */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={headingImg} alt="You may also like" className="mx-auto w-64 sm:w-80" />
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
-        {list.map((p) => (
-          <ProductTile
-            key={p.title}
-            href={`/product/${encodeURIComponent(p.title)}`}
-            title={p.title}
-            image={(p as any).image?.startsWith("/") ? (p as any).image : `/${(p as any).image}`}
-            price={(p as any).price || (p as any).discountedPrice || (p as any).presalePrice || (p as any).mrp}
-            rating={(p as any).rating ?? 5}
-            showAdd
-          />
-        ))}
+        {visible.map((p) => {
+          const title = p.title || p.name || "Product";
+          const dir = dirFrom(p);
+
+          // price selection (no CSV): prefer price → sale/discounted → presale → mrp
+          const price =
+            toNumber((p as any).price) ||
+            toNumber((p as any).salePrice) ||
+            toNumber((p as any).discountedPrice) ||
+            toNumber((p as any).presalePrice) ||
+            toNumber((p as any).mrp);
+
+          return (
+            <ProductTile
+              key={p.id}
+              href={hrefFor(p)}
+              title={title}
+              image={dir ? `/assets/models/products/${dir}/${Math.floor(Math.random() * 5) + 1}.jpg` : "/assets/placeholder.png"}
+              price={fmtINR(price)}
+              rating={5}
+              showAdd
+              // Optional: if your ProductTile supports className, keep the tighter padding:
+              className="p-3 sm:p-4"
+            // If ProductTile doesn't accept className, you can remove ^ safely.
+            />
+          );
+        })}
       </div>
+      {DebugBadge}
     </div>
   );
 }

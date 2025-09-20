@@ -2,41 +2,53 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useCart } from "@/context/CartContext";
-import { useAuth } from "@/context/AuthContext";              // <-- AuthProvider
-import { INDIA_STATES_AND_UT } from "@/lib/india";            // <-- full list
-import { createOrder, type OrderItem, type OrderPayload } from "@/lib/orders";
+import { useAuth } from "@/context/AuthContext";
+import { INDIA_STATES_AND_UT } from "@/lib/india";
+import { createOrder } from "@/lib/orders";
 import { loadRazorpayScript } from "@/lib/razorpay";
+import { LOGIN_PATH } from "@/config/paths";
 
-import FaqSection from "./FaqSection";
-import ContactSection from "./ContactSection";
-
-const parseINR = (v: string) => { const n = parseFloat(String(v || "").replace(/[^0-9.]/g, "")); return isNaN(n) ? 0 : n; };
+const parseINR = (v: string) => {
+  const n = parseFloat(String(v || "").replace(/[^0-9.]/g, ""));
+  return isNaN(n) ? 0 : n;
+};
 const formatINR = (n: number) => "₹ " + Number(n || 0).toLocaleString("en-IN");
 const DEV = process.env.NODE_ENV !== "production";
 
+type Address = {
+  name?: string;
+  phone?: string;
+  street?: string;
+  city?: string;
+  state?: string;
+  postal?: string;
+  country?: string;
+};
+
 export default function CheckoutView() {
   const router = useRouter();
-  const { clear } = useCart();
-  const { items } = useCart();
-  const { user, profile, saveProfile } = useAuth();           // <-- prefill/save
+  const { items, clear } = useCart();
+  const { user, profile } = useAuth() as any;
+
   const [express, setExpress] = useState(false);
   const [guest, setGuest] = useState(false);
 
-  // ---- loading overlay state (new)
+  // loading overlay
   const [loading, setLoading] = useState(false);
   const [loadingMsg, setLoadingMsg] = useState<string>("");
-
   const startWait = (msg: string) => { setLoading(true); setLoadingMsg(msg); };
   const stepWait = (msg: string) => setLoadingMsg(msg);
   const stopWait = () => { setLoading(false); setLoadingMsg(""); };
 
-  // form state
+  // WHO (contact) form
   const [firstName, setFirst] = useState("");
   const [lastName, setLast] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
 
+  // Editable address form
   const [pin, setPin] = useState("");
   const [pinHelp, setPinHelp] = useState("Enter a valid 6-digit PIN (e.g., 560001).");
   const [stateVal, setStateVal] = useState("");
@@ -44,74 +56,195 @@ export default function CheckoutView() {
   const [addr1, setAddr1] = useState("");
   const [addr2, setAddr2] = useState("");
 
-  // log auth/profile on load
+  // Saved address from Firestore
+  const [savedAddr, setSavedAddr] = useState<Address | null>(null);
+  const [usingSaved, setUsingSaved] = useState<boolean>(false);
+  const [editingShipping, setEditingShipping] = useState<boolean>(false);
+  const [saveAsDefault, setSaveAsDefault] = useState<boolean>(true); // default checked when editing
+
+  // Log for sanity
   useEffect(() => {
-    console.log("[checkout] auth user:", user?.uid || null);
-    console.log("[checkout] loaded profile:", profile);
+    console.log("[checkout] user:", user?.uid || null);
+    console.log("[checkout] profile (context):", profile);
   }, [user, profile]);
 
-  // prefill when logged in
+  // Prefill WHO from profile context (best-effort)
   useEffect(() => {
     if (!profile) return;
-    const [fn, ...rest] = (profile.name || "").split(" ").filter(Boolean);
-    setFirst(fn || "");
-    setLast(rest.join(" ") || "");
-    setEmail(profile.email || "");
-    setPhone(profile.phone || "");
-    if (profile.address) {
-      setStateVal(profile.address.state || "");
-      setCity(profile.address.city || "");
-      setAddr1(profile.address.addr1 || "");
-      setAddr2(profile.address.addr2 || "");
-      setPin(profile.address.postal || "");
+    const baseName = (profile.name || "").trim();
+    if (baseName) {
+      const [fn, ...rest] = baseName.split(" ").filter(Boolean);
+      setFirst((v) => v || fn || "");
+      setLast((v) => v || rest.join(" ") || "");
     }
-  }, [profile]);
+    setEmail((e) => e || profile.email || user?.email || "");
+    setPhone((p) => p || profile.phone || "");
+  }, [profile, user?.email]);
 
-  const list = useMemo(() => Object.values(items), [items]);
-  const subtotal = useMemo(() => list.reduce((s, it) => s + parseINR(it.price) * it.quantity, 0), [list]);
-  const shipping = express ? 80 : 0;
-  const total = subtotal + shipping;
-
-  // PIN lookup (safe & logged)
+  // Fetch authoritative profile from Firestore to get saved address
   useEffect(() => {
-    if (pin.replace(/\D/g, "").length !== 6) { setPinHelp("Enter a valid 6-digit PIN (e.g., 560001)."); return; }
+    if (!user) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const tok = await user.getIdToken?.();
+        const res = await fetch("/api/me/profile", {
+          headers: { authorization: `Bearer ${tok}` },
+          cache: "no-store",
+        });
+        const body = await res.json().catch(() => null);
+        if (!res.ok || !body) return;
+        if (cancelled) return;
+
+        // Name/phone/email if not already set
+        const nameStr: string = body?.user?.name || profile?.name || "";
+        if (nameStr && !(firstName || lastName)) {
+          const [fn, ...rest] = nameStr.split(" ").filter(Boolean);
+          setFirst(fn || "");
+          setLast(rest.join(" ") || "");
+        }
+        setEmail((e) => e || body?.user?.email || user?.email || "");
+        setPhone((p) => p || body?.user?.phone || "");
+
+        if (body.address) {
+          const a: Address = body.address || {};
+          setSavedAddr(a);
+          setUsingSaved(true);
+          setEditingShipping(false);
+
+          // Keep form fields in sync (so validation works even if hidden)
+          setStateVal(a.state || "");
+          setCity(a.city || "");
+          setAddr1(a.street || "");
+          setAddr2("");
+          setPin(a.postal || "");
+        } else {
+          setSavedAddr(null);
+          setUsingSaved(false);
+          setEditingShipping(true); // no saved address => show form
+        }
+      } catch {
+        // ignore network errors
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [user, profile?.name]);
+
+  // PIN → try to auto-detect state/city (only when editing)
+  useEffect(() => {
+    if (!editingShipping) return;
+    if (pin.replace(/\D/g, "").length !== 6) {
+      setPinHelp("Enter a valid 6-digit PIN (e.g., 560001).");
+      return;
+    }
     let abort = new AbortController();
     (async () => {
       try {
         setPinHelp("Validating PIN…");
         const r = await fetch(`https://api.postalpincode.in/pincode/${pin}`, { signal: abort.signal });
         const j = await r.json().catch(() => null);
-        if (!j || !Array.isArray(j) || j[0]?.Status !== "Success") { setPinHelp("Could not validate this PIN."); return; }
+        if (!j || !Array.isArray(j) || j[0]?.Status !== "Success") {
+          setPinHelp("Could not validate this PIN.");
+          return;
+        }
         const o = j[0].PostOffice?.[0];
         if (o) {
-          // only fill if empty (don't override user's choice)
           setStateVal((s) => s || o.State || "");
           setCity((c) => c || o.District || "");
           setPinHelp(`Detected: ${o.District}, ${o.State}`);
         }
-        console.log("[checkout] PIN lookup result:", j);
       } catch (e) {
         console.error("[checkout] PIN lookup failed:", e);
         setPinHelp("Could not validate this PIN. Please try again.");
       }
     })();
     return () => abort.abort();
-  }, [pin]);
+  }, [pin, editingShipping]);
+
+  // Cart math
+  const list = useMemo(() => Object.values(items), [items]);
+  const subtotal = useMemo(
+    () => list.reduce((s: number, it: any) => s + parseINR(it.price) * it.quantity, 0),
+    [list]
+  );
+  const shipping = express ? 80 : 0;
+  const total = subtotal + shipping;
+
+  // Helpers
+  function shippingFromState(): { country: string; state: string; city: string; postal: string; addr1: string; addr2: string } {
+    if (usingSaved && savedAddr && !editingShipping) {
+      return {
+        country: savedAddr.country || "India",
+        state: savedAddr.state || "",
+        city: savedAddr.city || "",
+        postal: savedAddr.postal || "",
+        addr1: savedAddr.street || "",
+        addr2: "",
+      };
+    }
+    return {
+      country: "India",
+      state: stateVal,
+      city,
+      postal: pin,
+      addr1,
+      addr2,
+    };
+    }
+
+  function nameFromState() {
+    const nm = (firstName + " " + lastName).trim() || savedAddr?.name || profile?.name || "";
+    return nm.trim();
+  }
 
   function need(): string | null {
+    const ship = shippingFromState();
     const req: [string, string][] = [
-      [firstName, "First name"], [lastName, "Last name"],
-      [phone, "Mobile"], [email, "Email"],
-      [stateVal, "State / UT"], [city, "City / District"],
-      [addr1, "Address line 1"], [pin, "PIN"],
+      [nameFromState(), "Full name"],
+      [phone, "Mobile"],
+      [email, "Email"],
+      [ship.state, "State / UT"],
+      [ship.city, "City / District"],
+      [ship.addr1, "Address line 1"],
+      [ship.postal, "PIN"],
     ];
     for (const [v, label] of req) if (!String(v || "").trim()) return label;
     return null;
   }
 
   function makeOrderNo() {
-    const d = new Date(), y = ("" + d.getFullYear()).slice(-2), m = ("0" + (d.getMonth() + 1)).slice(-2), day = ("0" + d.getDate()).slice(-2);
+    const d = new Date(),
+      y = ("" + d.getFullYear()).slice(-2),
+      m = ("0" + (d.getMonth() + 1)).slice(-2),
+      day = ("0" + d.getDate()).slice(-2);
     return `HYP-${y}${m}${day}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
+  }
+
+  async function maybePersistAddress() {
+    // Only try to persist if logged in AND either no savedAddr yet OR user edited & wants default
+    if (!user) return;
+    if (!(editingShipping && saveAsDefault)) return;
+
+    try {
+      const tok = await user.getIdToken?.();
+      const body = {
+        address: {
+          name: nameFromState(),
+          phone,
+          street: addr1,
+          city,
+          state: stateVal,
+          postal: pin,
+          country: "IN",
+        } as Address,
+      };
+      // non-blocking fire-and-forget
+      fetch("/api/me/profile", {
+        method: "PUT",
+        headers: { "content-type": "application/json", authorization: `Bearer ${tok}` },
+        body: JSON.stringify(body),
+      }).catch(() => {});
+    } catch { /* ignore */ }
   }
 
   async function onCheckout() {
@@ -122,7 +255,10 @@ export default function CheckoutView() {
     try {
       startWait("preparing secure checkout…");
 
-      // Load Razorpay script
+      // 0. (Optional) persist address if user edited & opted-in
+      void maybePersistAddress();
+
+      // 1. Load Razorpay
       const loaded = await loadRazorpayScript();
       if (!loaded) {
         stopWait();
@@ -130,7 +266,7 @@ export default function CheckoutView() {
         return;
       }
 
-      // 1. Create Razorpay order
+      // 2. Create RPX order
       stepWait("creating your order…");
       const res = await fetch("/api/razorpay-order", {
         method: "POST",
@@ -145,8 +281,7 @@ export default function CheckoutView() {
         return;
       }
 
-      // 2. Razorpay checkout options
-      stepWait("opening payment window…");
+      // 3. Open Razorpay
       const options = {
         key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
         amount: total * 100,
@@ -154,12 +289,9 @@ export default function CheckoutView() {
         name: "HYPER MMA",
         description: "Order Payment",
         order_id: data.id,
-        handler: async function (response: any) {
-          console.log("[client] Razorpay payment response:", response);
-
+        handler: async (response: any) => {
           try {
             stepWait("verifying payment…");
-            // 3. Verify payment signature
             const verifyRes = await fetch("api/razorpay-verify", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -173,9 +305,6 @@ export default function CheckoutView() {
               return;
             }
 
-            console.log("[client] Payment verified successfully!");
-
-            // 4. Save order to Firestore with status 'paid'
             stepWait("finalizing your order…");
             await saveOrderToFirestore(response);
             clear();
@@ -188,7 +317,7 @@ export default function CheckoutView() {
           }
         },
         prefill: {
-          name: `${firstName} ${lastName}`,
+          name: nameFromState(),
           email,
           contact: phone,
         },
@@ -196,8 +325,6 @@ export default function CheckoutView() {
       };
 
       const rzp = new (window as any).Razorpay(options);
-
-      // close/fail → hide overlay
       rzp.on?.("modal.closed", () => stopWait());
       rzp.on?.("payment.failed", () => {
         stopWait();
@@ -214,7 +341,8 @@ export default function CheckoutView() {
   }
 
   async function saveOrderToFirestore(paymentResponse: any) {
-    const itemsForOrder = list.map(it => ({
+    const listArr: any[] = Object.values(items);
+    const itemsForOrder = listArr.map((it: any) => ({
       id: it.id,
       title: it.name,
       size: it.size,
@@ -223,10 +351,12 @@ export default function CheckoutView() {
       image: it.image,
     }));
 
+    const ship = shippingFromState();
+
     const payload = {
       userId: user?.uid || null,
-      customer: { name: `${firstName} ${lastName}`, email, phone },
-      shipping: { country: "India", state: stateVal, city, postal: pin, addr1, addr2 },
+      customer: { name: nameFromState(), email, phone },
+      shipping: { country: ship.country, state: ship.state, city: ship.city, postal: ship.postal, addr1: ship.addr1, addr2: ship.addr2 },
       items: itemsForOrder,
       amounts: { subtotal, shipping, total, currency: "INR" },
       status: "paid",
@@ -237,22 +367,19 @@ export default function CheckoutView() {
       },
     } as const;
 
-    // inside CheckoutView.tsx → function saveOrderToFirestore(paymentResponse: any) { ... }
-
     try {
       stepWait("saving your order…");
-      const orderId = await createOrder(payload);   // <— you already have this
+      const orderId = await createOrder(payload);
       console.log("[checkout] order saved:", orderId);
 
-      /* ✅ NEW: persist a client-side snapshot for the Thank-You page */
+      // snapshot for Thank-You page
       try {
         const snapshot = {
           orderId,
           placedAt: new Date().toISOString(),
           customer: payload.customer,
           shipping: payload.shipping,
-          // items in the exact shape your Thank-You component expects
-          items: payload.items.map(it => ({
+          items: payload.items.map((it) => ({
             id: it.id,
             title: it.title,
             size: it.size,
@@ -263,7 +390,6 @@ export default function CheckoutView() {
           amounts: {
             subtotal: payload.amounts.subtotal,
             shipping: payload.amounts.shipping,
-            // include these if you later add them to your payload
             discount: (payload as any).amounts?.discount ?? undefined,
             tax: (payload as any).amounts?.tax ?? 0,
             total: payload.amounts.total,
@@ -273,19 +399,14 @@ export default function CheckoutView() {
             razorpay_order_id: paymentResponse.razorpay_order_id,
             razorpay_payment_id: paymentResponse.razorpay_payment_id,
             razorpay_signature: paymentResponse.razorpay_signature,
-            // brand/last4 can be filled later if you fetch them server-side
           },
         };
-
-        // store for the Thank-You page to read
         sessionStorage.setItem("lastOrderSnapshot", JSON.stringify(snapshot));
       } catch (e) {
-        // never block checkout if storage fails
         console.warn("[checkout] failed to write lastOrderSnapshot:", e);
       }
-      /* ✅ END NEW BLOCK */
 
-      // fire-and-forget email (don’t block the UX)
+      // send emails (non-blocking)
       stepWait("sending confirmation emails…");
       void fetch("/api/email-order", {
         method: "POST",
@@ -298,11 +419,9 @@ export default function CheckoutView() {
       console.error("[checkout] Failed to save order:", e);
       throw e;
     }
-
   }
 
   async function devPing() {
-    // tiny dev-only write so you can see Firestore working without placing an order
     try {
       const pingId = await createOrder({
         userId: null,
@@ -311,7 +430,7 @@ export default function CheckoutView() {
         items: [],
         amounts: { subtotal: 0, shipping: 0, total: 0, currency: "INR" },
         status: "created",
-      });
+      } as any);
       console.log("[checkout] dev ping ok — order id:", pingId);
       alert(`Firestore OK. Dev ping order id: ${pingId}`);
     } catch (e) {
@@ -320,6 +439,7 @@ export default function CheckoutView() {
     }
   }
 
+  // ---- UI
   return (
     <section className="px-6 py-12 max-w-6xl mx-auto bg-white text-black">
       <h1 className="text-3xl font-bold mb-1 text-center">CHECK OUT</h1>
@@ -327,7 +447,7 @@ export default function CheckoutView() {
         {user ? (
           <>Logged in as <b>{user.email}</b></>
         ) : (
-          <>Already have an account? <a href="/login" className="text-pink-500">Log in</a></>
+          <>Already have an account? <Link href={LOGIN_PATH} className="underline">Log In</Link></>
         )}
       </p>
 
@@ -352,28 +472,71 @@ export default function CheckoutView() {
       {/* ADDRESS */}
       <section className="mb-10">
         <h2 className="text-lg font-bold mb-4 uppercase">Shipping Address</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <select defaultValue="India" className="border-b py-2 outline-none">
-            <option value="India">India</option>
-          </select>
 
-          <input value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
-            inputMode="numeric" maxLength={6} placeholder="PIN code (6 digits)"
-            className="border-b py-2 outline-none" />
-          <div className="md:col-span-2 text-xs text-gray-500">{pinHelp}</div>
+        {/* Read-only saved address (if available & not editing) */}
+        {user && savedAddr && usingSaved && !editingShipping ? (
+          <div className="rounded-2xl border p-4 flex items-start justify-between gap-4">
+            <div className="text-sm">
+              <div className="font-semibold">{savedAddr.name || nameFromState() || "—"}</div>
+              <div className="text-gray-600">{phone || savedAddr.phone || "—"}</div>
+              <div className="mt-2">
+                <div>{savedAddr.street}</div>
+                <div>{[savedAddr.city, savedAddr.state].filter(Boolean).join(", ")} {savedAddr.postal}</div>
+                <div>{savedAddr.country || "India"}</div>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                // show the editable form (pre-filled)
+                setEditingShipping(true);
+                setUsingSaved(false);
+                setSaveAsDefault(true);
+              }}
+              className="text-xs px-3 py-1.5 rounded-full border hover:bg-black hover:text-white"
+            >
+              Change
+            </button>
+          </div>
+        ) : (
+          // Editable address form
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <select value="India" className="border-b py-2 outline-none" onChange={() => {}}>
+              <option value="India">India</option>
+            </select>
 
-          {/* India states/UT dropdown */}
-          <select value={stateVal} onChange={(e) => setStateVal(e.target.value)} className="border-b py-2 outline-none">
-            <option value="">Select state / union territory</option>
-            {INDIA_STATES_AND_UT.map((s) => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-          </select>
+            <input
+              value={pin}
+              onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
+              inputMode="numeric"
+              maxLength={6}
+              placeholder="PIN code (6 digits)"
+              className="border-b py-2 outline-none"
+            />
+            <div className="md:col-span-2 text-xs text-gray-500">{pinHelp}</div>
 
-          <input value={city} onChange={(e) => setCity(e.target.value)} placeholder="City / District" className="border-b py-2 outline-none" />
-          <input value={addr1} onChange={(e) => setAddr1(e.target.value)} placeholder="House / Street / Area" className="border-b py-2 outline-none md:col-span-2" />
-          <input value={addr2} onChange={(e) => setAddr2(e.target.value)} placeholder="Address line 2 (apt, suite, etc.)" className="border-b py-2 outline-none md:col-span-2" />
-        </div>
+            <select value={stateVal} onChange={(e) => setStateVal(e.target.value)} className="border-b py-2 outline-none">
+              <option value="">Select state / union territory</option>
+              {INDIA_STATES_AND_UT.map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+
+            <input value={city} onChange={(e) => setCity(e.target.value)} placeholder="City / District" className="border-b py-2 outline-none" />
+            <input value={addr1} onChange={(e) => setAddr1(e.target.value)} placeholder="House / Street / Area" className="border-b py-2 outline-none md:col-span-2" />
+            <input value={addr2} onChange={(e) => setAddr2(e.target.value)} placeholder="Address line 2 (apt, suite, etc.)" className="border-b py-2 outline-none md:col-span-2" />
+
+            {user && (
+              <label className="md:col-span-2 flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={saveAsDefault}
+                  onChange={(e) => setSaveAsDefault(e.target.checked)}
+                />
+                <span>Save this as my default address</span>
+              </label>
+            )}
+          </div>
+        )}
       </section>
 
       {/* SUMMARY */}
@@ -417,7 +580,7 @@ export default function CheckoutView() {
         )}
       </div>
 
-      {/* pretty loading overlay */}
+      {/* overlay */}
       {loading && (
         <div className="fixed inset-0 z-[1000] bg-black/70 backdrop-blur-sm flex items-center justify-center p-6">
           <div className="w-full max-w-sm rounded-2xl bg-white text-black p-6 text-center shadow-2xl">
@@ -430,9 +593,6 @@ export default function CheckoutView() {
           </div>
         </div>
       )}
-
-      <FaqSection />
-      <ContactSection />
     </section>
   );
 }

@@ -1,14 +1,43 @@
+// src/components/ProductDetailView.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { mapProducts, parseCSV, type ProductModel } from "@/lib/csv";
 import { useCart } from "@/context/CartContext";
 import FaqSection from "@/components/FaqSection";
 import ContactSection from "@/components/ContactSection";
 import ProductTile from "@/components/ProductTile";
+import YouMayAlsoLike from "./YouMayAlsoLike";
 
-/* ---------- helpers (unchanged behavior) ---------- */
+/* ---------- lightweight ProductModel shape ---------- */
+type ProductModel = {
+  id?: string;
+  title?: string;
+  slug?: string;
+  name?: string;
+  subtitle?: string;
+  desc?: string;
+  description?: string;
+  image?: string;
+  images?: string[];
+  category?: string;
+  rating?: number;
+
+  // prices (string or number acceptable; we render them)
+  mrp?: any;
+  discountedPrice?: any;
+  presalePrice?: any;
+  price?: any;
+
+  // badges
+  discountPct?: string | number;
+  presalePct?: string | number;
+
+  // sizes can be array or csv string
+  sizes?: string[] | string;
+};
+
+/* ---------- helpers (unchanged visual logic) ---------- */
 const toAbs = (s?: string) => (!s ? "" : s.startsWith("/") ? s : `/${s}`);
 const dirFrom = (p: ProductModel) => (p.slug || p.title || "").trim();
 
@@ -26,7 +55,7 @@ function normalizeCsvImage(img: string | undefined, dir: string) {
 }
 function coverFor(p: ProductModel) {
   const dir = dirFrom(p);
-  const norm = normalizeCsvImage(p.image, dir);
+  const norm = normalizeCsvImage(p.image as any, dir);
   return norm || galleryCandidates(dir)[0] || "";
 }
 
@@ -52,112 +81,144 @@ function Stars({ rating = 4.6 }: { rating?: number }) {
   );
 }
 
+/* ---------- map Firestore doc to our model (no image reliance) ---------- */
+function mapDoc(doc: any): ProductModel {
+  // keep exact hyphenated titles/slugs—no normalization
+  const title = (doc?.title ?? doc?.name ?? doc?.slug ?? doc?.id ?? "").toString();
+
+  // prefer numeric → string rendering later
+  const numToStr = (v: any) =>
+    typeof v === "number" ? v : typeof v === "string" ? v : undefined;
+
+  const mrp = doc?.mrp ?? doc?.MRP;
+  const discounted = doc?.discountedPrice ?? doc?.["discounted price"];
+  const presale = doc?.presalePrice ?? doc?.["presale price"];
+
+  // sizes may be array or CSV string
+  const sizes =
+    Array.isArray(doc?.sizes)
+      ? doc.sizes
+      : typeof doc?.sizes === "string"
+        ? doc.sizes.split(/[\s,\/|]+/).map((s: string) => s.trim()).filter(Boolean)
+        : undefined;
+
+  return {
+    id: doc?.id,
+    title,
+    slug: doc?.slug ?? title,
+    subtitle: doc?.subtitle,
+    desc: doc?.desc ?? doc?.description ?? "",
+    description: doc?.description ?? doc?.desc ?? "",
+    category: doc?.category,
+    rating: typeof doc?.rating === "number" ? doc.rating : undefined,
+
+    // prices (keep whichever exist; we’ll pick later)
+    mrp: numToStr(mrp),
+    discountedPrice: numToStr(discounted),
+    presalePrice: numToStr(presale),
+    price: numToStr(doc?.price),
+
+    // badges if present
+    discountPct: doc?.discountPct ?? doc?.["discount percentage"],
+    presalePct: doc?.presalePct ?? doc?.["presale price percentage"],
+
+    sizes,
+    // NOTE: we intentionally do NOT depend on Firestore images here.
+    // The gallery uses the asset-folder logic based on title/slug.
+  };
+}
+
 /* ================================================== */
 
 export default function ProductDetailView({ product }: { product: ProductModel }) {
   const { add } = useCart();
 
-  /* 1) HYDRATE product from CSV so desc/sizes/price always show */
+  /* 1) HYDRATE product from Firebase (not CSV) */
   const [full, setFull] = useState<ProductModel>(product);
+
   useEffect(() => {
+    const key = (product.title || product.slug || product.id || "").toString();
+    if (!key) return;
+
     (async () => {
       try {
-        const res = await fetch("/assets/hyper-products-sample.csv", { cache: "no-cache" });
-        const txt = await res.text();
-        const all = mapProducts(parseCSV(txt));
-        const meTitle = (product.title || "").toLowerCase();
-        const meSlug = (product.slug || "").toLowerCase();
+        console.log("[ProductDetail] fetching /api/products to hydrate:", { key });
+        // pull a reasonable page; server will read Firestore first
+        const res = await fetch("/api/products?limit=200", { cache: "no-store" });
+        const body = await res.json().catch(() => null);
+
+        if (!res.ok || !Array.isArray(body?.products)) {
+          console.warn("[ProductDetail] /api/products failed", res.status, body);
+          return;
+        }
+
+        // exact match only — no normalization
+        const list = body.products as any[];
         const found =
-          all.find(
-            (p) =>
-              (p.title || "").toLowerCase().trim() === meTitle ||
-              (p.slug || "").toLowerCase().trim() === meSlug
-          );
+          list.find((d) => (d?.title ?? d?.name ?? d?.slug ?? d?.id) === key) ||
+          list.find((d) => d?.slug === key) ||
+          list.find((d) => d?.id === key);
 
-        setFull((prev) => {
-          if (!found) return prev;
+        if (!found) {
+          console.warn("[ProductDetail] product not found in list for key:", key);
+          return;
+        }
 
-          // sizes can be array or CSV string
-          const sizes =
-            Array.isArray(found.sizes)
-              ? found.sizes.filter(Boolean)
-              : String(found.sizes || "")
-                .split(/[\s,\/|]+/)
-                .map((s) => s.trim())
-                .filter(Boolean);
+        const mapped = mapDoc(found);
+        setFull((prev) => ({
+          // keep anything already on state, only fill missing fields
+          ...prev,
+          title: prev.title || mapped.title,
+          slug: prev.slug || mapped.slug,
+          subtitle: prev.subtitle || mapped.subtitle,
+          desc: prev.desc || mapped.desc,
+          description: (prev as any).description || mapped.description || "",
+          category: prev.category || mapped.category,
+          rating: typeof prev.rating === "number" ? prev.rating : mapped.rating,
+          sizes:
+            (prev.sizes && (Array.isArray(prev.sizes) ? prev.sizes.length : String(prev.sizes).trim().length))
+              ? prev.sizes
+              : mapped.sizes,
 
-          // rating may be string/number/null
-          const rating =
-            prev.rating ?? (found.rating !== undefined && found.rating !== null
-              ? Number(found.rating as any)
-              : null);
+          // prices — preserve whatever existed, else use mapped
+          mrp: prev.mrp ?? mapped.mrp,
+          discountedPrice: prev.discountedPrice ?? mapped.discountedPrice,
+          presalePrice: prev.presalePrice ?? mapped.presalePrice,
+          price: prev.price ?? mapped.price,
 
-          return {
-            // keep everything you already had on state
-            ...prev,
+          // DO NOT set image from Firestore/CSV; gallery uses assets folder.
+        }));
 
-            // hydrate every ProductModel field from CSV if missing
-            title: prev.title || found.title || "",
-            desc: prev.desc || (found as any).desc || (found as any).description || "",
-            // also provide 'description' alias so your UI that reads full.description works
-            description:
-              (prev as any).description ||
-              (found as any).description ||
-              (found as any).desc ||
-              "",
-
-            mrp: prev.mrp || (found as any).mrp || "",
-            discountedPrice:
-              prev.discountedPrice || (found as any).discountedPrice || "",
-            discountPct: prev.discountPct || (found as any).discountPct || "",
-            presalePrice: prev.presalePrice || (found as any).presalePrice || "",
-            presalePct: prev.presalePct || (found as any).presalePct || "",
-            category: prev.category || (found as any).category || "",
-            image: prev.image || (found as any).image || "",
-            rating,
-
-            // sizes normalized
-            sizes: prev.sizes && prev.sizes.length ? prev.sizes : sizes,
-
-            // keep slug if your helpers use it
-            slug: (prev as any).slug || (found as any).slug || (prev as any).title || "",
-
-            // keep your existing price preference chain working downstream
-            price:
-              (prev as any).price ||
-              (found as any).price ||
-              (found as any).discountedPrice ||
-              (found as any).presalePrice ||
-              (found as any).mrp ||
-              "",
-          } as typeof prev;
+        console.log("[ProductDetail] hydrated from Firestore:", {
+          id: mapped.id,
+          title: mapped.title,
+          slug: mapped.slug,
         });
       } catch (e) {
-        // if CSV fails, keep incoming product as-is
-        setFull(product);
+        console.error("[ProductDetail] hydrate error:", e);
       }
     })();
   }, [product]);
 
   const title = full.title || product.title || "";
   const subtitle = full.subtitle || product.subtitle || "";
-  const mrp = full.mrp || "";
   const rating = (full as any).rating ?? 4.6;
   const sizes = useMemo(() => coerceSizes(full.sizes), [full.sizes]);
   const displayPrice = pickPrice(full);
 
-  /* 2) old image viewer (main + thumbs) */
+  /* 2) image viewer (assets-based: main + thumbs) */
   const dir = useMemo(() => dirFrom(full), [full.slug, full.title]);
   const [images, setImages] = useState<string[]>([]);
   const [active, setActive] = useState(0);
 
   useEffect(() => {
-    const prime = normalizeCsvImage(full.image, dir);
+    // force assets gallery; ignore any doc/CSV image by leaving it empty
+    const prime = normalizeCsvImage("", dir);
     const extras = galleryCandidates(dir);
     const list = Array.from(new Set([prime, ...extras].filter(Boolean))).map(toAbs);
     setImages(list);
     setActive(0);
-  }, [dir, full.image]);
+  }, [dir]);
 
   const onThumbError = (idx: number) => {
     setImages((prev) => prev.filter((_, i) => i !== idx));
@@ -187,18 +248,27 @@ export default function ProductDetailView({ product }: { product: ProductModel }
     });
   };
 
-  /* 4) YMAL (unchanged) */
+  /* 4) YOU MAY ALSO LIKE (from Firestore; images from assets) */
   const [also, setAlso] = useState<ProductModel[]>([]);
   useEffect(() => {
+    if (!title) return;
     (async () => {
       try {
-        const res = await fetch("/assets/hyper-products-sample.csv", { cache: "no-cache" });
-        const txt = await res.text();
-        const all = mapProducts(parseCSV(txt));
-        const me = (title || "").toLowerCase();
-        setAlso(all.filter((p) => (p.title || "").toLowerCase() !== me).slice(0, 8));
+        const res = await fetch("/api/products?limit=12", { cache: "no-store" });
+        const body = await res.json().catch(() => null);
+        if (!res.ok || !Array.isArray(body?.products)) {
+          console.warn("[ProductDetail][YMAL] failed:", res.status, body);
+          return;
+        }
+        const docs = body.products as any[];
+        const mapped = docs
+          .map(mapDoc)
+          .filter((p) => (p.title ?? "") !== title)
+          .slice(0, 8);
+        setAlso(mapped);
+        console.log("[ProductDetail][YMAL] loaded", mapped.length, "items");
       } catch (e) {
-        // ignore
+        console.error("[ProductDetail][YMAL] error:", e);
       }
     })();
   }, [title]);
@@ -243,14 +313,16 @@ export default function ProductDetailView({ product }: { product: ProductModel }
           {/* breadcrumb + title + rating to mimic SS */}
           <div className="text-xs uppercase tracking-widest text-gray-500">Shop / product</div>
           <h1 className="mt-2 text-3xl md:text-4xl font-extrabold">{title}</h1>
+          {subtitle ? (
+            <div className="mt-1 text-sm text-gray-500">{subtitle}</div>
+          ) : null}
 
           <div className="mt-3 flex items-center gap-4">
-            <span className="text-xl font-bold">{displayPrice}</span>
+            <span className="text-xl font-bold">{String(displayPrice)}</span>
             <Stars rating={rating} />
           </div>
 
           {/* Sizes */}
-          {/* {console.log(full)} */}
           {sizes.length > 0 && (
             <div className="mt-6">
               <div className="mb-2 text-xs font-semibold uppercase tracking-widest text-gray-600">
@@ -306,35 +378,18 @@ export default function ProductDetailView({ product }: { product: ProductModel }
             </div>
           )}
 
-          {/* Description from CSV (now hydrated) */}
+          {/* Description (hydrated from Firestore if available) */}
           {full.description && (
             <div
               className="prose prose-sm md:prose mt-8 max-w-none text-gray-700"
-              dangerouslySetInnerHTML={{ __html: full.description }}
+              dangerouslySetInnerHTML={{ __html: full.description as string }}
             />
           )}
         </div>
       </div>
 
       {/* ========= YOU MAY ALSO LIKE ========= */}
-      <div className="mt-16">
-        <div className="text-center">
-          <img src="/assets/ymal-header.png" alt="You may also like" className="mx-auto mb-6 w-72 md:w-80" />
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 sm:gap-6">
-  {also.map((p) => (
-    <ProductTile
-      key={p.title}
-      href={`/product/${encodeURIComponent(p.title)}`}
-      image={toAbs(coverFor(p))}
-      title={p.title}
-      price={pickPrice(p)}
-      className="p-3 sm:p-4"   // slightly tighter inside YMAL
-    />
-  ))}
-</div>
-      </div>
+       <YouMayAlsoLike excludeTitle="" limit={4} />
 
       {/* ========= FAQ + Contact ========= */}
       <div className="mt-16">

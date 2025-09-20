@@ -4,6 +4,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import { LOGIN_PATH } from "@/config/paths";
+import Link from "next/link";
 
 const HERO_SLIDES = [
   "/assets/login/signup-gym.png",
@@ -32,7 +34,7 @@ export default function SignupPage() {
     setErr(null);
     try {
       await signupEmail(name.trim(), email.trim(), pw);
-      router.replace("/checkout");
+      router.replace("/dashboard");
     } catch (e: any) {
       setErr(e?.message || "Signup failed. Please try again.");
     }
@@ -42,7 +44,7 @@ export default function SignupPage() {
     setErr(null);
     try {
       await loginGoogle();
-      router.replace("/checkout");
+      router.replace("/dashboard");
     } catch (e: any) {
       setErr(e?.message || "Google sign-in failed. Please try again.");
     }
@@ -85,9 +87,7 @@ export default function SignupPage() {
 
             <p className="mt-3 text-center text-sm text-gray-600">
               Already have an account?{" "}
-              <a href="/login" className="text-pink-500 hover:underline">
-                Log in
-              </a>
+              <Link href={LOGIN_PATH}>Log In</Link>
             </p>
 
             {err && (
