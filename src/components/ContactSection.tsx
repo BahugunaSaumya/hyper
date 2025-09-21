@@ -1,10 +1,10 @@
 export default function ContactSection() {
   return (
     // CONTACT / INSTAGRAM CTA (exact structure preserved, only asset paths changed)
-    <section className="bg-black text-white font-sans py-12 px-4 sm:px-12">
+    <section className="bleed-x bg-black text-white font-sans py-12 px-4 sm:px-12">
       <div className="flex flex-col items-center text-center">
         {/* Hyper Logo */}
-        <img src="/assets/hyper-logo.png" alt="Hyper Logo" className="w-64 sm:w-80 mb-6" />
+        <img src="/assets/hyper-gear.png" alt="Hyper Logo" className="w-64 sm:w-80 mb-6" />
 
         {/* Line Divider */}
         <img src="/assets/Line 3.png" alt="Line" className="w-full max-w-4xl mb-6" />

@@ -2,11 +2,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { useCart } from "@/context/CartContext";
 import FaqSection from "@/components/FaqSection";
 import ContactSection from "@/components/ContactSection";
-import ProductTile from "@/components/ProductTile";
 import YouMayAlsoLike from "./YouMayAlsoLike";
 
 /* ---------- lightweight ProductModel shape ---------- */
@@ -69,7 +67,7 @@ const coerceSizes = (sizes: ProductModel["sizes"]) => {
   return String(sizes || "XS,S,M,L,XL").split(/[\s,\/|]+/).filter(Boolean);
 };
 
-/* tiny stars component to match the SS */
+/* tiny stars component */
 function Stars({ rating = 4.6 }: { rating?: number }) {
   const r = Math.round(rating);
   return (
@@ -83,18 +81,12 @@ function Stars({ rating = 4.6 }: { rating?: number }) {
 
 /* ---------- map Firestore doc to our model (no image reliance) ---------- */
 function mapDoc(doc: any): ProductModel {
-  // keep exact hyphenated titles/slugs—no normalization
   const title = (doc?.title ?? doc?.name ?? doc?.slug ?? doc?.id ?? "").toString();
-
-  // prefer numeric → string rendering later
-  const numToStr = (v: any) =>
-    typeof v === "number" ? v : typeof v === "string" ? v : undefined;
-
+  const numToStr = (v: any) => (typeof v === "number" ? v : typeof v === "string" ? v : undefined);
   const mrp = doc?.mrp ?? doc?.MRP;
   const discounted = doc?.discountedPrice ?? doc?.["discounted price"];
   const presale = doc?.presalePrice ?? doc?.["presale price"];
 
-  // sizes may be array or CSV string
   const sizes =
     Array.isArray(doc?.sizes)
       ? doc.sizes
@@ -112,19 +104,14 @@ function mapDoc(doc: any): ProductModel {
     category: doc?.category,
     rating: typeof doc?.rating === "number" ? doc.rating : undefined,
 
-    // prices (keep whichever exist; we’ll pick later)
     mrp: numToStr(mrp),
     discountedPrice: numToStr(discounted),
     presalePrice: numToStr(presale),
     price: numToStr(doc?.price),
 
-    // badges if present
     discountPct: doc?.discountPct ?? doc?.["discount percentage"],
     presalePct: doc?.presalePct ?? doc?.["presale price percentage"],
-
     sizes,
-    // NOTE: we intentionally do NOT depend on Firestore images here.
-    // The gallery uses the asset-folder logic based on title/slug.
   };
 }
 
@@ -142,31 +129,21 @@ export default function ProductDetailView({ product }: { product: ProductModel }
 
     (async () => {
       try {
-        console.log("[ProductDetail] fetching /api/products to hydrate:", { key });
-        // pull a reasonable page; server will read Firestore first
+        // Pull a reasonable page; server reads Firestore first
         const res = await fetch("/api/products?limit=200", { cache: "no-store" });
         const body = await res.json().catch(() => null);
+        if (!res.ok || !Array.isArray(body?.products)) return;
 
-        if (!res.ok || !Array.isArray(body?.products)) {
-          console.warn("[ProductDetail] /api/products failed", res.status, body);
-          return;
-        }
-
-        // exact match only — no normalization
         const list = body.products as any[];
         const found =
           list.find((d) => (d?.title ?? d?.name ?? d?.slug ?? d?.id) === key) ||
           list.find((d) => d?.slug === key) ||
           list.find((d) => d?.id === key);
 
-        if (!found) {
-          console.warn("[ProductDetail] product not found in list for key:", key);
-          return;
-        }
+        if (!found) return;
 
         const mapped = mapDoc(found);
         setFull((prev) => ({
-          // keep anything already on state, only fill missing fields
           ...prev,
           title: prev.title || mapped.title,
           slug: prev.slug || mapped.slug,
@@ -179,24 +156,12 @@ export default function ProductDetailView({ product }: { product: ProductModel }
             (prev.sizes && (Array.isArray(prev.sizes) ? prev.sizes.length : String(prev.sizes).trim().length))
               ? prev.sizes
               : mapped.sizes,
-
-          // prices — preserve whatever existed, else use mapped
           mrp: prev.mrp ?? mapped.mrp,
           discountedPrice: prev.discountedPrice ?? mapped.discountedPrice,
           presalePrice: prev.presalePrice ?? mapped.presalePrice,
           price: prev.price ?? mapped.price,
-
-          // DO NOT set image from Firestore/CSV; gallery uses assets folder.
         }));
-
-        console.log("[ProductDetail] hydrated from Firestore:", {
-          id: mapped.id,
-          title: mapped.title,
-          slug: mapped.slug,
-        });
-      } catch (e) {
-        console.error("[ProductDetail] hydrate error:", e);
-      }
+      } catch { }
     })();
   }, [product]);
 
@@ -206,7 +171,7 @@ export default function ProductDetailView({ product }: { product: ProductModel }
   const sizes = useMemo(() => coerceSizes(full.sizes), [full.sizes]);
   const displayPrice = pickPrice(full);
 
-  /* 2) image viewer (assets-based: main + thumbs) */
+  /* 2) image viewer (assets-based: hero + thumbs) */
   const dir = useMemo(() => dirFrom(full), [full.slug, full.title]);
   const [images, setImages] = useState<string[]>([]);
   const [active, setActive] = useState(0);
@@ -256,76 +221,94 @@ export default function ProductDetailView({ product }: { product: ProductModel }
       try {
         const res = await fetch("/api/products?limit=12", { cache: "no-store" });
         const body = await res.json().catch(() => null);
-        if (!res.ok || !Array.isArray(body?.products)) {
-          console.warn("[ProductDetail][YMAL] failed:", res.status, body);
-          return;
-        }
+        if (!res.ok || !Array.isArray(body?.products)) return;
         const docs = body.products as any[];
-        const mapped = docs
-          .map(mapDoc)
-          .filter((p) => (p.title ?? "") !== title)
-          .slice(0, 8);
+        const mapped = docs.map(mapDoc).filter((p) => (p.title ?? "") !== title).slice(0, 8);
         setAlso(mapped);
-        console.log("[ProductDetail][YMAL] loaded", mapped.length, "items");
-      } catch (e) {
-        console.error("[ProductDetail][YMAL] error:", e);
-      }
+      } catch { }
     })();
   }, [title]);
 
   return (
-    <div className="w-full px-4 md:px-10 py-10">
-      <div className="grid md:grid-cols-2 gap-12 w-full">
+    <div className="w-full max-w-6xl mx-auto px-3 sm:px-4 md:px-10 py-6 sm:py-8 md:py-10">
+      {/* Two columns on md+: [GALLERY | INFO]. On mobile it stacks. */}
+      <div className="grid md:grid-cols-2 gap-6 sm:gap-8 md:gap-12 w-full">
         {/* ========= GALLERY ========= */}
         <div className="w-full">
-          <div className="relative aspect-square w-full overflow-hidden rounded-3xl bg-white shadow">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            {hero ? (
-              <img src={hero} alt={title} className="h-full w-full object-contain" />
-            ) : (
-              <div className="grid h-full w-full place-items-center text-gray-400">No image</div>
-            )}
-          </div>
-
-          <div className="mt-4 flex gap-3 overflow-x-auto">
-            {images.map((src, i) => (
-              <button
-                key={`${src}__${i}`}
-                onClick={() => setActive(i)}
-                className={`flex-shrink-0 h-20 w-20 overflow-hidden rounded-xl border transition ${i === active ? "border-black" : "border-gray-200"
-                  }`}
-                aria-label={`View ${title} image ${i + 1}`}
-              >
+          {/* Desktop: thumbs LEFT, hero RIGHT. Mobile: hero first, thumbs below */}
+          <div className="grid md:grid-cols-[5rem_1fr] lg:grid-cols-[6rem_1fr] gap-3 md:gap-5">
+            {/* HERO */}
+            <div className="order-1 md:order-2">
+              <div className="relative aspect-square w-full overflow-hidden rounded-2xl sm:rounded-3xl bg-white shadow">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={src}
-                  alt={`${title} ${i + 1}`}
-                  className="h-full w-full object-cover"
-                  onError={() => onThumbError(i)}
-                />
-              </button>
-            ))}
+                {hero ? (
+                  <img src={hero} alt={title} className="h-full w-full object-contain" />
+                ) : (
+                  <div className="grid h-full w-full place-items-center text-gray-400">No image</div>
+                )}
+              </div>
+
+              {/* Mobile thumbs: horizontal under hero */}
+              <div className="mt-3 flex gap-2 sm:gap-3 overflow-x-auto md:hidden">
+                {images.map((src, i) => (
+                  <button
+                    key={`${src}__m${i}`}
+                    onClick={() => setActive(i)}
+                    className={`flex-shrink-0 h-16 w-16 sm:h-20 sm:w-20 overflow-hidden rounded-lg border transition ${i === active ? "border-black" : "border-gray-200"
+                      }`}
+                    aria-label={`View ${title} image ${i + 1}`}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={src}
+                      alt={`${title} ${i + 1}`}
+                      className="h-full w-full object-cover"
+                      onError={() => onThumbError(i)}
+                    />
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Desktop thumbs: vertical on the left */}
+            <div className="order-2 md:order-1 hidden md:flex md:flex-col gap-2 md:gap-3 overflow-y-auto md:max-h-[min(80vh,40rem)] pr-1">
+              {images.map((src, i) => (
+                <button
+                  key={`${src}__d${i}`}
+                  onClick={() => setActive(i)}
+                  className={`h-16 w-16 lg:h-20 lg:w-20 overflow-hidden rounded-lg border transition ${i === active ? "border-black" : "border-gray-200"
+                    }`}
+                  aria-label={`View ${title} image ${i + 1}`}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={src}
+                    alt={`${title} ${i + 1}`}
+                    className="h-full w-full object-cover"
+                    onError={() => onThumbError(i)}
+                  />
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
         {/* ========= INFO ========= */}
         <div className="w-full">
-          {/* breadcrumb + title + rating to mimic SS */}
-          <div className="text-xs uppercase tracking-widest text-gray-500">Shop / product</div>
-          <h1 className="mt-2 text-3xl md:text-4xl font-extrabold">{title}</h1>
-          {subtitle ? (
-            <div className="mt-1 text-sm text-gray-500">{subtitle}</div>
-          ) : null}
+          {/* breadcrumb + title + rating */}
+          <div className="text-[11px] sm:text-xs uppercase tracking-widest text-gray-500">Shop / product</div>
+          <h1 className="mt-2 text-2xl sm:text-3xl md:text-4xl font-extrabold">{title}</h1>
+          {subtitle ? <div className="mt-1 text-xs sm:text-sm text-gray-500">{subtitle}</div> : null}
 
-          <div className="mt-3 flex items-center gap-4">
-            <span className="text-xl font-bold">{String(displayPrice)}</span>
+          <div className="mt-3 flex items-center gap-3 sm:gap-4">
+            <span className="text-lg sm:text-xl font-bold">{String(displayPrice)}</span>
             <Stars rating={rating} />
           </div>
 
           {/* Sizes */}
           {sizes.length > 0 && (
-            <div className="mt-6">
-              <div className="mb-2 text-xs font-semibold uppercase tracking-widest text-gray-600">
+            <div className="mt-5 sm:mt-6">
+              <div className="mb-2 text-[11px] sm:text-xs font-semibold uppercase tracking-widest text-gray-600">
                 Select Size
               </div>
               <div className="flex flex-wrap gap-2">
@@ -343,20 +326,20 @@ export default function ProductDetailView({ product }: { product: ProductModel }
             </div>
           )}
 
-          {/* Qty pill + ADD TO CART pill (styled like your SS) */}
-          <div className="mt-6 flex items-center gap-3">
-            <div className="flex w-40 items-center justify-between rounded-full border px-3 py-2">
+          {/* Qty pill + ADD TO CART */}
+          <div className="mt-5 sm:mt-6 flex items-center gap-3">
+            <div className="flex w-36 sm:w-40 items-center justify-between rounded-full border px-2.5 sm:px-3 py-1.5 sm:py-2">
               <button
                 onClick={() => setQty((q) => Math.max(1, q - 1))}
-                className="px-3 text-xl"
+                className="px-2 sm:px-3 text-lg sm:text-xl"
                 aria-label="Decrease quantity"
               >
                 −
               </button>
-              <div className="text-base font-semibold">{qty}</div>
+              <div className="text-sm sm:text-base font-semibold">{qty}</div>
               <button
                 onClick={() => setQty((q) => q + 1)}
-                className="px-3 text-xl"
+                className="px-2 sm:px-3 text-lg sm:text-xl"
                 aria-label="Increase quantity"
               >
                 +
@@ -365,7 +348,7 @@ export default function ProductDetailView({ product }: { product: ProductModel }
 
             <button
               onClick={handleAdd}
-              className="flex-1 rounded-full bg-black px-6 py-4 text-sm font-extrabold uppercase tracking-widest text-white shadow-lg transition hover:bg-pink-600"
+              className="flex-1 rounded-full bg-black px-5 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-extrabold uppercase tracking-widest text-white shadow-lg transition hover:bg-pink-600"
             >
               Add to Cart
             </button>
@@ -378,10 +361,10 @@ export default function ProductDetailView({ product }: { product: ProductModel }
             </div>
           )}
 
-          {/* Description (hydrated from Firestore if available) */}
+          {/* Description */}
           {full.description && (
             <div
-              className="prose prose-sm md:prose mt-8 max-w-none text-gray-700"
+              className="prose prose-xs sm:prose-sm md:prose mt-6 sm:mt-8 max-w-none text-gray-700"
               dangerouslySetInnerHTML={{ __html: full.description as string }}
             />
           )}
@@ -389,15 +372,19 @@ export default function ProductDetailView({ product }: { product: ProductModel }
       </div>
 
       {/* ========= YOU MAY ALSO LIKE ========= */}
-       <YouMayAlsoLike excludeTitle="" limit={4} />
+      <div className="mt-12 sm:mt-14 md:mt-16">
+        <YouMayAlsoLike excludeTitle="" limit={4} />
+      </div>
 
       {/* ========= FAQ + Contact ========= */}
-      <div className="mt-16">
+      <div className="mt-12 sm:mt-14 md:mt-16">
         <FaqSection />
       </div>
-      <div className="mt-16">
+      <div className="mt-12 sm:mt-14 md:mt-16">
         <ContactSection />
       </div>
     </div>
   );
 }
+
+

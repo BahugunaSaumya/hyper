@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { type ProductModel } from "@/lib/csv"; // type only, for shape compatibility
+import { type ProductModel } from "@/lib/csv";
 import { useRouter } from "next/navigation";
 
 type Mode = "presale" | "discounted";
@@ -10,26 +10,23 @@ const CAMPAIGN_DEFAULT: Mode = "presale";
 
 const mod = (n: number, m: number) => ((n % m) + m) % m;
 
-/** INR formatter for numeric values that might come from Firestore/CSV */
+/* ---- money ---- */
 function fmtINR(v: unknown): string {
   if (typeof v === "number") return "₹ " + v.toLocaleString("en-IN");
-  if (typeof v === "string") return v; // already formatted in CSV style
+  if (typeof v === "string") return v;
   return "";
 }
 
-/** Map one Firestore/CSV product object into the minimal ProductModel used here */
+/* ---- map product ---- */
 function mapDocToModel(doc: any): ProductModel {
-  // Title fallbacks: prefer title → name → slug → id
   const title: string =
     (doc?.title || doc?.name || doc?.slug || doc?.id || "").toString();
 
-  // Choose a single image (ProductsSection shows one)
   const image: string =
     (Array.isArray(doc?.images) && doc.images[0]) ||
     doc?.image ||
     "/assets/placeholder.png";
 
-  // Accept both CSV headers and normalized Firestore fields
   const mrp = doc?.mrp ?? doc?.MRP;
   const discounted = doc?.discountedPrice ?? doc?.["discounted price"];
   const presale = doc?.presalePrice ?? doc?.["presale price"];
@@ -37,13 +34,11 @@ function mapDocToModel(doc: any): ProductModel {
   const presalePct = doc?.presalePct ?? doc?.["presale price percentage"];
 
   return {
-    // fields your old CSV ProductModel expected/used here
     title,
     image,
     mrp: fmtINR(mrp),
     discountedPrice: fmtINR(discounted),
     presalePrice: fmtINR(presale),
-    // keep badges as short strings if present
     discountPct:
       typeof discountPct === "number" ? `${discountPct}%` : (discountPct || ""),
     presalePct:
@@ -84,9 +79,7 @@ export default function ProductsSection() {
   const [dir, setDir] = useState<1 | -1>(1);
   const [mode, setMode] = useState<Mode>(() => {
     if (typeof window === "undefined") return CAMPAIGN_DEFAULT;
-    const qs = new URLSearchParams(window.location.search).get("price") as
-      | Mode
-      | null;
+    const qs = new URLSearchParams(window.location.search).get("price") as Mode | null;
     return (
       (qs === "discounted"
         ? "discounted"
@@ -94,7 +87,6 @@ export default function ProductsSection() {
     );
   });
 
-  // Load from Firebase-backed API (falls back to CSV server-side if needed)
   useEffect(() => {
     (async () => {
       try {
@@ -121,7 +113,6 @@ export default function ProductsSection() {
     })();
   }, []);
 
-  // Persist mode changes (optional: keeps your previous behavior)
   useEffect(() => {
     if (typeof window !== "undefined") {
       localStorage.setItem("campaignMode", mode);
@@ -130,9 +121,7 @@ export default function ProductsSection() {
 
   // auto-advance (circular)
   const idxRef = useRef(0);
-  useEffect(() => {
-    idxRef.current = idx;
-  }, [idx]);
+  useEffect(() => { idxRef.current = idx; }, [idx]);
   useEffect(() => {
     if (!products.length) return;
     const t = setInterval(() => {
@@ -162,29 +151,43 @@ export default function ProductsSection() {
   return (
     <section
       id="products"
-      className="relative py-24 bg-cover bg-center overflow-hidden scroll-mt-[120px]"
-      style={{ backgroundImage: "url('/assets/design.png')" }}
+      className="bleed-x relative bg-cover bg-center overflow-x-visible overflow-y-hidden
+                 scroll-mt-[120px] overflow-anchor-none touch-pan-y
+                 pt-14 md:pt-16 pb-16 md:pb-20"
+      style={{
+        backgroundImage: "url('/assets/design.png')",
+        // Slightly taller ring so shorts are prominent (affects global CSS var locally)
+        // tweak these numbers to taste
+        ["--ring-height" as any]: "clamp(420px, 48vh, 860px)",
+      }}
     >
       <div className="absolute inset-0 bg-black/90 z-0 pointer-events-none" />
 
       <div className="relative z-10 max-w-[1200px] mx-auto">
-        <div className="text-center mb-10">
+        {/* Title block — tighter gap to models */}
+        <div className="text-center mb-2 md:mb-0">
           <img
             src="/assets/our-products-heading.png"
             alt="Our Products"
-            className="mx-auto w-[260px] sm:w-[320px] md:w-[360px] h-auto"
+            className="mx-auto w-[220px] sm:w-[300px] md:w-[360px] h-auto"
           />
         </div>
 
-        <div className="relative min-h-[680px] sm:min-h-[720px] md:min-h-[820px] flex items-center justify-center overflow-visible">
+        {/* Ring wrapper — nudged up; extra bottom padding for price/CTA */}
+        <div
+          className="relative -mt-5 sm:-mt-3 md:-mt-4
+                     min-h-[600px] sm:min-h-[700px] md:min-h-[820px]
+                     flex items-center justify-center overflow-visible
+                     px-3 sm:px-0
+                     pb-[300px] sm:pb-[310px] md:pb-[390px]"
+        >
           {/* RING */}
-          <div id="carouselContainer" className="h-full w-full">
+          <div id="carouselContainer" className="h-full w-full overflow-anchor-none">
             {products.map((p, i) => {
               const total = products.length || 1;
               const relPrev = mod(i - prevIdx, total);
               const relNow = mod(i - idx, total);
 
-              // hide the “back row” cross when wrapping
               const teleports =
                 (dir === 1 && relPrev === total - 2 && relNow === 2) ||
                 (dir === -1 && relPrev === 2 && relNow === total - 2);
@@ -197,8 +200,7 @@ export default function ProductsSection() {
                 .filter(Boolean)
                 .join(" ");
 
-              const openDetail = () =>
-                router.push(`/product/${encodeURIComponent(p.title)}`);
+              const openDetail = () => router.push(`/product/${encodeURIComponent(p.title)}`);
 
               return (
                 <div
@@ -207,10 +209,8 @@ export default function ProductsSection() {
                   style={{ cursor: "pointer" }}
                   onClick={() => {
                     if (i === idx) {
-                      // center image → open
                       openDetail();
                     } else {
-                      // side image → move to center, then open
                       setDir(i > idx ? 1 : -1);
                       setPrevIdx(idx);
                       setIdx(i);
@@ -228,21 +228,24 @@ export default function ProductsSection() {
             })}
           </div>
 
-          {/* Overlay */}
-          <div className="relative z-20 text-center px-4 pt-[760px] sm:pt-[500px] md:pt-[580px] lg:pt-[800px] pointer-events-none">
-            <div className="mt-2 flex items-center justify-center gap-2">
+          {/* Overlay — compact vertical rhythm */}
+          <div
+            className="absolute z-20 inset-x-0
+             bottom-[-57px] sm:bottom-[-67px] md:bottom-[-80px]
+             text-center px-4 pointer-events-none"
+          >
+
+            <div className="flex items-center justify-center gap-2">
               <button
                 id="campaignPresale"
-                className={`pointer-events-auto px-3 py-1 rounded-full border border-white/40 text-white/90 text-xs hover:bg-white/10 ${mode === "presale" ? "bg-white/10" : ""
-                  }`}
+                className={`pointer-events-auto px-3 py-1 rounded-full border border-white/40 text-white/90 text-xs hover:bg-white/10 ${mode === "presale" ? "bg-white/10" : ""}`}
                 onClick={() => setMode("presale")}
               >
                 Presale
               </button>
               <button
                 id="campaignDiscounted"
-                className={`pointer-events-auto px-3 py-1 rounded-full border border-white/40 text-white/90 text-xs hover:bg-white/10 ${mode === "discounted" ? "bg-white/10" : ""
-                  }`}
+                className={`pointer-events-auto px-3 py-1 rounded-full border border-white/40 text-white/90 text-xs hover:bg-white/10 ${mode === "discounted" ? "bg-white/10" : ""}`}
                 onClick={() => setMode("discounted")}
               >
                 Discounted
@@ -251,12 +254,14 @@ export default function ProductsSection() {
 
             <h2
               id="highlightedTitle"
-              className="text-white font-extrabold tracking-tight text-3xl sm:text-4xl md:text-5xl drop-shadow-[0_2px_0_rgba(0,0,0,0.25)]"
+              className="mt-2 text-white font-extrabold tracking-tight
+                         text-3xl sm:text-4xl md:text-5xl
+                         drop-shadow-[0_2px_0_rgba(0,0,0,0.25)]"
             >
               {current?.title || ""}
             </h2>
 
-            <div className="mt-4 flex items-center justify-center gap-2">
+            <div className="mt-2 sm:mt-3 flex items-center justify-center gap-2">
               {current?.mrp && (
                 <span className="text-white text-xl sm:text-2xl line-through opacity-60">
                   {current.mrp}
@@ -275,19 +280,16 @@ export default function ProductsSection() {
               )}
             </div>
 
-            <div className="mt-6">
+            <div className="mt-4">
               <button
                 id="highlightedAddToCart"
-                className="pointer-events-auto px-6 sm:px-8 md:px-10 py-3 sm:py-3.5 rounded-full font-extrabold transition
+                className="pointer-events-auto px-6 sm:px-8 md:px-10
+                           py-3 sm:py-3.5 rounded-full font-extrabold transition
                            bg-pink-600 text-white hover:bg-pink-500 focus:outline-none
                            focus:ring-2 focus:ring-pink-400/50 shadow-md"
-                onClick={() =>
-                  current ? router.push(`/product/${current.title}`) : null
-                }
+                onClick={() => current ? router.push(`/product/${current.title}`) : null}
               >
-                {mode === "presale"
-                  ? "Place your Pre-Launch Order"
-                  : "+ ADD TO CART"}
+                {mode === "presale" ? "Place your Pre-Launch Order" : "+ ADD TO CART"}
               </button>
             </div>
           </div>

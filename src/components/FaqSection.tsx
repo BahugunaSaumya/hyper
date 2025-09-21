@@ -1,6 +1,6 @@
 export default function FaqSection() {
   return (
-    <section id="faq" className="py-16 relative bg-black px-6">
+    <section id="faq" className="bleed-x py-16 relative bg-black px-6">
       <div className="text-center mb-12">
         <img
           src="/assets/frequently-asked-heading.png"

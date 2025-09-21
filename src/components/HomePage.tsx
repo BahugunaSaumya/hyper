@@ -17,14 +17,15 @@ export default function HomePage() {
 
       <Header />
       <main className="offset-header">
-        <section id="hero" className="hero-tight"><Hero /></section>
-        <section id="video" className="mt-8"><VideoSection /></section>
-        <section id="products" className="mt-12"><ProductsSection /></section>
-        <section id="testimonials" className="mt-12"><TestimonialsSection /></section>
-        <section id="blogs" className="mt-12"><BlogsSection /></section>
-        <section id="faq" className="mt-16"><FaqSection /></section>
-        <section id="contact" className="mt-16"><ContactSection /></section>
+        <div style={{paddingTop: "10px" }}><Hero /></div>
+        <VideoSection />
+        <ProductsSection />
+        <TestimonialsSection />
+        <BlogsSection />
+        <FaqSection />
+        <ContactSection />
       </main>
+
     </>
   );
 }

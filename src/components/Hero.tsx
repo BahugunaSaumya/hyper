@@ -1,40 +1,131 @@
-import { useEffect, useRef, useState } from "react";
+// src/components/Hero.tsx
+"use client";
 
 export default function Hero() {
-  // refs to the wrappers (their clientWidth == a single tile width)
-  const backWrapRef = useRef<HTMLDivElement>(null);
-  const frontWrapRef = useRef<HTMLDivElement>(null);
-
-  // Y-offsets to align the second image with the end of the first
-  const [backJoinY, setBackJoinY] = useState(0);   // angle ≈ -7deg
-  const [frontJoinY, setFrontJoinY] = useState(0); // angle ≈ -8deg
-
-  useEffect(() => {
-    const recompute = () => {
-      const wBack = backWrapRef.current?.clientWidth ?? 0;
-      const wFront = frontWrapRef.current?.clientWidth ?? 0;
-
-      // Δy = tan(θ) * width; θ in radians
-      const dyBack = Math.tan((-7.75 * Math.PI) / 180) * wBack;   // negative -> up
-      const dyFront = Math.tan((-7.75 * Math.PI) / 180) * wFront;  // negative -> up
-
-      setBackJoinY(dyBack);
-      setFrontJoinY(dyFront);
-    };
-
-    recompute();
-    window.addEventListener("resize", recompute);
-    return () => window.removeEventListener("resize", recompute);
-  }, []);
-
   return (
     <section
       id="heroSection"
-      className="relative bg-black text-white overflow-hidden"
+      className="relative bg-black text-white overflow-hidden w-full"
       style={{ paddingTop: "calc(var(--nav-h, 88px) + 16px)" }}
     >
-      {/* === TOP CONTENT === */}
-      <div className="max-w-6xl mx-auto px-6 pt-8 pb-2 text-center relative z-20">
+      <style jsx>{`
+        /* ======= TUNING KNOBS ======= */
+        #heroSection {
+          /* stage height & spacing */
+          --stage-h: 65vh;
+          --stage-gap: 16px;
+
+          /* model scale (1 = original), and max width cap */
+          --model-zoom: 0.86;
+          --model-max-w: 1400px;
+
+          /* floor glow (strength/size/height) */
+          --glow-color: 255, 212, 88; /* warm gold-ish (RGB) */
+          --glow-opacity: 0.22;       /* intensity of the glow */
+          --glow-height: 28%;         /* thickness of floor glow band */
+          --glow-spread: 120%;        /* width of the glow ellipse */
+          --glow-fade: 62%;           /* where the glow fades to 0 */
+
+          /* vignette around the whole stage */
+          --vignette-intensity: 0.20; /* darker edge */
+        }
+
+        @media (max-width: 640px) {
+          #heroSection {
+            --stage-h: 30vh;
+            --stage-gap: 2px;
+            --model-zoom: 0.98;
+
+            --glow-opacity: 0.40;
+            --glow-height: 39%;
+            --glow-spread: 160%;
+            --glow-fade: 60%;
+          }
+        }
+
+        @media (min-width: 1024px) {
+          #heroSection {
+            --stage-h: 38vh;
+            --stage-gap: 18px;
+            --model-zoom: 0.88;
+
+            --glow-opacity: 0.24;
+            --glow-height: 49%;
+            --glow-spread: 110%;
+            --glow-fade: 64%;
+          }
+        }
+
+        /* ======= Layout ======= */
+        #heroVeil {
+          background:
+            /* soft top veil */
+            radial-gradient(
+              ellipse at 50% 15%,
+              rgba(255, 255, 255, 0.06) 0%,
+              rgba(0, 0, 0, 0) 55%
+            ),
+            /* subtle down fade */
+            linear-gradient(
+              to bottom,
+              rgba(0, 0, 0, 0) 0%,
+              rgba(0, 0, 0, 0.25) 100%
+            );
+        }
+
+        #heroStage {
+          position: relative;
+          height: var(--stage-h);
+          margin-top: var(--stage-gap);
+          width: 100%;
+          overflow: hidden;
+          isolation: isolate; /* keep blending tidy */
+        }
+
+        /* ======= Painted floor glow (CSS-only) ======= */
+        .floorGlow {
+          position: absolute;
+          inset: 0;
+          z-index: 0;
+          pointer-events: none;
+
+          /* two layers:
+             1) vignette around edges
+             2) golden glow ellipse sitting on the floor
+           */
+          background:
+            radial-gradient(
+              120% 100% at 50% 40%,
+              rgba(0,0,0,0) 0%,
+              rgba(0,0,0,var(--vignette-intensity)) 100%
+            ),
+            radial-gradient(
+              /* shape & position of glow ellipse */
+              var(--glow-spread) var(--glow-height) at 50% 100%,
+              rgba(var(--glow-color), var(--glow-opacity)) 0%,
+              rgba(var(--glow-color), calc(var(--glow-opacity) * 0.6)) 35%,
+              rgba(var(--glow-color), 0) var(--glow-fade)
+            );
+        }
+
+        /* ======= Models ======= */
+        .models {
+          position: absolute;
+          bottom: 0;
+          left: 50%;
+          transform: translateX(-50%) scale(var(--model-zoom));
+          transform-origin: center bottom;
+          width: 100%;
+          max-width: var(--model-max-w);
+          height: 100%;
+          object-fit: contain; /* keep legs on the floor */
+          object-position: center bottom;
+          z-index: 1;
+        }
+      `}</style>
+
+      {/* Copy + CTA */}
+      <div className="relative z-20 max-w-6xl mx-auto px-6 pt-8 pb-2 text-center">
         <h1 className="text-3xl sm:text-5xl md:text-6xl font-extrabold tracking-wide">
           PRE–LAUNCH SALE IS LIVE <span className="align-middle">📣</span>
         </h1>
@@ -42,6 +133,7 @@ export default function Hero() {
           Elevate your game with premium shorts that keep you ahead and set you apart.
           Get yours today and own the gear made for champions.
         </p>
+
         <div className="mt-6 flex flex-col items-center gap-2">
           <div className="flex items-center gap-2 text-xs font-extrabold tracking-wide uppercase text-white/90">
             <span className="text-lg">⏱</span>
@@ -56,72 +148,17 @@ export default function Hero() {
         </div>
       </div>
 
-      {/* === SOFT LIGHTING / VEIL === */}
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          background:
-            "radial-gradient(ellipse at 50% 15%, rgba(255,255,255,0.07) 0%, rgba(0,0,0,0) 55%), linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,.25) 100%)",
-        }}
-      />
+      {/* Soft veil over the whole hero */}
+      <div id="heroVeil" className="pointer-events-none absolute inset-0 z-0" />
 
-      {/* === BACK TAPE (Scroll Right) — wrapper unchanged === */}
-      <div
-        ref={backWrapRef}
-        className="
-    absolute left-1/2 -translate-x-1/2 pointer-events-none select-none
-    z-20 rotate-[-7deg]
-    w-[180vw] sm:w-[150vw] md:w-[140vw] lg:w-[135vw]
-    bottom-[20vh] sm:bottom-[18vh] md:bottom-[20vh] lg:bottom-[22vh]
-    overflow-hidden
-  "
-      >
-        <div className="hero-ribbon-track hero-anim-right">
-          <img src="/assets/back.png" alt="Back tape" className="w-1/2 object-contain" />
-          <img
-            src="/assets/back.png"
-            alt="Back tape duplicate"
-            className="w-1/2 object-contain"
-            style={{ transform: `translateY(${backJoinY}px)` }}
-          />
-        </div>
-      </div>
-
-
-      {/* === MODELS === */}
-      <div className="relative z-30 max-w-7xl mx-auto px-4">
+      {/* Stage: models + CSS floor glow */}
+      <div id="heroStage" className="relative z-10">
+        <div className="floorGlow" />
         <img
           src="/assets/cage-bg.png"
           alt="Athletes"
-          className="w-full h-[58vh] sm:h-[64vh] md:h-[68vh] lg:h-[70vh] object-contain object-bottom"
+          className="models"
         />
-      </div>
-
-      {/* === GOLDEN SHADOW UNDER MODELS === */}
-      <div className="absolute bottom-0 left-0 w-full pointer-events-none select-none z-10">
-        <img src="/assets/shadow.png" alt="Floor shadow" className="w-full h-auto object-cover" />
-      </div>
-
-      {/* === FRONT TAPE (Scroll Left) — wrapper unchanged === */}
-      <div
-        ref={frontWrapRef}
-        className="
-    absolute left-1/2 -translate-x-1/10 pointer-events-none select-none
-    z-40 rotate-[-8deg]
-    w-[180vw] sm:w-[150vw] md:w-[140vw] lg:w-[135vw]
-    bottom-[12vh] sm:bottom-[11vh] md:bottom-[12vh] lg:bottom-[13vh]
-    overflow-hidden
-  "
-      >
-        <div className="hero-ribbon-track hero-anim-left">
-          <img src="/assets/front.png" alt="Front tape" className="w-1/2 object-contain" />
-          <img
-            src="/assets/front.png"
-            alt="Front tape duplicate"
-            className="w-1/2 object-contain"
-            style={{ transform: `translateY(${frontJoinY}px)` }}
-          />
-        </div>
       </div>
     </section>
   );

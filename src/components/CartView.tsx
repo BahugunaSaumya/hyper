@@ -112,7 +112,7 @@ export default function CartView() {
               By continuing, I declare that I have read and accept the Purchase Conditions and
               understand the{" "}
               <a href="#" className="text-pink-600 underline">
-                Privacy and Cookie Policy
+                Terms And Conditions
               </a>
               .
             </p>

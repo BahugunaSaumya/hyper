@@ -6,12 +6,18 @@ body {
   background: #fff;
   color: #000;
   font-family: Arial, Helvetica, sans-serif;
+  margin: 0;
 }
 
 /* optional: offset for pages that sit under the fixed header */
 :root {
-  --nav-h: 88px;
+  --nav-h: 40px;
 }
+/* Specific override for homepage */
+body.home .offset-header {
+  padding-top: 25px !important; /* Adjust as needed */
+}
+
 
 .offset-header {
   padding-top: var(--nav-h);
@@ -26,6 +32,7 @@ body {
   --ring-scale-center: 1.04;
   --ring-scale-near: 0.10;
   --ring-scale-far: 22.8;
+  /* (kept as-is from your working) */
   --ring-height: clamp(320px, 62vh, 760px);
 }
 
@@ -79,30 +86,26 @@ body {
   width: auto;
 }
 
-/* Positions */
+/* Positions (kept; removed redundant first transform lines that were no-ops) */
 .carousel-center {
-  transform: translateX(-50%) scale(1);
   transform: translate(-50%, -50%) scale(var(--ring-scale-center));
   opacity: 1;
   z-index: 5;
 }
 
 .carousel-left {
-  transform: translateX(-50%) scale(0.8);
   transform: translate(calc(-50% - var(--ring-near)), -50%) scale(var(--ring-scale-near));
   opacity: .85;
   z-index: 4;
 }
 
 .carousel-right {
-  transform: translateX(-50%) scale(0.8);
   transform: translate(calc(-50% + var(--ring-near)), -50%) scale(var(--ring-scale-near));
   opacity: .85;
   z-index: 4;
 }
 
 .carousel-far-left {
-  transform: translateX(-50%) scale(0.6);
   transform: translate(calc(-50% - var(--ring-far)), -50%) scale(var(--ring-scale-far));
   opacity: .35;
   z-index: 3;
@@ -110,7 +113,6 @@ body {
 }
 
 .carousel-far-right {
-  transform: translateX(-50%) scale(0.6);
   transform: translate(calc(-50% + var(--ring-far)), -50%) scale(var(--ring-scale-far));
   opacity: .35;
   z-index: 3;
@@ -119,7 +121,6 @@ body {
 
 /* Anything else stays mounted but invisible for smooth transitions */
 .carousel-off {
-  transform: translateX(-50%) scale(0.4);
   transform: translate(-50%, -50%) scale(.6);
   opacity: 0;
   z-index: 1;
@@ -172,11 +173,14 @@ body {
 #carouselContainer .carousel-left,
 #carouselContainer .carousel-right {
   z-index: 900 !important;
+
+  opacity: .65 !important;
 }
 
 #carouselContainer .carousel-far-left,
 #carouselContainer .carousel-far-right {
   z-index: 800 !important;
+  opacity: .7 !important;
 }
 
 #carouselContainer .carousel-off {
@@ -209,19 +213,12 @@ body {
   }
 }
 
-/* Disable transition when we teleport an edge item on wrap */
-.no-transition {
-  transition: none !important;
-}
-
 /* ===== Cart badge polish (tiny ring, crisp text) ===== */
 .cart-badge {
   transform: translateZ(0);
-  /* avoid blur on scaled text */
 }
 
 /* ===== Trim stray vertical gaps between stacked sections ===== */
-/* remove default margins that sneak in from headings/paragraphs, only inside sections */
 section :is(h1, h2, h3, h4, h5, h6) {
   margin-top: 0;
 }
@@ -238,12 +235,10 @@ section> :last-child {
   margin-bottom: 0;
 }
 
-/* kill browser default section margins (none by spec, but some libs add) */
 section {
   margin-block: 0;
 }
 
-/* ensure there’s no extra gap when two sections are adjacent */
 section+section {
   margin-top: 0 !important;
 }
@@ -255,25 +250,24 @@ img {
 
 /* if you use the offset-header helper, don’t add extra gap after it */
 .offset-header+section {
-  margin-top: 0 !important;
-}
-
-/* optional: zero out the default body margin if any */
-html,
-body {
-  margin: 0;
+  margin-top: 3 !important;
 }
 
 /* Reduce the visual gap under the fixed header for the hero only */
 .hero-tight {
-  margin-top: calc(-0.45 * 230px);
+  margin-top: calc(-1 * var(--nav-h));
 }
+
 
 /* =================================================================== */
 /* === Hero ribbons (for your current Hero component with JS seam fix) */
 /* =================================================================== */
 
 /* long horizontal track we translate for the loop */
+/* Zoom out whole page by 90% (Chrome/Edge) */
+html, body { height: 100%; }
+body.zoom-90 { zoom: 1; }  /* 90% */
+
 .hero-ribbon-track {
   display: flex;
   width: 200%;
@@ -311,6 +305,76 @@ body {
   animation: hero-right 16s linear infinite;
 }
 
-/* (no masks/clip-path here; the vertical join alignment is handled in the component
-   with translateY(Δy) using Δy = tan(angle)*tileWidth so the two tiles connect
-   along the rotated line) */
+/* Full-bleed helper used by Video, FAQ, Contact */
+/* Full-bleed utility */
+.bleed-x {
+  width: 100vw;
+  position: relative;
+  left: 50%;
+  right: 50%;
+  margin-left: -50vw;
+  margin-right: -50vw;
+}
+
+/* Helpful when a parent used overflow-hidden */
+.overflow-x-visible { overflow-x: visible; }
+.overflow-y-hidden  { overflow-y: hidden; }
+
+
+/* === Phone breathing room for product ring === */
+@media (max-width: 640px) {
+  :root {
+    /* ease the ring a touch on phones; tablet untouched */
+    --ring-height: clamp(280px, 54vh, 560px);
+    --ring-near: 26vw;   /* was 32vw in your later block */
+    --ring-far: 48vw;    /* was 64vw */
+    --ring-scale-center: 0.98; /* tiny downsize to reduce visual “pressure” */
+    --ring-scale-near:   0.82;
+    --ring-scale-far:    0.68;
+  }
+
+  /* cap visual width so images don’t feel “stressed” */
+  #carouselContainer .carousel-item img {
+    max-width: 58vw;     /* keeps aspect, pairs with your height:100% */
+    object-fit: contain; /* belt-and-braces; no cropping */
+  }
+
+  /* hide the very far tiles on tiny screens for cleaner spacing */
+  #carouselContainer .carousel-far-left,
+  #carouselContainer .carousel-far-right {
+    display: none;
+  }
+
+
+  /* Prevent the browser from auto-adjusting scroll position when content changes */
+.overflow-anchor-none { overflow-anchor: none; }
+
+}
+
+/* utilities */
+.overflow-anchor-none { overflow-anchor: none; }
+
+/* === Phone breathing room for product ring (tablet/desktop unchanged) === */
+@media (max-width: 640px) {
+  :root {
+    --ring-height: clamp(280px, 54vh, 560px);
+    --ring-near: 26vw;
+    --ring-far: 48vw;
+    --ring-scale-center: 0.98;
+    --ring-scale-near: 0.82;
+    --ring-scale-far: 0.68;
+  }
+
+  /* keep far tiles off on tiny screens */
+  #carouselContainer .carousel-far-left,
+  #carouselContainer .carousel-far-right {
+    display: none;
+  }
+
+  /* optional: cap visible width to reduce “stress” */
+  #carouselContainer .carousel-item img {
+    max-width: 58vw;
+    object-fit: contain;
+  }
+}
+
