@@ -5,7 +5,18 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/context/CartContext";
 import YouMayAlsoLike from "@/components/YouMayAlsoLike";
-import CartItemTile from "@/components/CartItemTile"; // ← use the tile
+import CartItemTile from "@/components/CartItemTile";
+
+/* =========================
+   TUNING KNOBS (edit these)
+   ========================= */
+// Space above the cart header wordmark (in pixels)
+const CART_HEADER_TOP_SPACE_PX = 30;      // e.g. 0, 8, 16, 24, ...
+
+// Delete button size (diameter) and icon size (in pixels)
+const DELETE_BTN_SIZE_PX = 24;           // e.g. 20, 24, 32, 40
+const DELETE_ICON_SIZE_PX = 20;          // e.g. 10, 12, 14, 16
+/* ===================================== */
 
 const parseINR = (v: string) => {
   const n = parseFloat(String(v || "").replace(/[^0-9.]/g, ""));
@@ -29,8 +40,8 @@ export default function CartView() {
 
   return (
     <section className="max-w-[1240px] mx-auto px-4 sm:px-6 md:px-8 py-8 sm:py-10 md:py-12 bg-white text-black">
-      {/* header wordmark */}
-      <div className="flex justify-center mb-10">
+      {/* header wordmark (top space is controlled by constant) */}
+      <div className="flex justify-center mb-10" style={{ marginTop: CART_HEADER_TOP_SPACE_PX }}>
         <img src="/assets/cart-header.png" alt="Cart" className="h-16 sm:h-20 object-contain" />
       </div>
 
@@ -111,7 +122,7 @@ export default function CartView() {
             <p className="text-xs text-gray-500 mb-4 leading-relaxed">
               By continuing, I declare that I have read and accept the Purchase Conditions and
               understand the{" "}
-              <a href="#" className="text-pink-600 underline">
+              <a href="/terms" className="text-pink-600 underline">
                 Terms And Conditions
               </a>
               .

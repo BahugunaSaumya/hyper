@@ -15,7 +15,7 @@ export default function HomePage() {
     <>
 
 
-      <Header />
+     
       <main className="offset-header">
         <div style={{paddingTop: "10px" }}><Hero /></div>
         <VideoSection />

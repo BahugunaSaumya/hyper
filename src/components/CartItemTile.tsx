@@ -95,25 +95,27 @@ export default function CartItemTile({
         {/* Trash Button */}
         <button
           onClick={onRemove}
-          className="text-gray-400 hover:text-black self-start mt-1"
+          className="text-gray-650 hover:text-black self-start mt-1 transition pr-2"
           title="Remove item"
           aria-label="Remove item"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
-            className="w-5 h-5 sm:w-6 sm:h-6"
+            className="w-7 h-7 sm:w-6 sm:h-6"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
+            strokeWidth="2"
           >
+            {/* Dustbin icon */}
             <path
               strokeLinecap="round"
               strokeLinejoin="round"
-              strokeWidth="2"
-              d="M3 6h18M8 6V4h8v2m-1 0l-.6 12.01A2 2 0 0112.4 20h-.8a2 2 0 01-1.99-1.99L9 6"
+              d="M3 6h18M8 6V4h8v2m-9 4v8a2 2 0 002 2h6a2 2 0 002-2v-8"
             />
           </svg>
         </button>
+
       </div>
     </div>
   );

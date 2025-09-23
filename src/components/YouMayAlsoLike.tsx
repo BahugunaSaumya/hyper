@@ -137,13 +137,6 @@ export default function YouMayAlsoLike({
     return pick;
   }, [products, excludeTitle, limit]);
 
-  // Debug badge (visible in DOM even if console is stripped)
-  const DebugBadge = debug ? (
-    <div className="text-[11px] text-gray-400 mt-2">
-      [ymal] ✓ products:{products.length} showing:{visible.length}{err ? ` — ${err}` : ""}
-    </div>
-  ) : null;
-
   if (loading && !products.length) {
     return (
       <div className="mt-14" data-ymal>
@@ -151,14 +144,11 @@ export default function YouMayAlsoLike({
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={headingImg} alt="You may also like" className="mx-auto w-64 sm:w-80" />
         </div>
-        <div className="text-sm text-gray-500 text-center">Loading…</div>
-        {DebugBadge}
-      </div>
+         <div className="text-sm text-gray-500 text-center">Loading…</div>
+        </div>
     );
   }
-  if (err || !visible.length) {
-    return debug ? <div className="mt-6" data-ymal>{DebugBadge}</div> : null;
-  }
+
 
   return (
     <div className="mt-14" data-ymal>
@@ -197,7 +187,6 @@ export default function YouMayAlsoLike({
           );
         })}
       </div>
-      {DebugBadge}
     </div>
   );
 }

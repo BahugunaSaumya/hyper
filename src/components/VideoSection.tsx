@@ -5,25 +5,25 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useSpring, animated, easings } from "@react-spring/web";
 import dynamic from "next/dynamic";
 import "plyr-react/plyr.css";
+import type { APITypes, SourceInfo } from "plyr-react";
 
-// Client-only Plyr
 const PlyrComponent = dynamic(() => import("plyr-react"), { ssr: false });
 
 export default function VideoSection() {
-  const playerRef = useRef<any>(null);
-  const frameRef  = useRef<HTMLDivElement | null>(null);
+  const playerRef = useRef<APITypes | null>(null);
+  const frameRef = useRef<HTMLDivElement | null>(null);
 
   const [mounted, setMounted] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
-  const wasPlayingRef = useRef(false);
 
-  // geometry
+  // Geometry state
   const [{ small, W, H }, setDims] = useState({ small: 120, W: 1280, H: 720 });
   const [expanded, setExpanded] = useState(false);
 
+  // Mount
   useEffect(() => setMounted(true), []);
 
-  // compute target size: 100vw, 16:9, cap height (~92vh)
+  // Resize dynamically
   useLayoutEffect(() => {
     const calc = () => {
       const vw = Math.max(320, window.innerWidth);
@@ -33,19 +33,24 @@ export default function VideoSection() {
       let W = vw;
       let H = Math.round((W * 9) / 16);
       const maxH = Math.round(vh * 0.92);
-      if (H > maxH) { H = maxH; W = Math.round((H * 16) / 9); }
 
+      if (H > maxH) {
+        H = maxH;
+        W = Math.round((H * 16) / 9);
+      }
       setDims({ small, W, H });
     };
+
     calc();
     window.addEventListener("resize", calc);
     return () => window.removeEventListener("resize", calc);
   }, []);
 
-  // expand when at least 50% visible; pause when out
+  // Pause when scrolled out
   useEffect(() => {
     const el = frameRef.current;
     if (!el) return;
+
     const io = new IntersectionObserver(
       ([entry]) => {
         const visible = entry.intersectionRatio >= 0.5;
@@ -54,38 +59,55 @@ export default function VideoSection() {
         const api = playerRef.current?.plyr;
         if (!api) return;
         if (!visible) {
-          wasPlayingRef.current = !!api.playing;
           api.pause();
-        } else if (wasPlayingRef.current) {
-          api.play().catch(() => {});
+          setIsPlaying(false);
         }
       },
       { threshold: [0, 0.5, 1] }
     );
+
     io.observe(el);
     return () => io.disconnect();
   }, []);
 
-  // slow, cinematic circle → rectangle
+  // Sync with Plyr events
+  useEffect(() => {
+    const api = playerRef.current?.plyr;
+    if (!api) return;
+
+    const onPlay = () => setIsPlaying(true);
+    const onPause = () => setIsPlaying(false);
+
+    api.on("play", onPlay);
+    api.on("pause", onPause);
+    api.on("ended", onPause);
+
+    return () => {
+      api.off("play", onPlay);
+      api.off("pause", onPause);
+      api.off("ended", onPause);
+    };
+  }, [mounted]);
+
+  // Spring animation
   const spring = useSpring({
     from: { w: 0, h: 0, r: 999, s: 0.6, o: 0.9, blur: 6 },
     to: {
       w: expanded ? W : small,
       h: expanded ? H : small,
-      r: expanded ? 12 : small / 2,
+      r: expanded ? 2 : small / 2,
       s: expanded ? 1 : 0.95,
       o: 1,
       blur: expanded ? 0 : 2,
     },
-    config: { duration: 1500, easing: easings.easeInOutCubic },
+    config: { duration: 1200, easing: easings.easeInOutCubic },
   });
 
-  // Plyr
-  const source = useMemo(
+  // Plyr config
+  const source = useMemo<SourceInfo>(
     () => ({
       type: "video",
-      title: "HYPER Preview",
-      sources: [{ src: "/assets/video.mp4", type: "video/mp4" }],
+      sources: [{ src: "/assets/video.mp4", type: "video/mp4" as const }],
       poster: "/assets/video-preview.jpg",
     }),
     []
@@ -93,31 +115,38 @@ export default function VideoSection() {
 
   const options = useMemo(
     () => ({
-      controls: [
-        "play-large",
-        "play",
-        "progress",
-        "current-time",
-        "mute",
-        "volume",
-        "settings",
-        "pip",
-        "airplay",
-        "fullscreen",
-      ],
+      controls: ["play", "mute", "volume", "fullscreen"],
       ratio: "16:9",
-      clickToPlay: true,
-      hideControls: false, // keep visible for instant pause/fullscreen
+      clickToPlay: false, // we handle taps ourselves
+      hideControls: true,
       fullscreen: { enabled: true, fallback: true, iosNative: true },
+      keyboard: { global: false },
+      tooltips: { controls: false },
     }),
     []
   );
 
+  // Helpers
+  const playVideo = () => {
+    setIsPlaying(true);
+    playerRef.current?.plyr?.play().catch(() => setIsPlaying(false));
+  };
+
+  const pauseVideo = () => {
+    playerRef.current?.plyr?.pause();
+    setIsPlaying(false); // ensure immediate update
+  };
+
   return (
-    <section id="about" className="bleed-x relative bg-white text-black overflow-x-visible overflow-y-hidden">
-      {/* intro copy */}
+    <section
+      id="about"
+      className="bleed-x relative bg-white text-black overflow-x-visible overflow-y-hidden"
+    >
+      {/* Intro text */}
       <div className="max-w-5xl mx-auto px-6 pt-16">
-        <h3 className="text-[14px] md:text-[16px] tracking-[0.28em] uppercase font-semibold">Welcome to Hyper</h3>
+        <h3 className="text-[14px] md:text-[16px] tracking-[0.28em] uppercase font-semibold">
+          Welcome to Hyper
+        </h3>
         <div className="mt-3 flex gap-2 text-black">
           {Array.from({ length: 12 }).map((_, i) => (
             <span key={i} className="text-2xl leading-none select-none">|</span>
@@ -133,8 +162,8 @@ export default function VideoSection() {
         </div>
       </div>
 
-      {/* full-bleed stage */}
-      <div className="mt-14 md:mt-16 pb-20">
+      {/* Video container */}
+      <div className="mt-14 md:mt-16 mb-10">
         <div className="flex justify-center">
           <animated.div
             ref={frameRef}
@@ -148,13 +177,23 @@ export default function VideoSection() {
               filter: spring.blur.to(b => `blur(${b}px)`),
             }}
           >
-            {/* Make Plyr fill and cover the animated frame */}
+            {/* Make video fill container */}
             <style jsx global>{`
-              .plyr--video video { object-fit: cover !important; width: 100% !important; height: 100% !important; }
-              .plyr__poster { background-size: cover !important; }
-              .plyr--video, .plyr__video-wrapper { width: 100% !important; height: 100% !important; }
+              .plyr--video video {
+                object-fit: cover !important;
+                width: 100% !important;
+                height: 100% !important;
+              }
+              .plyr__poster {
+                background-size: cover !important;
+              }
+              .plyr--video, .plyr__video-wrapper {
+                width: 100% !important;
+                height: 100% !important;
+              }
             `}</style>
 
+            {/* Plyr */}
             <div className="absolute inset-0">
               {mounted && (
                 <PlyrComponent
@@ -163,31 +202,57 @@ export default function VideoSection() {
                   options={options}
                   onPlay={() => setIsPlaying(true)}
                   onPause={() => setIsPlaying(false)}
-                  plyrprops={{ playsInline: true, muted: true, preload: "metadata", crossOrigin: "anonymous" }}
+                  playsInline
+                  muted
+                  preload="metadata"
+                  crossOrigin="anonymous"
                 />
               )}
             </div>
 
-            {/* Play ring (clickable button only; no blocking overlay) */}
+            {/* Tap overlay to pause when video is playing */}
+            {isPlaying && (
+              <button
+                type="button"
+                aria-label="Pause video"
+                className="absolute inset-0 z-20 bg-transparent"
+                onClick={pauseVideo}
+                style={{
+                  touchAction: "manipulation",
+                  WebkitTapHighlightColor: "transparent",
+                }}
+              />
+            )}
+
+            {/* Center play button when paused */}
             {!isPlaying && (
-              <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
+              <div className="pointer-events-none absolute inset-0 flex items-center justify-center z-30">
                 <button
                   type="button"
                   aria-label="Play video"
-                  onClick={() => playerRef.current?.plyr?.play()}
+                  onClick={playVideo}
                   className="relative pointer-events-auto"
                 >
                   <div className="relative w-24 h-24 sm:w-28 sm:h-28 flex items-center justify-center">
+                    {/* Spinning text ring */}
                     <svg className="absolute w-full h-full animate-spin-slow" viewBox="0 0 100 100">
-                      <defs><path id="circlePath" d="M 50, 50 m -40, 0 a 40,40 0 1,1 80,0 a 40,40 0 1,1 -80,0" /></defs>
+                      <defs>
+                        <path id="circlePath" d="M 50, 50 m -40, 0 a 40,40 0 1,1 80,0 a 40,40 0 1,1 -80,0" />
+                      </defs>
                       <text fill="white" fontSize="12" fontFamily="Arial" fontWeight="bold">
                         <textPath xlinkHref="#circlePath" startOffset="0%">
                           SEE HYPER IN ACTION • SEE HYPER IN ACTION •
                         </textPath>
                       </text>
                     </svg>
+
+                    {/* Center play icon */}
                     <div className="w-14 h-14 sm:w-16 sm:h-16 bg-white/90 rounded-full grid place-items-center shadow-md">
-                      <svg className="w-6 h-6 sm:w-7 sm:h-7 text-gray-900" viewBox="0 0 24 24" fill="currentColor">
+                      <svg
+                        className="w-6 h-6 sm:w-7 sm:h-7 text-gray-900"
+                        viewBox="0 0 24 24"
+                        fill="currentColor"
+                      >
                         <path d="M8 5v14l11-7z" />
                       </svg>
                     </div>
