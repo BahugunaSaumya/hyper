@@ -137,32 +137,11 @@ export default function BlogsSection() {
       </div>
 
       <div className="relative max-w-7xl mx-auto mt-4 no-scrollbar">
-        {/* Keep your original small arrow group (top-right) */}
-        <div className="flex items-center justify-between mb-3 px-2">
-          <div />
-          <div className="flex gap-4">
-            <button
-              className="text-2xl hover:text-pink-500 transition disabled:opacity-40"
-              onClick={prev}
-              disabled={index === 0}
-              aria-label="Previous blogs"
-            >
-              ←
-            </button>
-            <button
-              className="text-2xl hover:text-pink-500 transition disabled:opacity-40"
-              onClick={next}
-              disabled={index === MAX_INDEX}
-              aria-label="Next blogs"
-            >
-              →
-            </button>
-          </div>
-        </div>
+
 
         {/* Big round arrows — disable at ends */}
         <button
-          className={`${roundArrow} disabled:opacity-40`}
+          className={`${roundArrow} disabled:opacity-100`}
           style={{ left: "-6px" }}
           onClick={prev}
           disabled={index === 0}
@@ -171,7 +150,7 @@ export default function BlogsSection() {
           ‹
         </button>
         <button
-          className={`${roundArrow} disabled:opacity-40`}
+          className={`${roundArrow} disabled:opacity-100`}
           style={{ right: "-6px" }}
           onClick={next}
           disabled={index === MAX_INDEX}

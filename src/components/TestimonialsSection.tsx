@@ -121,21 +121,21 @@ export default function TestimonialsSection() {
     return () => clearInterval(id);
   }, [active, total]); // keep moving
 
-  // Keyboard arrows
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "ArrowRight") next();
-      if (e.key === "ArrowLeft") prev();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [active]); // depend on active so handlers always call latest next/prev
+  // // Keyboard arrows
+  // useEffect(() => {
+  //   const onKey = (e: KeyboardEvent) => {
+  //     if (e.key === "ArrowRight") next();
+  //     if (e.key === "ArrowLeft") prev();
+  //   };
+  //   window.addEventListener("keydown", onKey);
+  // //   return () => window.removeEventListener("keydown", onKey);
+  // // }, [active]); // depend on active so handlers always call latest next/prev
 
-  // recenter on spacer/card changes
-  useEffect(() => {
-    scrollToIndex(active);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [spacerW, cardW]);
+  // // recenter on spacer/card changes
+  // useEffect(() => {
+  //   scrollToIndex(active);
+  //   // eslint-disable-next-line react-hooks/exhaustive-deps
+  // }, [spacerW, cardW]);
 
   const arrowCommon =
     "absolute top-1/2 -translate-y-1/2 h-10 w-10 grid place-items-center rounded-full bg-white/12 hover:bg-white/20 text-white backdrop-blur-sm shadow";

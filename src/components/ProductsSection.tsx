@@ -95,11 +95,25 @@ function classFromRel(rel: number, total: number) {
 }
 const mod = (n: number, m: number) => ((n % m) + m) % m;
 
+/* Detect touch (coarse pointer) */
+function useIsTouch() {
+  const [isTouch, setIsTouch] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(pointer: coarse)");
+    const set = () => setIsTouch(mq.matches);
+    set();
+    mq.addEventListener?.("change", set);
+    return () => mq.removeEventListener?.("change", set);
+  }, []);
+  return isTouch;
+}
+
 /* ====================================================== */
 
 export default function ProductsSection() {
   const router = useRouter();
   const cssVars = useRingVars();
+  const isTouch = useIsTouch();
 
   const [products, setProducts] = useState<(ProductModel & { _mrpNum: number | null; _discNum: number | null })[]>([]);
   const [idx, setIdx] = useState(0);
@@ -151,32 +165,21 @@ export default function ProductsSection() {
     setPrevIdx(idx);
     setIdx((idx + 1) % products.length);
   };
-    /* ============================
-     Trackpad horizontal scrolling
-     ============================ */
-  const wheelTimeout = useRef<NodeJS.Timeout | null>(null);
 
+  /* Trackpad wheel — DISABLED on desktop; only for touch devices we rely on swipe */
   useEffect(() => {
+    if (!isTouch) return; // do nothing on laptops/desktops
     const handleWheel = (e: WheelEvent) => {
-      // Only care about horizontal scroll
       if (Math.abs(e.deltaX) < 10) return;
-
-      // Prevent rapid triggers by debouncing
-      if (wheelTimeout.current) return;
-
-      pausedRef.current = true; // pause auto-advance
+      pausedRef.current = true;
       if (e.deltaX > 0) goNext();
       else goPrev();
-
-      wheelTimeout.current = setTimeout(() => {
-        wheelTimeout.current = null;
-        pausedRef.current = false;
-      }, 400); // adjust delay as needed
+      setTimeout(() => (pausedRef.current = false), 300);
     };
-
     window.addEventListener("wheel", handleWheel, { passive: true });
     return () => window.removeEventListener("wheel", handleWheel);
-  }, [products.length]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isTouch, products.length]);
 
   const current = products[idx];
 
@@ -193,52 +196,44 @@ export default function ProductsSection() {
 
   const shownPrice = current?.discountedPrice || current?.mrp || "";
 
-  /* ============================
-     Swipe / Drag (mouse + touch)
-     ============================ */
+  /* Swipe / Drag — only ATTACHED on touch devices */
   const swipeStartX = useRef(0);
   const swipeDX = useRef(0);
   const dragging = useRef(false);
   const movedEnough = useRef(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
-  const SWIPE_THRESHOLD = 40;   // px to trigger slide change
-  const TAP_TOLERANCE = 8;      // px to still count as a tap/click
+  const SWIPE_THRESHOLD = 40;
+  const TAP_TOLERANCE = 8;
 
   const onPointerDown = (e: React.PointerEvent) => {
+    if (!isTouch) return; // ignore on laptops/desktops
     if (!containerRef.current) return;
     containerRef.current.setPointerCapture?.(e.pointerId);
     dragging.current = true;
     movedEnough.current = false;
     swipeDX.current = 0;
     swipeStartX.current = e.clientX;
-    pausedRef.current = true; // pause auto-advance while interacting
+    pausedRef.current = true;
     (containerRef.current.style as any).cursor = "grabbing";
   };
-
   const onPointerMove = (e: React.PointerEvent) => {
-    if (!dragging.current) return;
+    if (!isTouch || !dragging.current) return;
     swipeDX.current = e.clientX - swipeStartX.current;
     if (Math.abs(swipeDX.current) > TAP_TOLERANCE) movedEnough.current = true;
-    // We’re not translating items (ring uses CSS positions), we just detect direction.
   };
-
   const onPointerUp = (e: React.PointerEvent) => {
+    if (!isTouch) return;
     if (!containerRef.current) return;
     containerRef.current.releasePointerCapture?.(e.pointerId);
     (containerRef.current.style as any).cursor = "grab";
     const dx = swipeDX.current;
     dragging.current = false;
-
-    // resume auto-advance after short delay
     setTimeout(() => { pausedRef.current = false; }, 200);
-
     if (Math.abs(dx) >= SWIPE_THRESHOLD) {
-      // left swipe => next ; right swipe => prev
       if (dx < 0) goNext();
       else goPrev();
     }
-    // else: treat as a tap (click handlers on items will run)
   };
 
   return (
@@ -272,8 +267,9 @@ export default function ProductsSection() {
           className="relative -mt-5 sm:-mt-3 md:-mt-4
                      min-h-[600px] sm:min-h-[700px] md:min-h-[820px]
                      flex items-center justify-center overflow-visible
-                     px-3 sm:px-0 select-none"
-          style={{ paddingBottom: "var(--ring-pad-bottom)", cursor: "grab" }}
+                     px-3 sm:px-0"
+          style={{ paddingBottom: "var(--ring-pad-bottom)", cursor: isTouch ? "grab" : "default" }}
+          /* Attach handlers only on touch devices */
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
@@ -300,13 +296,13 @@ export default function ProductsSection() {
                   key={i}
                   className={cls}
                   style={{
-                    cursor: movedEnough.current ? "grabbing" : "pointer",
+                    cursor: isTouch ? (movedEnough.current ? "grabbing" : "pointer") : "pointer",
                     marginLeft: "var(--ring-item-gap)",
                     marginRight: "var(--ring-item-gap)",
                   }}
                   onClick={() => {
-                    // If the user dragged more than a few px, ignore click
-                    if (movedEnough.current) return;
+                    // Ignore click if it was a drag on touch
+                    if (isTouch && movedEnough.current) return;
                     if (i === idx) {
                       openDetail();
                     } else {
@@ -330,7 +326,7 @@ export default function ProductsSection() {
 
           {/* Overlay */}
           <div
-            className="absolute z-20 inset-x-0 text-center px-4 pointer-events-none"
+            className="absolute z-30 inset-x-0 text-center px-4 pointer-events-none"
             style={{ bottom: "var(--overlay-offset)" }}
           >
             <h2
@@ -359,7 +355,29 @@ export default function ProductsSection() {
             </div>
           </div>
 
-          {/* (No arrow buttons; swipe/drag to navigate) */}
+          {/* Arrow buttons — ALWAYS visible & clickable */}
+          <button
+            id="productPrev"
+            className="grid place-items-center absolute left-4 md:left-6 top-1/2 -translate-y-1/2 
+                       bg-white/85 hover:bg-white text-black
+                       rounded-full w-10 h-10 md:w-12 md:h-12 z-40 text-xl md:text-2xl shadow
+                       pointer-events-auto"
+            onClick={goPrev}
+            aria-label="Previous product"
+          >
+            ←
+          </button>
+          <button
+            id="productNext"
+            className="grid place-items-center absolute right-4 md:right-6 top-1/2 -translate-y-1/2 
+                       bg-white/85 hover:bg-white text-black
+                       rounded-full w-10 h-10 md:w-12 md:h-12 z-40 text-xl md:text-2xl shadow
+                       pointer-events-auto"
+            onClick={goNext}
+            aria-label="Next product"
+          >
+            →
+          </button>
         </div>
       </div>
     </section>
