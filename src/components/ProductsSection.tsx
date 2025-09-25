@@ -1,66 +1,90 @@
 // src/components/ProductsSection.tsx
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { type ProductModel } from "@/lib/csv";
 import { useRouter } from "next/navigation";
 
-type Mode = "presale" | "discounted";
-const CAMPAIGN_DEFAULT: Mode = "presale";
+/* ============================
+   LOCAL RING & SPACING CONTROLS
+   ============================ */
+const RING_VARS = {
+  height: {
+    base: "clamp(420px, 48vh, 860px)",
+    sm: "clamp(420px, 50vh, 880px)",
+    md: "clamp(460px, 52vh, 920px)",
+    lg: "clamp(480px, 54vh, 980px)",
+  },
+  near: { base: "50vw", sm: "26vw", md: "20vw", lg: "18vw" },
+  far: { base: "52vw", sm: "48vw", md: "36vw", lg: "32vw" },
+  itemGap: { base: "0px", sm: "2px", md: "4px", lg: "6px" },
+  headingGap: { base: "-90px", sm: "-64px", md: "-24px", lg: "20px" },
+};
 
-const mod = (n: number, m: number) => ((n % m) + m) % m;
+const SPACING_VARS = {
+  ringPadBottom: { base: "180px", sm: "200px", md: "220px", lg: "240px" },
+  overlayOffset: { base: "-20px", sm: "-24px", md: "-28px", lg: "-32px" },
+};
 
-/* ---- money ---- */
+/* Hook for responsive ring sizing */
+function useRingVars() {
+  const [w, setW] = useState<number | null>(null);
+  useEffect(() => {
+    const update = () => setW(window.innerWidth);
+    update();
+    window.addEventListener("resize", update, { passive: true });
+    return () => window.removeEventListener("resize", update);
+  }, []);
+  const bp = w == null ? "base" : w >= 1024 ? "lg" : w >= 768 ? "md" : w >= 640 ? "sm" : "base";
+  return {
+    "--ring-height": RING_VARS.height[bp],
+    "--ring-near": RING_VARS.near[bp],
+    "--ring-far": RING_VARS.far[bp],
+    "--ring-item-gap": RING_VARS.itemGap[bp],
+    "--heading-gap": RING_VARS.headingGap[bp],
+    "--ring-pad-bottom": SPACING_VARS.ringPadBottom[bp],
+    "--overlay-offset": SPACING_VARS.overlayOffset[bp],
+  } as Record<string, string>;
+}
+
+/* ---- money helpers ---- */
 function fmtINR(v: unknown): string {
   if (typeof v === "number") return "₹ " + v.toLocaleString("en-IN");
   if (typeof v === "string") return v;
   return "";
 }
+function toNumber(v: unknown): number | null {
+  if (typeof v === "number") return v;
+  if (typeof v === "string") {
+    const n = Number(v.replace(/[^\d.]/g, ""));
+    return isNaN(n) ? null : n;
+  }
+  return null;
+}
 
 /* ---- map product ---- */
-function mapDocToModel(doc: any): ProductModel {
-  const title: string =
-    (doc?.title || doc?.name || doc?.slug || doc?.id || "").toString();
-
+function mapDocToModel(doc: any): ProductModel & { _mrpNum: number | null; _discNum: number | null } {
+  const title: string = (doc?.title || doc?.name || doc?.slug || doc?.id || "").toString();
   const image: string =
-    (Array.isArray(doc?.images) && doc.images[0]) ||
-    doc?.image ||
-    "/assets/placeholder.png";
-
+    (Array.isArray(doc?.images) && doc.images[0]) || doc?.image || "/assets/placeholder.png";
   const mrp = doc?.mrp ?? doc?.MRP;
   const discounted = doc?.discountedPrice ?? doc?.["discounted price"];
-  const presale = doc?.presalePrice ?? doc?.["presale price"];
   const discountPct = doc?.discountPct ?? doc?.["discount percentage"];
-  const presalePct = doc?.presalePct ?? doc?.["presale price percentage"];
+  const mrpNum = toNumber(mrp);
+  const discNum = toNumber(discounted);
 
   return {
     title,
     image,
     mrp: fmtINR(mrp),
     discountedPrice: fmtINR(discounted),
-    presalePrice: fmtINR(presale),
-    discountPct:
-      typeof discountPct === "number" ? `${discountPct}%` : (discountPct || ""),
-    presalePct:
-      typeof presalePct === "number" ? `${presalePct}%` : (presalePct || ""),
-  } as ProductModel;
+    discountPct: typeof discountPct === "number" ? `${discountPct}%` : (discountPct || ""),
+    _mrpNum: mrpNum,
+    _discNum: discNum,
+  } as ProductModel & { _mrpNum: number | null; _discNum: number | null };
 }
 
-function getActivePrice(p: ProductModel, mode: Mode) {
-  if (mode === "discounted") {
-    return {
-      label: "Discounted",
-      value: p.discountedPrice || p.presalePrice || p.mrp || "",
-      badge: p.discountPct || "",
-    };
-  }
-  return {
-    label: "Presale",
-    value: p.presalePrice || p.discountedPrice || p.mrp || "",
-    badge: p.presalePct || "",
-  };
-}
-
+/* ---- relative positioning for carousel ---- */
 function classFromRel(rel: number, total: number) {
   if (rel === 0) return "carousel-center";
   if (rel === 1) return "carousel-right";
@@ -69,24 +93,20 @@ function classFromRel(rel: number, total: number) {
   if (rel === total - 2) return "carousel-far-left";
   return "carousel-off";
 }
+const mod = (n: number, m: number) => ((n % m) + m) % m;
+
+/* ====================================================== */
 
 export default function ProductsSection() {
   const router = useRouter();
+  const cssVars = useRingVars();
 
-  const [products, setProducts] = useState<ProductModel[]>([]);
+  const [products, setProducts] = useState<(ProductModel & { _mrpNum: number | null; _discNum: number | null })[]>([]);
   const [idx, setIdx] = useState(0);
   const [prevIdx, setPrevIdx] = useState(0);
   const [dir, setDir] = useState<1 | -1>(1);
-  const [mode, setMode] = useState<Mode>(() => {
-    if (typeof window === "undefined") return CAMPAIGN_DEFAULT;
-    const qs = new URLSearchParams(window.location.search).get("price") as Mode | null;
-    return (
-      (qs === "discounted"
-        ? "discounted"
-        : (localStorage.getItem("campaignMode") as Mode)) || CAMPAIGN_DEFAULT
-    );
-  });
 
+  /* Load products */
   useEffect(() => {
     (async () => {
       try {
@@ -95,17 +115,8 @@ export default function ProductsSection() {
         if (res.ok && Array.isArray(body?.products)) {
           const mapped = body.products.map(mapDocToModel);
           setProducts(mapped);
-          console.log(
-            "[ProductsSection] loaded",
-            mapped.length,
-            "products from /api/products"
-          );
         } else {
-          console.warn(
-            "[ProductsSection] /api/products failed",
-            res.status,
-            body
-          );
+          console.warn("[ProductsSection] /api/products failed", res.status, body);
         }
       } catch (e) {
         console.error("[ProductsSection] failed to load products:", e);
@@ -113,18 +124,14 @@ export default function ProductsSection() {
     })();
   }, []);
 
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      localStorage.setItem("campaignMode", mode);
-    }
-  }, [mode]);
-
-  // auto-advance (circular)
+  /* Auto-advance carousel */
   const idxRef = useRef(0);
+  const pausedRef = useRef(false);
   useEffect(() => { idxRef.current = idx; }, [idx]);
   useEffect(() => {
     if (!products.length) return;
     const t = setInterval(() => {
+      if (pausedRef.current) return;
       setDir(1);
       setPrevIdx(idxRef.current);
       setIdx((idxRef.current + 1) % products.length);
@@ -144,28 +151,114 @@ export default function ProductsSection() {
     setPrevIdx(idx);
     setIdx((idx + 1) % products.length);
   };
+    /* ============================
+     Trackpad horizontal scrolling
+     ============================ */
+  const wheelTimeout = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    const handleWheel = (e: WheelEvent) => {
+      // Only care about horizontal scroll
+      if (Math.abs(e.deltaX) < 10) return;
+
+      // Prevent rapid triggers by debouncing
+      if (wheelTimeout.current) return;
+
+      pausedRef.current = true; // pause auto-advance
+      if (e.deltaX > 0) goNext();
+      else goPrev();
+
+      wheelTimeout.current = setTimeout(() => {
+        wheelTimeout.current = null;
+        pausedRef.current = false;
+      }, 400); // adjust delay as needed
+    };
+
+    window.addEventListener("wheel", handleWheel, { passive: true });
+    return () => window.removeEventListener("wheel", handleWheel);
+  }, [products.length]);
 
   const current = products[idx];
-  const active = current ? getActivePrice(current, mode) : null;
+
+  /* Calculate % off */
+  const percentOff = useMemo(() => {
+    if (!current) return "";
+    if (current.discountPct && String(current.discountPct).trim()) return String(current.discountPct);
+    if (current._mrpNum && current._discNum && current._mrpNum > 0) {
+      const pct = Math.round(((current._mrpNum - current._discNum) / current._mrpNum) * 100);
+      return pct > 0 ? `${pct}%` : "";
+    }
+    return "";
+  }, [current]);
+
+  const shownPrice = current?.discountedPrice || current?.mrp || "";
+
+  /* ============================
+     Swipe / Drag (mouse + touch)
+     ============================ */
+  const swipeStartX = useRef(0);
+  const swipeDX = useRef(0);
+  const dragging = useRef(false);
+  const movedEnough = useRef(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  const SWIPE_THRESHOLD = 40;   // px to trigger slide change
+  const TAP_TOLERANCE = 8;      // px to still count as a tap/click
+
+  const onPointerDown = (e: React.PointerEvent) => {
+    if (!containerRef.current) return;
+    containerRef.current.setPointerCapture?.(e.pointerId);
+    dragging.current = true;
+    movedEnough.current = false;
+    swipeDX.current = 0;
+    swipeStartX.current = e.clientX;
+    pausedRef.current = true; // pause auto-advance while interacting
+    (containerRef.current.style as any).cursor = "grabbing";
+  };
+
+  const onPointerMove = (e: React.PointerEvent) => {
+    if (!dragging.current) return;
+    swipeDX.current = e.clientX - swipeStartX.current;
+    if (Math.abs(swipeDX.current) > TAP_TOLERANCE) movedEnough.current = true;
+    // We’re not translating items (ring uses CSS positions), we just detect direction.
+  };
+
+  const onPointerUp = (e: React.PointerEvent) => {
+    if (!containerRef.current) return;
+    containerRef.current.releasePointerCapture?.(e.pointerId);
+    (containerRef.current.style as any).cursor = "grab";
+    const dx = swipeDX.current;
+    dragging.current = false;
+
+    // resume auto-advance after short delay
+    setTimeout(() => { pausedRef.current = false; }, 200);
+
+    if (Math.abs(dx) >= SWIPE_THRESHOLD) {
+      // left swipe => next ; right swipe => prev
+      if (dx < 0) goNext();
+      else goPrev();
+    }
+    // else: treat as a tap (click handlers on items will run)
+  };
 
   return (
     <section
       id="products"
-      className="bleed-x relative bg-cover bg-center overflow-x-visible overflow-y-hidden
-                 scroll-mt-[120px] overflow-anchor-none touch-pan-y
-                 pt-14 md:pt-16 pb-16 md:pb-20"
+      className="bleed-x relative bg-cover bg-center overflow-x-clip overflow-y-hidden
+                 scroll-mt-[120px] overscroll-x-none touch-pan-y
+                 pt-14 md:pt-16 pb-20 md:pb-20"
       style={{
         backgroundImage: "url('/assets/design.png')",
-        // Slightly taller ring so shorts are prominent (affects global CSS var locally)
-        // tweak these numbers to taste
-        ["--ring-height" as any]: "clamp(420px, 48vh, 860px)",
+        ...cssVars,
+        overflowX: "clip",
+        overscrollBehaviorX: "none",
       }}
     >
       <div className="absolute inset-0 bg-black/90 z-0 pointer-events-none" />
 
       <div className="relative z-10 max-w-[1200px] mx-auto">
-        {/* Title block — tighter gap to models */}
-        <div className="text-center mb-2 md:mb-0">
+        {/* Section heading */}
+        <div className="text-center" style={{ marginBottom: "var(--heading-gap)" }}>
           <img
             src="/assets/our-products-heading.png"
             alt="Our Products"
@@ -173,13 +266,18 @@ export default function ProductsSection() {
           />
         </div>
 
-        {/* Ring wrapper — nudged up; extra bottom padding for price/CTA */}
+        {/* Ring wrapper */}
         <div
+          ref={containerRef}
           className="relative -mt-5 sm:-mt-3 md:-mt-4
                      min-h-[600px] sm:min-h-[700px] md:min-h-[820px]
                      flex items-center justify-center overflow-visible
-                     px-3 sm:px-0
-                     pb-[300px] sm:pb-[310px] md:pb-[390px]"
+                     px-3 sm:px-0 select-none"
+          style={{ paddingBottom: "var(--ring-pad-bottom)", cursor: "grab" }}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerUp}
         >
           {/* RING */}
           <div id="carouselContainer" className="h-full w-full overflow-anchor-none">
@@ -187,16 +285,11 @@ export default function ProductsSection() {
               const total = products.length || 1;
               const relPrev = mod(i - prevIdx, total);
               const relNow = mod(i - idx, total);
-
               const teleports =
                 (dir === 1 && relPrev === total - 2 && relNow === 2) ||
                 (dir === -1 && relPrev === 2 && relNow === total - 2);
 
-              const cls = [
-                "carousel-item",
-                classFromRel(relNow, total),
-                teleports ? "no-transition" : "",
-              ]
+              const cls = ["carousel-item", classFromRel(relNow, total), teleports ? "no-transition" : ""]
                 .filter(Boolean)
                 .join(" ");
 
@@ -206,8 +299,14 @@ export default function ProductsSection() {
                 <div
                   key={i}
                   className={cls}
-                  style={{ cursor: "pointer" }}
+                  style={{
+                    cursor: movedEnough.current ? "grabbing" : "pointer",
+                    marginLeft: "var(--ring-item-gap)",
+                    marginRight: "var(--ring-item-gap)",
+                  }}
                   onClick={() => {
+                    // If the user dragged more than a few px, ignore click
+                    if (movedEnough.current) return;
                     if (i === idx) {
                       openDetail();
                     } else {
@@ -222,39 +321,21 @@ export default function ProductsSection() {
                     src={encodeURI(p.image)}
                     alt={p.title}
                     className="transition hover:scale-105"
+                    draggable={false}
                   />
                 </div>
               );
             })}
           </div>
 
-          {/* Overlay — compact vertical rhythm */}
+          {/* Overlay */}
           <div
-            className="absolute z-20 inset-x-0
-             bottom-[-57px] sm:bottom-[-67px] md:bottom-[-80px]
-             text-center px-4 pointer-events-none"
+            className="absolute z-20 inset-x-0 text-center px-4 pointer-events-none"
+            style={{ bottom: "var(--overlay-offset)" }}
           >
-
-            <div className="flex items-center justify-center gap-2">
-              <button
-                id="campaignPresale"
-                className={`pointer-events-auto px-3 py-1 rounded-full border border-white/40 text-white/90 text-xs hover:bg-white/10 ${mode === "presale" ? "bg-white/10" : ""}`}
-                onClick={() => setMode("presale")}
-              >
-                Presale
-              </button>
-              <button
-                id="campaignDiscounted"
-                className={`pointer-events-auto px-3 py-1 rounded-full border border-white/40 text-white/90 text-xs hover:bg-white/10 ${mode === "discounted" ? "bg-white/10" : ""}`}
-                onClick={() => setMode("discounted")}
-              >
-                Discounted
-              </button>
-            </div>
-
             <h2
               id="highlightedTitle"
-              className="mt-2 text-white font-extrabold tracking-tight
+              className="mt-0 text-white font-extrabold tracking-tight
                          text-3xl sm:text-4xl md:text-5xl
                          drop-shadow-[0_2px_0_rgba(0,0,0,0.25)]"
             >
@@ -262,57 +343,23 @@ export default function ProductsSection() {
             </h2>
 
             <div className="mt-2 sm:mt-3 flex items-center justify-center gap-2">
-              {current?.mrp && (
+              {!!current?.mrp && current?.mrp !== shownPrice && (
                 <span className="text-white text-xl sm:text-2xl line-through opacity-60">
                   {current.mrp}
                 </span>
               )}
-              {active && (
-                <>
-                  <span className="text-white text-2xl sm:text-3xl md:text-4xl font-extrabold">
-                    {active.value}
-                  </span>
-                  <span className="ml-2 text-[9px] sm:text-[10px] px-2 py-0.5 rounded-full bg-pink-600 text-white uppercase">
-                    {active.label}
-                    {active.badge ? ` ${active.badge}` : ""}
-                  </span>
-                </>
+              <span className="text-white text-2xl sm:text-3xl md:text-4xl font-extrabold">
+                {shownPrice}
+              </span>
+              {!!percentOff && (
+                <span className="ml-2 text-[9px] sm:text-[10px] px-2 py-0.5 rounded-full bg-pink-600 text-white uppercase">
+                  {percentOff} OFF
+                </span>
               )}
-            </div>
-
-            <div className="mt-4">
-              <button
-                id="highlightedAddToCart"
-                className="pointer-events-auto px-6 sm:px-8 md:px-10
-                           py-3 sm:py-3.5 rounded-full font-extrabold transition
-                           bg-pink-600 text-white hover:bg-pink-500 focus:outline-none
-                           focus:ring-2 focus:ring-pink-400/50 shadow-md"
-                onClick={() => current ? router.push(`/product/${current.title}`) : null}
-              >
-                {mode === "presale" ? "Place your Pre-Launch Order" : "+ ADD TO CART"}
-              </button>
             </div>
           </div>
 
-          {/* arrows */}
-          <button
-            id="productPrev"
-            className="absolute left-4 md:left-6 top-1/2 -translate-y-1/2 bg-white/85 hover:bg-white text-black
-                       rounded-full w-10 h-10 md:w-12 md:h-12 flex items-center justify-center z-30 text-xl md:text-2xl shadow"
-            onClick={goPrev}
-            aria-label="Previous product"
-          >
-            ←
-          </button>
-          <button
-            id="productNext"
-            className="absolute right-4 md:right-6 top-1/2 -translate-y-1/2 bg-white/85 hover:bg-white text-black
-                       rounded-full w-10 h-10 md:w-12 md:h-12 flex items-center justify-center z-30 text-xl md:text-2xl shadow"
-            onClick={goNext}
-            aria-label="Next product"
-          >
-            →
-          </button>
+          {/* (No arrow buttons; swipe/drag to navigate) */}
         </div>
       </div>
     </section>

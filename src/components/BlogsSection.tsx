@@ -1,76 +1,220 @@
+// src/components/BlogsSection.tsx
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+
+/** Your 3 blog cards */
+const BLOGS = [
+  {
+    slug: "team-hyper-power-passion-and-pure-energy",
+    date: "07 July, 2025",
+    image: "/assets/blog-1.png",
+    title: "Team Hyper: Power, Passion, and Pure Energy",
+  },
+  {
+    slug: "elevate-your-game-with-hyper",
+    date: "07 July, 2025",
+    image: "/assets/blog-2.png",
+    title: "Elevate Your Game with Hyper—Worn by the Country’s Elite Fighters",
+  },
+  {
+    slug: "winning-the-cage-hyper-athletes-shine-at-mfn",
+    date: "07 July, 2025",
+    image: "/assets/blog-3.png",
+    title: "Winning the Cage: Hyper Athletes Shine at MFN",
+  },
+];
+
+function useCardWidth() {
+  const [w, setW] = useState<number | null>(null);
+  useEffect(() => {
+    const u = () => setW(window.innerWidth);
+    u();
+    window.addEventListener("resize", u, { passive: true });
+    return () => window.removeEventListener("resize", u);
+  }, []);
+  // One width per breakpoint -> identical proportions
+  return useMemo(() => {
+    if (w == null) return 320; // SSR fallback
+    if (w >= 1280) return 420;
+    if (w >= 1024) return 380;
+    if (w >= 768) return 340;
+    return 300;
+  }, [w]);
+}
 
 export default function BlogsSection() {
-  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const router = useRouter();
+  const railRef = useRef<HTMLDivElement | null>(null);
 
-  const scrollBlogs = (dir: number) => {
-    const el = scrollRef.current;
+  const cardW = useCardWidth();
+  const GAP = 24;                   // space-x-6
+  const STEP = cardW + GAP;         // one-card stride
+  const MAX_INDEX = BLOGS.length - 1;
+
+  const [index, setIndex] = useState(0);
+
+  /** Scroll rail to a specific, clamped index */
+  const goTo = (i: number, smooth = true) => {
+    const el = railRef.current;
     if (!el) return;
-    // keep same behavior: horizontal scroll, no style change to markup
-    const step = 360; // approx card width + gap; adjust if needed
-    el.scrollBy({ left: dir * step, behavior: "smooth" });
+    const clamped = Math.max(0, Math.min(MAX_INDEX, i));
+    setIndex(clamped);
+    el.scrollTo({
+      left: clamped * STEP,
+      behavior: smooth ? "smooth" : "auto",
+    });
   };
 
+  const next = () => goTo(index + 1);
+  const prev = () => goTo(index - 1);
+
+  // Keep position when the card width changes (resize)
+  useEffect(() => {
+    goTo(index, false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cardW]);
+
+  // Keyboard support
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "ArrowRight") next();
+      if (e.key === "ArrowLeft") prev();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [index, STEP]);
+
+  /* ===== Drag / swipe with snap-to-nearest ===== */
+  const downX = useRef(0);
+  const startLeft = useRef(0);
+  const dragging = useRef(false);
+
+  const onPointerDown = (e: React.PointerEvent) => {
+    const el = railRef.current;
+    if (!el) return;
+    dragging.current = true;
+    el.setPointerCapture?.(e.pointerId);
+    downX.current = e.clientX;
+    startLeft.current = el.scrollLeft;
+  };
+  const onPointerMove = (e: React.PointerEvent) => {
+    const el = railRef.current;
+    if (!el || !dragging.current) return;
+    const dx = e.clientX - downX.current;
+    el.scrollLeft = startLeft.current - dx;
+  };
+  const onPointerUp = (e: React.PointerEvent) => {
+    const el = railRef.current;
+    if (!el) return;
+    dragging.current = false;
+    el.releasePointerCapture?.(e.pointerId);
+    // // snap to nearest card
+    // const nearest = Math.round(el.scrollLeft / STEP);
+    // goTo(nearest);
+  };
+
+  /* Round arrows like Testimonials */
+  const roundArrow =
+    "absolute top-1/2 -translate-y-1/2 h-10 w-10 grid place-items-center rounded-full " +
+    "bg-black/10 hover:bg-black/15 text-black shadow backdrop-blur-sm z-20";
+
   return (
-    <section id="blogs" className="py-16 relative bg-white text-black px-6">
-      {/* Header Image (kept same structure as your HTML) */}
-      <section className="py-20 bg-white text-black">
-        <div className="text-center">
-          <img src="/assets/our-blogs-heading.png" alt="Our Blogs" className="mx-auto mb-6 w-64 sm:w-80" />
-          <img
-            src="/assets/bars.png"
-            alt="Bars Graphic"
-            className="w-24 sm:w-32 md:w-40 ml-[.3rem] sm:ml-[.3rem] md:ml-[12rem] z-10"
-          />
-        </div>
+    <section id="blogs" className="relative bg-white text-black px-6 sm:px-8 no-scrollbar">
+      {/* Header — reduced white space */}
+      <div className="text-center pt-10 sm:pt-12">
+        <img
+          src="/assets/our-blogs-heading.png"
+          alt="Our Blogs"
+          className="mx-auto mb-4 w-64 sm:w-80"
+        />
+        <img
+          src="/assets/bars.png"
+          alt="Bars Graphic"
+          className="w-24 sm:w-32 md:w-40 ml-[.3rem] sm:ml-[.3rem] md:ml-[12rem] z-10 -mb-2"
+        />
+      </div>
 
-        {/* Blog Carousel */}
-        <div className="relative max-w-7xl mx-auto">
-          <div className="flex items-center justify-between mb-6 px-2">
-            <div></div>
-            <div className="flex gap-4">
-              <button className="text-2xl hover:text-pink-500 transition" onClick={() => scrollBlogs(-1)}>←</button>
-              <button className="text-2xl hover:text-pink-500 transition" onClick={() => scrollBlogs(1)}>→</button>
-            </div>
-          </div>
-
-          <div
-            style={{ fontFamily: "'Palanquin', sans-serif" }}
-            id="blogScroll"
-            ref={scrollRef}
-            className="flex overflow-x-auto space-x-6 scroll-smooth scroll-container pb-4"
-          >
-            {/* Blog Card 1 */}
-            <div className="min-w-[300px] flex-shrink-0">
-              <p className="text-sm font-bold mb-1">07 July, 2025</p>
-              <img src="/assets/blog-1.png" alt="" className="rounded-lg w-full h-[280px] object-cover mb-2" />
-              <p className="text-gray-800">
-                Team Hyper: Power, Passion, and Pure Energy
-              </p>
-            </div>
-
-            {/* Blog Card 2 */}
-            <div className="min-w-[300px] flex-shrink-0">
-              <p className="text-sm font-bold mb-1">07 July, 2025</p>
-              <img src="/assets/blog-2.png" alt="" className="rounded-lg w-full h-[280px] object-cover mb-2" />
-              <p className="text-gray-800">
-                Elevate Your Game with Hyper—Worn by the Country’s Elite Fighters
-              </p>
-            </div>
-
-            {/* Blog Card 3 */}
-            <div className="min-w-[300px] flex-shrink-0">
-              <p className="text-sm font-bold mb-1">07 July, 2025</p>
-              <img src="/assets/blog-3.png" alt="" className="rounded-lg w-full h-[280px] object-cover mb-2" />
-              <p className="text-gray-800">
-                Winning the Cage: Hyper Athletes Shine at MFN
-              </p>
-            </div>
+      <div className="relative max-w-7xl mx-auto mt-4 no-scrollbar">
+        {/* Keep your original small arrow group (top-right) */}
+        <div className="flex items-center justify-between mb-3 px-2">
+          <div />
+          <div className="flex gap-4">
+            <button
+              className="text-2xl hover:text-pink-500 transition disabled:opacity-40"
+              onClick={prev}
+              disabled={index === 0}
+              aria-label="Previous blogs"
+            >
+              ←
+            </button>
+            <button
+              className="text-2xl hover:text-pink-500 transition disabled:opacity-40"
+              onClick={next}
+              disabled={index === MAX_INDEX}
+              aria-label="Next blogs"
+            >
+              →
+            </button>
           </div>
         </div>
-      </section>
+
+        {/* Big round arrows — disable at ends */}
+        <button
+          className={`${roundArrow} disabled:opacity-40`}
+          style={{ left: "-6px" }}
+          onClick={prev}
+          disabled={index === 0}
+          aria-label="Previous"
+        >
+          ‹
+        </button>
+        <button
+          className={`${roundArrow} disabled:opacity-40`}
+          style={{ right: "-6px" }}
+          onClick={next}
+          disabled={index === MAX_INDEX}
+          aria-label="Next"
+        >
+          ›
+        </button>
+
+        {/* Scroll rail with snap + fixed card sizes */}
+        <div
+          ref={railRef}
+          className="
+          no-scrollbar
+            flex overflow-x-auto scroll-smooth pb-4 select-none
+            space-x-6 snap-x snap-mandatory
+            [-webkit-overflow-scrolling:touch]
+          "
+          style={{ fontFamily: "'Palanquin', sans-serif" }}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerUp}
+        >
+          {BLOGS.map((b, i) => (
+            <button
+              key={b.slug}
+              className="flex-none snap-start text-left focus:outline-none"
+              style={{ width: cardW }}
+              onClick={() => router.push(`/blog/${b.slug}`)}
+              aria-label={`Open blog: ${b.title}`}
+            >
+              <p className="text-sm font-bold mb-1">{b.date}</p>
+              <img
+                src={b.image}
+                alt={b.title}
+                className="rounded-lg w-full h-[280px] object-cover mb-2"
+                draggable={false}
+              />
+              <p className="text-gray-800">{b.title}</p>
+            </button>
+          ))}
+        </div>
+      </div>
     </section>
   );
 }

@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useCart } from "@/context/CartContext";
 import FaqSection from "@/components/FaqSection";
-import ContactSection from "@/components/ContactSection";
+import FooterSection from "@/components/FooterSection";
 import YouMayAlsoLike from "./YouMayAlsoLike";
 
 /* ===========================
@@ -12,33 +12,36 @@ import YouMayAlsoLike from "./YouMayAlsoLike";
    =========================== */
 
 // General page
-const PAGE_SIDE_PADDING = "px-[2px] sm:px-4 md:px-10";  // padding on sides
-const PAGE_OVERFLOW_FIX = true;                    // true = hide extra horizontal overflow
+const PAGE_SIDE_PADDING = "px-[8px] sm:px-4 md:px-10";  // padding on sides
+const PAGE_OVERFLOW_FIX = true;                         // true = hide extra horizontal overflow
 
 // Thumbnail scroll area
-const THUMB_SCROLL_GAP = "gap-[6.5px] sm:gap-3";          // spacing between thumbnails
-const THUMB_SCROLL_HEIGHT = "h-16 w-16 sm:h-20 sm:w-20"; 
-const THUMB_SCROLL_ANIMATION = true;                // true = snap & overscroll effect
+const THUMB_SCROLL_GAP = "gap-[6.5px] sm:gap-3";        // spacing between thumbnails
+const THUMB_SCROLL_HEIGHT = "h-16 w-16 sm:h-20 sm:w-20";
+const THUMB_SCROLL_ANIMATION = true;                    // true = snap & overscroll effect
 
 // Hero image
-const HERO_FULLBLEED_MOBILE = true;                 // edge-to-edge image on mobile
-const HERO_ASPECT_RATIO = HERO_FULLBLEED_MOBILE ? "aspect-[50000px] sm:aspect-square" : "aspect-square";
+const HERO_FULLBLEED_MOBILE = true;                     // edge-to-edge container on mobile
+const HERO_ASPECT_RATIO = "aspect-[12/14] sm:aspect-square lg:aspect-[4/5]";
+const HERO_MIN_H_MOBILE = "min-h-[300px]";
+const HERO_MIN_H_TABLET = "sm:min-h-[400px]";
+const HERO_MIN_H_DESKTOP = "lg:min-h-[500px]";
 
 // Title and Price
-const TITLE_SIZE = "text-3xl sm:text-4xl md:text-5xl"; 
+const TITLE_SIZE = "text-3xl sm:text-4xl md:text-5xl";
 const PRICE_SIZE = "text-2xl sm:text-3xl md:text-4xl";
 
 // Quantity + Add to Cart
-const STACK_QTY_AND_BUTTON = true;                  // true = vertical stack
-const STACK_SPACING = "gap-3";                      // space between quantity and button
-const QTY_WIDTH = "w-33 sm:w-25";                   // fixed width for qty if horizontal
-const QTY_FULL_WIDTH = "w-[410px]";                    // full width when stacked
+const STACK_QTY_AND_BUTTON = true;                      // true = vertical stack
+const STACK_SPACING = "gap-3";                          // space between quantity and button
+const QTY_WIDTH = "w-33 sm:w-25";                       // fixed width for qty if horizontal
+const QTY_FULL_WIDTH = "w-full max-w-[410px]";          // fluid, but capped to your 410px
 
-// Description (NEW – easy to tweak)
-const DESC_USE_BULLETS = true;                      // render description as bullet list
-const DESC_LIST_SPACE = "space-y-2 sm:space-y-3";   // vertical space between bullet items
-const DESC_ICON_CLASS = "mt-1 inline-block h-2 w-2 rounded-full bg-pink-500"; // bullet dot
-const DESC_TEXT_CLASS = "leading-relaxed";          // text line-height for bullets
+// Description (easy to tweak)
+const DESC_USE_BULLETS = true;
+const DESC_LIST_SPACE = "space-y-2 sm:space-y-3";
+const DESC_ICON_CLASS = "mt-1 inline-block h-2 w-2 rounded-full bg-pink-500";
+const DESC_TEXT_CLASS = "leading-relaxed";
 
 /* ---------- lightweight ProductModel shape ---------- */
 type ProductModel = {
@@ -180,6 +183,11 @@ export default function ProductDetailView({ product }: { product: ProductModel }
     setActive(0);
   }, [dir]);
 
+  const onThumbError = (idx: number) => {
+    setImages((prev) => prev.filter((_, i) => i !== idx));
+    setActive((a) => (a >= idx ? Math.max(0, a - 1) : a));
+  };
+
   const hero = images[active] || toAbs(coverFor(full));
 
   /* cart logic */
@@ -203,43 +211,45 @@ export default function ProductDetailView({ product }: { product: ProductModel }
     });
   };
 
-  /* build bullet points from description (• or newlines) */
+  /* description bullets */
   const bulletPoints = useMemo(() => {
     const raw = String(full.description || "").trim();
     if (!raw) return [];
     return raw
-      .split(/(?:\u2022|•|\r?\n)+/g)    // split on bullets or new lines
-      .map(s => s.replace(/^[\s•\-–]+/, "").trim())
+      .split(/(?:\u2022|•|\r?\n)+/g)
+      .map((s) => s.replace(/^[\s•\-–]+/, "").trim())
       .filter(Boolean);
   }, [full.description]);
 
   return (
+
     <div
-      className={`w-full max-w-6xl mx-auto ${PAGE_SIDE_PADDING} py-6 sm:py-8 md:py-10 ${
-        PAGE_OVERFLOW_FIX ? "overflow-x-hidden" : ""
+      className={`w-full max-w-6xl mx-auto py-6 sm:py-8 md:py-10 ${
+        PAGE_OVERFLOW_FIX ? "overflow-x-clip" : ""
       }`}
     >
+
+     
       <div className="grid md:grid-cols-2 gap-6 sm:gap-8 md:gap-12 w-full">
         {/* ========= GALLERY ========= */}
-        <div className="w-full">
+        <div className="w-full min-w-0">
           <div className="grid md:grid-cols-[5rem_1fr] lg:grid-cols-[6rem_1fr] gap-3 md:gap-5">
             {/* HERO IMAGE */}
-            <div className="order-1 md:order-2">
+            <div className="order-1 md:order-2 min-w-0">
               <div
-                className={`relative w-full overflow-hidden ${
+                className={`relative w-full max-w-full overflow-hidden ${
                   HERO_FULLBLEED_MOBILE
                     ? "rounded-none bg-transparent shadow-none"
                     : "rounded-2xl sm:rounded-3xl bg-white shadow"
-                } ${HERO_ASPECT_RATIO}`}
+                } ${HERO_ASPECT_RATIO} ${HERO_MIN_H_MOBILE} ${HERO_MIN_H_TABLET} ${HERO_MIN_H_DESKTOP}`}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 {hero ? (
                   <img
                     src={hero}
                     alt={title}
-                    className={`h-full w-full ${
-                      HERO_FULLBLEED_MOBILE ? "object-cover md:object-contain" : "object-contain"
-                    }`}
+                    className="block h-full w-full max-w-full object-contain transition-all duration-300"
+                    loading="eager"
                   />
                 ) : (
                   <div className="grid h-full w-full place-items-center text-gray-400">No image</div>
@@ -248,8 +258,10 @@ export default function ProductDetailView({ product }: { product: ProductModel }
 
               {/* MOBILE THUMB STRIP */}
               <div
-                className={`mt-3 ml-1 mr-1 flex ${THUMB_SCROLL_GAP} overflow-x-auto md:hidden ${
-                  THUMB_SCROLL_ANIMATION ? "snap-x snap-mandatory overscroll-x-auto " : ""
+                className={`mt-3 px-1 flex ${THUMB_SCROLL_GAP} overflow-x-auto md:hidden ${
+                  THUMB_SCROLL_ANIMATION
+                    ? "snap-x snap-mandatory overscroll-x-contain scroll-smooth touch-pan-x no-scrollbar"
+                    : ""
                 }`}
               >
                 {images.map((src, i) => (
@@ -258,13 +270,15 @@ export default function ProductDetailView({ product }: { product: ProductModel }
                     onClick={() => setActive(i)}
                     className={`flex-shrink-0 ${THUMB_SCROLL_HEIGHT} overflow-hidden rounded-lg border transition ${
                       i === active ? "border-black" : "border-gray-200"
-                    }`}
+                    } snap-start`}
                     aria-label={`View ${title} image ${i + 1}`}
                   >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={src}
                       alt={`${title} ${i + 1}`}
-                      className="h-full w-full object-cover"
+                      className="block h-full w-full object-cover"
+                      onError={() => onThumbError(i)}
                     />
                   </button>
                 ))}
@@ -272,7 +286,7 @@ export default function ProductDetailView({ product }: { product: ProductModel }
             </div>
 
             {/* DESKTOP VERTICAL THUMBS */}
-            <div className="order-2 md:order-1 hidden md:flex md:flex-col gap-2 md:gap-3 overflow-y-auto md:max-h-[min(80vh,40rem)] pr-1">
+            <div className="order-2 md:order-1 hidden md:flex md:flex-col gap-2 md:gap-3 overflow-y-auto md:max-h-[min(80vh,40rem)] pr-1 min-w-0">
               {images.map((src, i) => (
                 <button
                   key={`${src}__d${i}`}
@@ -282,27 +296,27 @@ export default function ProductDetailView({ product }: { product: ProductModel }
                   }`}
                   aria-label={`View ${title} image ${i + 1}`}
                 >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={src}
                     alt={`${title} ${i + 1}`}
-                    className="h-full w-full object-cover"
+                    className="block h-full w-full object-cover"
+                    onError={() => onThumbError(i)}
                   />
                 </button>
               ))}
             </div>
           </div>
         </div>
-
+ <div className= {`${PAGE_SIDE_PADDING}`}>
         {/* ========= INFO ========= */}
-        <div className="w-full ml-2">
+        <div className="w-full md:ml-2 min-w-0">
           <div className="text-[11px] sm:text-xs uppercase tracking-widest text-gray-500">Shop / product</div>
           <h1 className={`mt-2 ${TITLE_SIZE} font-extrabold tracking-tight`}>{title}</h1>
           {subtitle && <div className="mt-1 text-xs sm:text-sm text-gray-500">{subtitle}</div>}
 
-          <div className="mt-3 flex items-center ml-1 gap-3 sm:gap-4">
-            <span className={`${PRICE_SIZE} font-extrabold leading-tight`}>
-              {"₹"+String(displayPrice)}
-            </span>
+          <div className="mt-3 flex items-center md:ml-1 gap-4 sm:gap-4">
+            <span className={`${PRICE_SIZE} font-extrabold leading-tight`}>{"₹" + String(displayPrice)}</span>
             <Stars rating={rating} />
           </div>
 
@@ -372,7 +386,7 @@ export default function ProductDetailView({ product }: { product: ProductModel }
             </div>
           )}
 
-          {/* Description (bullet list; falls back to original HTML if no bullets detected) */}
+          {/* Description */}
           {DESC_USE_BULLETS ? (
             bulletPoints.length > 0 ? (
               <ul className={`mt-6 sm:mt-8 ${DESC_LIST_SPACE} text-gray-700`}>
@@ -405,8 +419,10 @@ export default function ProductDetailView({ product }: { product: ProductModel }
       <div className="mt-12 mb-3 sm:mt-14 md:mt-16">
         <YouMayAlsoLike excludeTitle="" limit={4} />
       </div>
-        <FaqSection />
-        <ContactSection />
-    </div>
+      </div>
+      <FaqSection />
+      <FooterSection />
+      </div>
+
   );
 }

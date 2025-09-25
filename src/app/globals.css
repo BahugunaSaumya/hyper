@@ -96,26 +96,26 @@ body.home .offset-header {
 
 .carousel-left {
   transform: translate(calc(-50% - var(--ring-near)), -50%) scale(var(--ring-scale-near));
-  opacity: .85;
+  opacity: .005;
   z-index: 4;
 }
 
 .carousel-right {
   transform: translate(calc(-50% + var(--ring-near)), -50%) scale(var(--ring-scale-near));
-  opacity: .85;
+  opacity: .005;
   z-index: 4;
 }
 
 .carousel-far-left {
   transform: translate(calc(-50% - var(--ring-far)), -50%) scale(var(--ring-scale-far));
-  opacity: .35;
+  opacity: .002;
   z-index: 3;
   filter: blur(1px);
 }
 
 .carousel-far-right {
   transform: translate(calc(-50% + var(--ring-far)), -50%) scale(var(--ring-scale-far));
-  opacity: .35;
+  opacity: .002;
   z-index: 3;
   filter: blur(1px);
 }
@@ -379,3 +379,7 @@ body.zoom-90 { zoom: 1; }  /* 90% */
   }
 }
 
+   .no-scrollbar {
+          -ms-overflow-style: none;  /* IE and Edge */
+          scrollbar-width: none;  /* Firefox */
+    }

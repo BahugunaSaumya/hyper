@@ -20,10 +20,10 @@ export default function VideoSection() {
   const [{ small, W, H }, setDims] = useState({ small: 120, W: 1280, H: 720 });
   const [expanded, setExpanded] = useState(false);
 
-  // Mount
+  /* Mount */
   useEffect(() => setMounted(true), []);
 
-  // Resize dynamically
+  /* Resize dynamically */
   useLayoutEffect(() => {
     const calc = () => {
       const vw = Math.max(320, window.innerWidth);
@@ -46,7 +46,7 @@ export default function VideoSection() {
     return () => window.removeEventListener("resize", calc);
   }, []);
 
-  // Pause when scrolled out
+  /* Detect visibility without scrolling into view */
   useEffect(() => {
     const el = frameRef.current;
     if (!el) return;
@@ -63,33 +63,18 @@ export default function VideoSection() {
           setIsPlaying(false);
         }
       },
-      { threshold: [0, 0.5, 1] }
+      {
+        root: null,
+        rootMargin: "0px",
+        threshold: [0, 0.5, 1],
+      }
     );
 
     io.observe(el);
     return () => io.disconnect();
   }, []);
 
-  // Sync with Plyr events
-  useEffect(() => {
-    const api = playerRef.current?.plyr;
-    if (!api) return;
-
-    const onPlay = () => setIsPlaying(true);
-    const onPause = () => setIsPlaying(false);
-
-    api.on("play", onPlay);
-    api.on("pause", onPause);
-    api.on("ended", onPause);
-
-    return () => {
-      api.off("play", onPlay);
-      api.off("pause", onPause);
-      api.off("ended", onPause);
-    };
-  }, [mounted]);
-
-  // Spring animation
+  /* Spring animation */
   const spring = useSpring({
     from: { w: 0, h: 0, r: 999, s: 0.6, o: 0.9, blur: 6 },
     to: {
@@ -103,7 +88,7 @@ export default function VideoSection() {
     config: { duration: 1200, easing: easings.easeInOutCubic },
   });
 
-  // Plyr config
+  /* Plyr config */
   const source = useMemo<SourceInfo>(
     () => ({
       type: "video",
@@ -117,7 +102,7 @@ export default function VideoSection() {
     () => ({
       controls: ["play", "mute", "volume", "fullscreen"],
       ratio: "16:9",
-      clickToPlay: false, // we handle taps ourselves
+      clickToPlay: false, // we handle taps manually
       hideControls: true,
       fullscreen: { enabled: true, fallback: true, iosNative: true },
       keyboard: { global: false },
@@ -126,7 +111,7 @@ export default function VideoSection() {
     []
   );
 
-  // Helpers
+  /* Helpers */
   const playVideo = () => {
     setIsPlaying(true);
     playerRef.current?.plyr?.play().catch(() => setIsPlaying(false));
@@ -169,20 +154,21 @@ export default function VideoSection() {
             ref={frameRef}
             className="relative overflow-hidden bg-black shadow-xl will-change-transform"
             style={{
-              width: spring.w.to(v => `${v}px`),
-              height: spring.h.to(v => `${v}px`),
-              borderRadius: spring.r.to(v => `${v}px`),
-              transform: spring.s.to(s => `scale(${s})`),
+              width: spring.w.to((v) => `${v}px`),
+              height: spring.h.to((v) => `${v}px`),
+              borderRadius: spring.r.to((v) => `${v}px`),
+              transform: spring.s.to((s) => `scale(${s})`),
               opacity: spring.o,
-              filter: spring.blur.to(b => `blur(${b}px)`),
+              filter: spring.blur.to((b) => `blur(${b}px)`),
             }}
           >
-            {/* Make video fill container */}
+            {/* Prevent video from interfering with scroll */}
             <style jsx global>{`
               .plyr--video video {
                 object-fit: cover !important;
                 width: 100% !important;
                 height: 100% !important;
+                pointer-events: auto !important;
               }
               .plyr__poster {
                 background-size: cover !important;

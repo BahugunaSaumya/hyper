@@ -141,7 +141,7 @@ export default function Hero() {
           </div>
           <a
             href="#products"
-            className="inline-flex items-center justify-center rounded-full px-6 py-3 text-base font-semibold bg-pink-500 hover:bg-pink-400 active:scale-[.99] transition shadow-lg"
+            className="inline-flex items-center justify-center rounded-full w-[250px] px-6 py-3 text-base font-semibold bg-pink-500 hover:bg-pink-400 active:scale-[.99] transition shadow-lg"
           >
             Place your Order
           </a>
