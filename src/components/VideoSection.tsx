@@ -225,7 +225,7 @@ export default function VideoSection() {
                       <defs>
                         <path id="circlePath" d="M 50, 50 m -40, 0 a 40,40 0 1,1 80,0 a 40,40 0 1,1 -80,0" />
                       </defs>
-                      <text fill="white" fontSize="12" fontFamily="Arial" fontWeight="bold">
+                      <text fill="white" fontSize="12" fontFamily="Palanquin, Arial, sans-sarif" fontWeight="bold">
                         <textPath xlinkHref="#circlePath" startOffset="0%">
                           SEE HYPER IN ACTION • SEE HYPER IN ACTION •
                         </textPath>

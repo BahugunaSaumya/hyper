@@ -1,21 +1,49 @@
 @import "tailwindcss";
 
 /* base */
-html,
-body {
-  background: #fff;
-  color: #000;
-  font-family: Arial, Helvetica, sans-serif;
-  margin: 0;
+@layer base {
+
+  html,
+  body {
+    background: #fff;
+    color: #000;
+    margin: 0;
+    /* Palanquin default */
+    font-family: var(--font-sans), ui-sans-serif, system-ui, -apple-system,
+      "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  }
+
+  /* Titles default to Monument Extended */
+  h1,
+  h2,
+  h3,
+  .font-title,
+  .heading,
+  .title {
+    font-family: var(--font-title), var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+    letter-spacing: .02em;
+    /* optional: a touch of tracking looks great with Monument */
+  }
 }
+
+/* Handy utility if you want to force Monument Extended on anything */
+@layer utilities {
+  .font-title {
+    font-family: var(--font-title), var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  }
+}
+
+
 
 /* optional: offset for pages that sit under the fixed header */
 :root {
   --nav-h: 40px;
 }
+
 /* Specific override for homepage */
 body.home .offset-header {
-  padding-top: 25px !important; /* Adjust as needed */
+  padding-top: 25px !important;
+  /* Adjust as needed */
 }
 
 
@@ -266,8 +294,16 @@ img {
 
 /* long horizontal track we translate for the loop */
 /* Zoom out whole page by 90% (Chrome/Edge) */
-html, body { height: 100%; }
-body.zoom-90 { zoom: 1; }  /* 90% */
+html,
+body {
+  height: 100%;
+}
+
+body.zoom-90 {
+  zoom: 1;
+}
+
+/* 90% */
 
 .hero-ribbon-track {
   display: flex;
@@ -318,8 +354,13 @@ body.zoom-90 { zoom: 1; }  /* 90% */
 }
 
 /* Helpful when a parent used overflow-hidden */
-.overflow-x-visible { overflow-x: visible; }
-.overflow-y-hidden  { overflow-y: hidden; }
+.overflow-x-visible {
+  overflow-x: visible;
+}
+
+.overflow-y-hidden {
+  overflow-y: hidden;
+}
 
 
 /* === Phone breathing room for product ring === */
@@ -327,17 +368,22 @@ body.zoom-90 { zoom: 1; }  /* 90% */
   :root {
     /* ease the ring a touch on phones; tablet untouched */
     --ring-height: clamp(280px, 54vh, 560px);
-    --ring-near: 26vw;   /* was 32vw in your later block */
-    --ring-far: 48vw;    /* was 64vw */
-    --ring-scale-center: 0.98; /* tiny downsize to reduce visual “pressure” */
-    --ring-scale-near:   0.82;
-    --ring-scale-far:    0.68;
+    --ring-near: 26vw;
+    /* was 32vw in your later block */
+    --ring-far: 48vw;
+    /* was 64vw */
+    --ring-scale-center: 0.98;
+    /* tiny downsize to reduce visual “pressure” */
+    --ring-scale-near: 0.82;
+    --ring-scale-far: 0.68;
   }
 
   /* cap visual width so images don’t feel “stressed” */
   #carouselContainer .carousel-item img {
-    max-width: 58vw;     /* keeps aspect, pairs with your height:100% */
-    object-fit: contain; /* belt-and-braces; no cropping */
+    max-width: 58vw;
+    /* keeps aspect, pairs with your height:100% */
+    object-fit: contain;
+    /* belt-and-braces; no cropping */
   }
 
   /* hide the very far tiles on tiny screens for cleaner spacing */
@@ -348,12 +394,16 @@ body.zoom-90 { zoom: 1; }  /* 90% */
 
 
   /* Prevent the browser from auto-adjusting scroll position when content changes */
-.overflow-anchor-none { overflow-anchor: none; }
+  .overflow-anchor-none {
+    overflow-anchor: none;
+  }
 
 }
 
 /* utilities */
-.overflow-anchor-none { overflow-anchor: none; }
+.overflow-anchor-none {
+  overflow-anchor: none;
+}
 
 /* === Phone breathing room for product ring (tablet/desktop unchanged) === */
 @media (max-width: 640px) {
@@ -379,7 +429,9 @@ body.zoom-90 { zoom: 1; }  /* 90% */
   }
 }
 
-   .no-scrollbar {
-          -ms-overflow-style: none;  /* IE and Edge */
-          scrollbar-width: none;  /* Firefox */
-    }
+.no-scrollbar {
+  -ms-overflow-style: none;
+  /* IE and Edge */
+  scrollbar-width: none;
+  /* Firefox */
+}

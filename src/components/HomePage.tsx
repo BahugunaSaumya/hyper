@@ -8,7 +8,7 @@ import ProductsSection from "./ProductsSection";
 import TestimonialsSection from "./TestimonialsSection";
 import BlogsSection from "./BlogsSection";
 import FaqSection from "./FaqSection";
-import FooterSection from "./FooterSection";
+import ContactSection from "./ContactSection";
 
 export default function HomePage() {
   return (
@@ -23,7 +23,7 @@ export default function HomePage() {
         <TestimonialsSection />
         <BlogsSection />
         <FaqSection />
-        <FooterSection />
+        <ContactSection />
       </main>
 
     </>

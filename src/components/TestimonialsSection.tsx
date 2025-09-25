@@ -223,20 +223,30 @@ export default function TestimonialsSection() {
           ›
         </button>
 
-        {/* Dots */}
-        <div className="flex justify-center mt-5 gap-2.5">
+        {/* Dots (always clickable, above content) */}
+        <div className="relative z-30 pointer-events-auto flex justify-center mt-5 gap-2.5">
           {TESTIMONIALS.map((_, i) => (
             <button
               key={i}
+              type="button"
               aria-label={`Go to slide ${i + 1}`}
-              onClick={() => goToIndex(i)}
-              className={`h-2 w-2 rounded-full transition ${i === active
-                  ? "bg-pink-500 scale-110"
-                  : "bg-white/30 hover:bg-white/60"
+              onClick={() => {
+                // keep transitions consistent with arrows
+                // setPrevIdx?.(active);           // if you track prev index
+                // setDir?.(i > active ? 1 : -1);  // if you track direction
+                goToIndex(i);                    // your existing helper
+                // optional: pause autoplay a bit
+                if (typeof window !== "undefined") {
+                  (hoverRef.current as any) = true;
+                  setTimeout(() => (hoverRef.current = false), 800);
+                }
+              }}
+              className={`h-2 w-2 rounded-full transition ${i === active ? "bg-pink-500 scale-110" : "bg-white/30 hover:bg-white/60"
                 }`}
             />
           ))}
         </div>
+
       </div>
     </section>
   );

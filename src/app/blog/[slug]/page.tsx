@@ -1,5 +1,6 @@
 // src/app/blog/[slug]/page.tsx
 import ContactPage from "@/app/contact/page";
+import FooterSection from "@/components/FooterSection";
 import { notFound } from "next/navigation";
 
 // Keep this in sync with your BlogsSection cards
@@ -85,7 +86,7 @@ export default async function BlogPage({ params }: PageProps) {
                     ))}
                 </article>
             </section>
-            <ContactPage/>
+            <FooterSection/>
         </main>
     );
 }

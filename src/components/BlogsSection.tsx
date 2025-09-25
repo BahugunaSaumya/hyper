@@ -168,7 +168,7 @@ export default function BlogsSection() {
             space-x-6 snap-x snap-mandatory
             [-webkit-overflow-scrolling:touch]
           "
-          style={{ fontFamily: "'Palanquin', sans-serif" }}
+      
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}

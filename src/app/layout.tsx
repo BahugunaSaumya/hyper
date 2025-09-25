@@ -1,20 +1,40 @@
 // src/app/layout.tsx
 import "./globals.css";
-import type { Metadata } from "next";
+import localFont from "next/font/local";
+import { Palanquin } from "next/font/google";
+import type { ReactNode } from "react";
+import { AuthProvider } from "@/context/AuthContext";
 import Header from "@/components/Header";
 import { CartProvider } from "@/context/CartContext";
-import { AuthProvider } from "@/context/AuthContext";
-import "plyr-react/plyr.css";
 import ClientWrapper from "@/components/ClientWrapper";
 
-export const metadata: Metadata = {
-  title: "HYPER MMA",
-  description: "Hyper MMA store",
-};
+const palanquin = Palanquin({
+  subsets: ["latin"],
+  variable: "--font-sans",
+  display: "swap",
+  weight: "100"
+});
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+const monument = localFont({
+  variable: "--font-title",
+  display: "swap",
+  src: [
+    {
+      path: "../../public/fonts/monument-extended/MonumentExtended-Regular.otf",
+      weight: "400",
+      style: "normal",
+    },
+    {
+      path: "../../public/fonts/monument-extended/MonumentExtended-Ultrabold.otf",
+      weight: "700",
+      style: "normal",
+    },
+  ],
+});
+
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" className={`${palanquin.variable} ${monument.variable}`} suppressHydrationWarning>
       <body className="zoom-90" suppressHydrationWarning>
         <AuthProvider>
           <CartProvider>
