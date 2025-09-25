@@ -45,23 +45,19 @@ export default function FooterSection() {
           {/* Nav */}
           <nav
             aria-label="Footer"
-            className="flex flex-col sm:flex-row justify-between items-center w-full max-w-4xl mx-auto gap-y-3 text-base sm:text-lg md:text-xl font-extrabold tracking-wide"
+            className="
+    flex flex-row flex-nowrap items-center
+    justify-center md:justify-between
+    w-full max-w-4xl mx-auto
+    text-base sm:text-lg md:text-xl font-extrabold tracking-wide
+    space-x-[50px]
+  "
           >
-            <a href="#about" className="hover:underline underline-offset-4">
-              About
-            </a>
-            <a href="#products" className="hover:underline underline-offset-4">
-              Products
-            </a>
-            <a href="#blogs" className="hover:underline underline-offset-4">
-              Blogs
-            </a>
-            <a href="/contact" className="hover:underline underline-offset-4">
-              Contact
-            </a>
+            <a href="#about" className="hover:underline underline-offset-4 whitespace-nowrap">About</a>
+            <a href="#products" className="hover:underline underline-offset-4 whitespace-nowrap">Products</a>
+            <a href="#blogs" className="hover:underline underline-offset-4 whitespace-nowrap">Blogs</a>
+            <a href="/contact" className="hover:underline underline-offset-4 whitespace-nowrap">Contact</a>
           </nav>
-
-
           {/* Instagram CTA */}
           <div className="w-full flex justify-center">
             <a

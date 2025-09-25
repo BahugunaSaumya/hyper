@@ -1,1 +1,1 @@
-self.__REACT_LOADABLE_MANIFEST="{}"
+self.__REACT_LOADABLE_MANIFEST="{\"components/VideoSection.tsx -> plyr-react\":{\"id\":\"components/VideoSection.tsx -> plyr-react\",\"files\":[\"static/chunks/_app-pages-browser_node_modules_plyr-react_esm_index_js.js\"]}}"
