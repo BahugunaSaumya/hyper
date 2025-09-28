@@ -619,6 +619,9 @@
   .h-\[88vh\] {
     height: 88vh;
   }
+  .h-\[100svh\] {
+    height: 100svh;
+  }
   .h-\[130px\] {
     height: 130px;
   }
@@ -1815,6 +1818,24 @@
   }
   .text-\[129\.9rem\] {
     font-size: 129.9rem;
+  }
+  .text-\[clamp\(\.95rem\,3\.5vw\,1\.05rem\)\] {
+    font-size: clamp(.95rem, 3.5vw, 1.05rem);
+  }
+  .text-\[clamp\(1\.5rem\,4\.2vw\,1\.55rem\)\] {
+    font-size: clamp(1.5rem, 4.2vw, 1.55rem);
+  }
+  .text-\[clamp\(1\.15rem\,4\.2vw\,1\.55rem\)\] {
+    font-size: clamp(1.15rem, 4.2vw, 1.55rem);
+  }
+  .text-\[clamp\(1\.25rem\,4\.2vw\,1\.55rem\)\] {
+    font-size: clamp(1.25rem, 4.2vw, 1.55rem);
+  }
+  .text-\[clamp\(1\.35rem\,4\.2vw\,1\.55rem\)\] {
+    font-size: clamp(1.35rem, 4.2vw, 1.55rem);
+  }
+  .text-\[clamp\(2\.35rem\,4\.2vw\,1\.55rem\)\] {
+    font-size: clamp(2.35rem, 4.2vw, 1.55rem);
   }
   .leading-\[1\.1\] {
     --tw-leading: 1.1;
