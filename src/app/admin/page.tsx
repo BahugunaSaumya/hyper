@@ -2,6 +2,7 @@
 
 import { Suspense } from "react";
 import AdminDashboard from "@/components/AdminDashboard";
+import { PageLoaderOverlay } from "@/components/LoadingScreen";
 
 export const dynamic = "force-dynamic";
 

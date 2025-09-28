@@ -3,6 +3,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import ProductTile from "@/components/ProductTile";
+import LoadingScreen from "./LoadingScreen";
 
 type Product = {
   id: string;
@@ -57,10 +58,9 @@ function OneShotImage({ dir, alt }: { dir: string; alt: string }) {
     tried.current.add(src);
     const next = fallbacks.find(u => !tried.current.has(u));
     if (next) {
-      console.warn("[ymal] image failed, trying fallback:", { failed: src, next });
+    
       setSrc(next);
     } else {
-      console.warn("[ymal] all images failed for dir:", dir);
       setSrc("/assets/placeholder.png");
     }
   };
@@ -95,9 +95,8 @@ export default function YouMayAlsoLike({
 
   // MOUNT logs
   useEffect(() => {
-    console.info("[ymal] MOUNT — excludeTitle:", excludeTitle || "—");
     window.dispatchEvent(new CustomEvent("ymal:mounted", { detail: { excludeTitle } }));
-    return () => console.info("[ymal] UNMOUNT");
+    return;
   }, [excludeTitle]);
 
   // FETCH from Firestore-backed API (no CSV)
@@ -107,17 +106,14 @@ export default function YouMayAlsoLike({
       try {
         setErr(null);
         setLoading(true);
-        console.info("[ymal] GET /api/products?limit=50");
         const res = await fetch("/api/products?limit=50", { cache: "no-store" });
         const body = await res.json().catch(() => null);
         if (!res.ok) throw new Error(body?.error || "Failed to load products");
         const list: Product[] = Array.isArray(body?.products) ? body.products : [];
         if (!mounted) return;
-        console.info("[ymal] fetched", list.length, "products");
         setProducts(list);
       } catch (e: any) {
         if (!mounted) return;
-        console.error("[ymal] fetch error:", e);
         setErr(e?.message || "Failed to load products.");
       } finally {
         if (mounted) setLoading(false);
@@ -131,9 +127,6 @@ export default function YouMayAlsoLike({
     const ex = excludeTitle.toLowerCase();
     const pool = products.filter(p => (p.title || p.name || "").toLowerCase() !== ex);
     const pick = shuffle(pool).slice(0, limit);
-    if (pick.length) {
-      console.info("[ymal] rendering", pick.length, "→", pick.map(p => p.title || p.name || p.id));
-    }
     return pick;
   }, [products, excludeTitle, limit]);
 
@@ -144,7 +137,7 @@ export default function YouMayAlsoLike({
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={headingImg} alt="You may also like" className="mx-auto w-64 sm:w-80" />
         </div>
-         <div className="text-sm text-gray-500 text-center">Loading…</div>
+         <div className="text-sm text-gray-500 text-center"><LoadingScreen /></div>
         </div>
     );
   }

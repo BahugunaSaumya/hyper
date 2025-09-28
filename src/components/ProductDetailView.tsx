@@ -1,4 +1,3 @@
-// src/components/ProductDetailView.tsx
 "use client";
 
 import { useEffect, useMemo, useState, useRef } from "react";
@@ -109,8 +108,8 @@ function mapDoc(doc: any): ProductModel {
     Array.isArray(doc?.sizes)
       ? doc.sizes
       : typeof doc?.sizes === "string"
-      ? doc.sizes.split(/[\s,\/|]+/).map((s: string) => s.trim()).filter(Boolean)
-      : undefined;
+        ? doc.sizes.split(/[\s,\/|]+/).map((s: string) => s.trim()).filter(Boolean)
+        : undefined;
 
   return {
     id: doc?.id,
@@ -129,6 +128,55 @@ function mapDoc(doc: any): ProductModel {
     presalePct: doc?.presalePct ?? doc?.["presale price percentage"],
     sizes,
   };
+}
+
+/* ------------------ fly-to-cart helper (no external deps) ----------------- */
+function flyToCartFrom(sourceEl: HTMLElement | null, imgSrc: string) {
+  try {
+    if (!sourceEl || !imgSrc) return;
+    const rect = sourceEl.getBoundingClientRect();
+
+    const ghost = document.createElement("img");
+    ghost.src = imgSrc;
+    ghost.alt = "";
+    Object.assign(ghost.style, {
+      position: "fixed",
+      left: `${rect.left + rect.width / 2 - 40}px`,
+      top: `${rect.top + rect.height / 2 - 40}px`,
+      width: "80px",
+      height: "80px",
+      objectFit: "cover",
+      borderRadius: "12px",
+      zIndex: "9999",
+      pointerEvents: "none",
+      opacity: "0.95",
+      transition: "transform 700ms cubic-bezier(.22,.61,.36,1), opacity 700ms",
+      transform: "translate3d(0,0,0) scale(1)",
+      boxShadow: "0 10px 30px rgba(0,0,0,.35)",
+      background: "#fff",
+    } as CSSStyleDeclaration);
+
+    document.body.appendChild(ghost);
+
+    // end position (simulate cart at top-right)
+    const endX = window.innerWidth - 40; // a bit off screen right
+    const endY = 24;                     // near top bar
+    // translate relative to current
+    const dx = endX - (rect.left + rect.width / 2);
+    const dy = endY - (rect.top + rect.height / 2);
+
+    // next frame for transition
+    requestAnimationFrame(() => {
+      ghost.style.transform = `translate3d(${dx}px, ${dy}px, 0) scale(.1)`;
+      ghost.style.opacity = "0.15";
+    });
+
+    setTimeout(() => {
+      ghost.remove();
+      // optional: emit a small event other components could listen to
+      window.dispatchEvent(new CustomEvent("cart:ping"));
+    }, 740);
+  } catch { }
 }
 
 /* ================================================== */
@@ -154,7 +202,7 @@ export default function ProductDetailView({ product }: { product: ProductModel }
         if (!found) return;
         const mapped = mapDoc(found);
         setFull((prev) => ({ ...prev, ...mapped }));
-      } catch {}
+      } catch { }
     })();
   }, [product]);
 
@@ -168,6 +216,8 @@ export default function ProductDetailView({ product }: { product: ProductModel }
   const dir = useMemo(() => dirFrom(full), [full.slug, full.title]);
   const [images, setImages] = useState<string[]>([]);
   const [active, setActive] = useState(0);
+
+  const heroImgRef = useRef<HTMLImageElement | null>(null);
 
   useEffect(() => {
     const prime = normalizeCsvImage("", dir);
@@ -188,13 +238,15 @@ export default function ProductDetailView({ product }: { product: ProductModel }
   const [selectedSize, setSelectedSize] = useState<string>("");
   const [qty, setQty] = useState(1);
   const [notice, setNotice] = useState<string | null>(null);
+  const [flash, setFlash] = useState(false); // brief color change
 
-  const handleAdd = () => {
+  const handleAdd = (btnEl?: HTMLButtonElement | null) => {
     if (!selectedSize) {
       setNotice("Please select a size to continue.");
       setTimeout(() => setNotice(null), 2000);
       return;
     }
+
     add({
       id: full.id ?? `${title}__${selectedSize}`,
       name: title,
@@ -203,6 +255,11 @@ export default function ProductDetailView({ product }: { product: ProductModel }
       image: hero,
       quantity: qty,
     });
+
+    // visual feedback
+    flyToCartFrom(heroImgRef.current as unknown as HTMLElement, hero);
+    setFlash(true);
+    setTimeout(() => setFlash(false), 650);
   };
 
   /* description bullets */
@@ -255,7 +312,7 @@ export default function ProductDetailView({ product }: { product: ProductModel }
             <div className="order-1 md:order-2 min-w-0">
               <div
                 className={`relative w-full max-w-full overflow-hidden ${HERO_FULLBLEED_MOBILE ? "rounded-none bg-transparent shadow-none" : "rounded-2xl sm:rounded-3xl bg-white shadow"} ${HERO_ASPECT_RATIO} ${HERO_MIN_H_MOBILE} ${HERO_MIN_H_TABLET} ${HERO_MIN_H_DESKTOP}`}
-                style={{ touchAction: "pan-y" }} // allow vertical page scroll; still get horizontal swipes
+                style={{ touchAction: "pan-y" }}
                 onTouchStart={onTouchStartHero}
                 onTouchMove={onTouchMoveHero}
                 onTouchEnd={onTouchEndHero}
@@ -264,6 +321,7 @@ export default function ProductDetailView({ product }: { product: ProductModel }
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 {hero ? (
                   <img
+                    ref={heroImgRef}
                     src={hero}
                     alt={title}
                     className="block h-full w-full max-w-full object-contain transition-all duration-300"
@@ -374,8 +432,9 @@ export default function ProductDetailView({ product }: { product: ProductModel }
               </div>
 
               <button
-                onClick={handleAdd}
-                className={`${STACK_QTY_AND_BUTTON ? QTY_FULL_WIDTH : "flex-1"} rounded-full bg-black px-5 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-extrabold uppercase tracking-widest text-white shadow-lg transition hover:bg-pink-600`}
+                onClick={(e) => handleAdd(e.currentTarget)}
+                className={`${STACK_QTY_AND_BUTTON ? QTY_FULL_WIDTH : "flex-1"} rounded-full px-5 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-extrabold uppercase tracking-widest text-white shadow-lg transition
+                  ${flash ? "bg-pink-600" : "bg-black hover:bg-pink-600"}`}
               >
                 Add to Cart
               </button>

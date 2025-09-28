@@ -141,8 +141,9 @@ export default function SearchModal({ onClose }: { onClose: () => void }) {
                     active ? "bg-white/10" : "hover:bg-white/5"
                   }`}
                 >
+               
                   <img
-                    src={p.image}
+                    src={"../"+p.image}
                     alt=""
                     className="w-12 h-12 rounded object-cover bg-white/10"
                     draggable={false}

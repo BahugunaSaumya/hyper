@@ -17,6 +17,12 @@ const parseINR = (v: string) => {
 const formatINR = (n: number) => "₹ " + Number(n || 0).toLocaleString("en-IN");
 const DEV = process.env.NODE_ENV !== "production";
 
+/* -------- Validators -------- */
+const isValidPhone = (s: string) => /^[6-9]\d{9}$/.test(s.trim());
+const isValidPinFormat = (s: string) => /^\d{6}$/.test(s.trim());
+const isValidEmail = (s: string) =>
+  /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(s || "").trim());
+
 type Address = {
   name?: string;
   phone?: string;
@@ -55,6 +61,14 @@ export default function CheckoutView() {
   const [city, setCity] = useState("");
   const [addr1, setAddr1] = useState("");
   const [addr2, setAddr2] = useState("");
+
+  // Validation UI flags
+  const phoneValid = useMemo(() => isValidPhone(phone), [phone]);
+  const emailValid = useMemo(() => isValidEmail(email), [email]);
+  const pinFormatValid = useMemo(() => isValidPinFormat(pin), [pin]);
+
+  // PIN verification state (API-backed when editing)
+  const [pinStatus, setPinStatus] = useState<"idle" | "checking" | "valid" | "invalid">("idle");
 
   // Saved address from Firestore
   const [savedAddr, setSavedAddr] = useState<Address | null>(null);
@@ -118,6 +132,7 @@ export default function CheckoutView() {
           setAddr1(a.street || "");
           setAddr2("");
           setPin(a.postal || "");
+          setPinStatus("valid"); // saved address assumed valid
         } else {
           setSavedAddr(null);
           setUsingSaved(false);
@@ -130,20 +145,24 @@ export default function CheckoutView() {
     return () => { cancelled = true; };
   }, [user, profile?.name]);
 
-  // PIN → try to auto-detect state/city (only when editing)
+  // PIN → format + API verification (only when editing the address form)
   useEffect(() => {
-    if (!editingShipping) return;
-    if (pin.replace(/\D/g, "").length !== 6) {
+    if (!editingShipping) return;             // don’t verify when using saved
+    if (!pinFormatValid) {
+      setPinStatus(pin ? "invalid" : "idle");
       setPinHelp("Enter a valid 6-digit PIN (e.g., 560001).");
       return;
     }
+
     let abort = new AbortController();
     (async () => {
       try {
+        setPinStatus("checking");
         setPinHelp("Validating PIN…");
         const r = await fetch(`https://api.postalpincode.in/pincode/${pin}`, { signal: abort.signal });
         const j = await r.json().catch(() => null);
         if (!j || !Array.isArray(j) || j[0]?.Status !== "Success") {
+          setPinStatus("invalid");
           setPinHelp("Could not validate this PIN.");
           return;
         }
@@ -153,13 +172,16 @@ export default function CheckoutView() {
           setCity((c) => c || o.District || "");
           setPinHelp(`Detected: ${o.District}, ${o.State}`);
         }
-      } catch (e) {
-        console.error("[checkout] PIN lookup failed:", e);
-        setPinHelp("Could not validate this PIN. Please try again.");
+        setPinStatus("valid");
+      } catch {
+        // If API fails, still require correct format; let user proceed
+        setPinStatus("idle");
+        setPinHelp("PIN looks OK. (Network issue while verifying)");
       }
     })();
+
     return () => abort.abort();
-  }, [pin, editingShipping]);
+  }, [pin, pinFormatValid, editingShipping]);
 
   // Cart math
   const list = useMemo(() => Object.values(items), [items]);
@@ -190,7 +212,7 @@ export default function CheckoutView() {
       addr1,
       addr2,
     };
-    }
+  }
 
   function nameFromState() {
     const nm = (firstName + " " + lastName).trim() || savedAddr?.name || profile?.name || "";
@@ -209,6 +231,16 @@ export default function CheckoutView() {
       [ship.postal, "PIN"],
     ];
     for (const [v, label] of req) if (!String(v || "").trim()) return label;
+
+    if (!isValidPhone(phone)) return "Valid mobile (10 digits starting 6–9)";
+    if (!isValidEmail(email)) return "Valid email address";
+
+    // PIN: format must be valid; if editing, also require either verified or “idle” (network), not “invalid”
+    const pinOk = isValidPinFormat(ship.postal || "");
+    if (!pinOk) return "Valid 6-digit PIN code";
+
+    if (editingShipping && pinStatus === "invalid") return "A serviceable PIN code";
+
     return null;
   }
 
@@ -221,7 +253,6 @@ export default function CheckoutView() {
   }
 
   async function maybePersistAddress() {
-    // Only try to persist if logged in AND either no savedAddr yet OR user edited & wants default
     if (!user) return;
     if (!(editingShipping && saveAsDefault)) return;
 
@@ -238,12 +269,11 @@ export default function CheckoutView() {
           country: "IN",
         } as Address,
       };
-      // non-blocking fire-and-forget
       fetch("/api/me/profile", {
         method: "PUT",
         headers: { "content-type": "application/json", authorization: `Bearer ${tok}` },
         body: JSON.stringify(body),
-      }).catch(() => {});
+      }).catch(() => { });
     } catch { /* ignore */ }
   }
 
@@ -255,10 +285,8 @@ export default function CheckoutView() {
     try {
       startWait("preparing secure checkout…");
 
-      // 0. (Optional) persist address if user edited & opted-in
       void maybePersistAddress();
 
-      // 1. Load Razorpay
       const loaded = await loadRazorpayScript();
       if (!loaded) {
         stopWait();
@@ -266,7 +294,6 @@ export default function CheckoutView() {
         return;
       }
 
-      // 2. Create RPX order
       stepWait("creating your order…");
       const res = await fetch("/api/razorpay-order", {
         method: "POST",
@@ -281,7 +308,6 @@ export default function CheckoutView() {
         return;
       }
 
-      // 3. Open Razorpay
       const options = {
         key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
         amount: total * 100,
@@ -292,7 +318,7 @@ export default function CheckoutView() {
         handler: async (response: any) => {
           try {
             stepWait("verifying payment…");
-            const verifyRes = await fetch("api/razorpay-verify", {
+            const verifyRes = await fetch("/api/razorpay-verify", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify(response),
@@ -372,7 +398,6 @@ export default function CheckoutView() {
       const orderId = await createOrder(payload);
       console.log("[checkout] order saved:", orderId);
 
-      // snapshot for Thank-You page
       try {
         const snapshot = {
           orderId,
@@ -406,8 +431,6 @@ export default function CheckoutView() {
         console.warn("[checkout] failed to write lastOrderSnapshot:", e);
       }
 
-      // send emails (non-blocking)
-      stepWait("sending confirmation emails…");
       void fetch("/api/email-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -464,9 +487,23 @@ export default function CheckoutView() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <input value={firstName} onChange={(e) => setFirst(e.target.value)} placeholder="First name" className="border-b py-2 outline-none" />
           <input value={lastName} onChange={(e) => setLast(e.target.value)} placeholder="Last name" className="border-b py-2 outline-none" />
-          <input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" placeholder="10 digit mobile number" className="border-b py-2 outline-none" />
-          <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="Email address" className="border-b py-2 outline-none" />
+          <input
+            value={phone}
+            onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+            inputMode="tel"
+            placeholder="10 digit mobile number"
+            className={`border-b py-2 outline-none ${phone && !phoneValid ? "border-red-500" : ""}`}
+          />
+          <input
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            type="email"
+            placeholder="Email address"
+            className={`border-b py-2 outline-none ${email && !emailValid ? "border-red-500" : ""}`}
+          />
         </div>
+        {!phoneValid && phone ? <p className="text-xs text-red-600 mt-1">Enter a valid 10-digit Indian mobile starting with 6–9.</p> : null}
+        {!emailValid && email ? <p className="text-xs text-red-600 mt-1">Please enter a valid email address.</p> : null}
       </section>
 
       {/* ADDRESS */}
@@ -487,7 +524,6 @@ export default function CheckoutView() {
             </div>
             <button
               onClick={() => {
-                // show the editable form (pre-filled)
                 setEditingShipping(true);
                 setUsingSaved(false);
                 setSaveAsDefault(true);
@@ -500,19 +536,27 @@ export default function CheckoutView() {
         ) : (
           // Editable address form
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <select value="India" className="border-b py-2 outline-none" onChange={() => {}}>
+            <select value="India" className="border-b py-2 outline-none" onChange={() => { }}>
               <option value="India">India</option>
             </select>
 
             <input
               value={pin}
-              onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
+              onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
               inputMode="numeric"
               maxLength={6}
               placeholder="PIN code (6 digits)"
-              className="border-b py-2 outline-none"
+              className={`border-b py-2 outline-none ${pin && !pinFormatValid ? "border-red-500" : ""}`}
             />
-            <div className="md:col-span-2 text-xs text-gray-500">{pinHelp}</div>
+            <div className="md:col-span-2 text-xs">
+              <span className={
+                pinStatus === "invalid" ? "text-red-600" :
+                  pinStatus === "valid" ? "text-green-600" :
+                    "text-gray-500"
+              }>
+                {pinHelp}
+              </span>
+            </div>
 
             <select value={stateVal} onChange={(e) => setStateVal(e.target.value)} className="border-b py-2 outline-none">
               <option value="">Select state / union territory</option>

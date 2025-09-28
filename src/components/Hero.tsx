@@ -14,7 +14,7 @@ export default function Hero() {
 
         /* ===== MOBILE KNOBS (defaults) ===== */
         ["--mx" as any]: "3rem",     // side margin on small screens
-        ["--my" as any]: "86%",      // vertical anchor for the copy block
+        ["--my" as any]: "83%",      // vertical anchor for the copy block
         ["--mw" as any]: "44rem",    // text max width cap
         ["--mbtn" as any]: "1.25rem" // gap between text and button
       }}
@@ -67,7 +67,7 @@ export default function Hero() {
           }}
         >
           {/* clamp keeps type proportional across 12 Pro (390w) and 15 Pro (393w) */}
-          <h1 className="font-extrabold tracking-wide drop-shadow-[0_3px_12px_rgba(0,0,0,0.45)] leading-[1.1] text-[clamp(1.15rem,4.2vw,1.55rem)]">
+          <h1 className="font-extrabold tracking-wide drop-shadow-[0_3px_12px_rgba(0,0,0,0.45)] leading-[1.1] text-[clamp(1.30rem,4.2vw,1.55rem)]">
             <span className="block">FORGED BY PRECISION,</span>
             <span className="block">DRIVEN BY ENDURANCE</span>
           </h1>

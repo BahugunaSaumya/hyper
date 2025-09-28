@@ -3,6 +3,7 @@
 
 import { Suspense } from "react";
 import LoginPage from "@/components/LoginPage";
+import LoadingScreen from "@/components/LoadingScreen";
 
 // This tells Next.js not to pre-render this page (dynamic at runtime)
 export const dynamic = "force-dynamic";
@@ -12,9 +13,7 @@ export default function LoginBoundary() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-[50vh] grid place-items-center text-sm text-gray-500">
-          Loading…
-        </div>
+        <LoadingScreen />
       }
     >
       <LoginPage />

@@ -8,8 +8,11 @@ const TTL_MS = 60_000;
 const SWR_MS = 5 * 60_000;
 const docKey = (id: string) => `admin:doc:orders/${id}`;
 
-export async function GET(_req: NextRequest, ctx: { params?: { id?: string } }) {
-  const id = ctx?.params?.id;
+export async function GET(
+  _req: NextRequest,
+  ctx: { params: Promise<{ id: string }> }   // 👈 promise
+) {
+  const { id } = await ctx.params;           // 👈 await it
   if (!id) {
     return NextResponse.json({ error: "Missing order id" }, { status: 400 });
   }
@@ -26,7 +29,7 @@ export async function GET(_req: NextRequest, ctx: { params?: { id?: string } }) 
       async () => {
         const db = getDb();
         const snap = await db.collection("orders").doc(id).get();
-        return snap.exists ? ({ id: snap.id, ...snap.data() }) : null;
+        return snap.exists ? { id: snap.id, ...snap.data() } : null;
       }
     );
 

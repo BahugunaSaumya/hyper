@@ -128,15 +128,15 @@ export default function VideoSection() {
     >
       {/* Intro text */}
       <div className="max-w-5xl mx-auto px-6 pt-16">
-        <h3 className="text-[24px] md:text-[16px] tracking-[0.28em] uppercase font-semibold">
+        <h3 className="text-[20px] md:text-[16px] tracking-[0.28em] uppercase font-semibold">
           Welcome to Hyper
         </h3>
-        <div className="mt-2 mb-2 flex gap-2 text-black">
+        <div className="mt-4 mb-6 flex gap-2 text-black">
           {Array.from({ length: 12 }).map((_, i) => (
             <span key={i} className="text-2xl leading-none select-none">|</span>
           ))}
         </div>
-        <h2 className="mt-50 text-[34px] sm:text-[46px] md:text-[58px] leading-[1.05] font-extrabold uppercase tracking-tight font-tile">
+        <h2 className="mt-50 text-[22px] sm:text-[46px] md:text-[58px] leading-[1.05] font-extrabold uppercase tracking-tight font-tile">
           Why We Created Hyper
         </h2>
         <div className="mt-5 space-y-3 max-w-5xl text-[13px] md:text-[14px] leading-relaxed text-black/80">

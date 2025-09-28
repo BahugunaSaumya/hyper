@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { loginUrl } from "@/config/paths";
+import LoadingScreen from "@/components/LoadingScreen";
 
 type OrderLite = {
   id: string;
@@ -213,7 +214,7 @@ export default function DashboardPage() {
   if (loading || (!user && typeof window !== "undefined")) {
     return (
       <main className="min-h-[60vh] grid place-items-center text-sm text-gray-600">
-        Loading your dashboard…
+      <LoadingScreen />
       </main>
     );
   }

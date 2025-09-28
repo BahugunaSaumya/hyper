@@ -2,20 +2,23 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { ADMIN_EMAILS, ADMIN_UIDS } from "@/config/admin";
+import { ADMIN_EMAILS, ADMIN_UIDS, SUPER_ADMIN_EMAILS } from "@/config/admin";
+import LoadingScreen from "./LoadingScreen";
 
 /* ---------------------------------- Types --------------------------------- */
 type KPI = { ordersCount: number; usersCount: number; revenue: number };
 type Order = any;
+type Tab = "overview" | "products" | "orders" | "users" | "super";
+type AdminConfigDoc = { adminEmails: string[]; adminUids?: string[] };
 
 /* --------------------------------- Utils ---------------------------------- */
-async function safeJson(res: Response) {
+async function safeJson<T = any>(res: Response): Promise<T | null> {
     try { return await res.json(); } catch { return null; }
 }
 function clsx(...xs: Array<string | false | null | undefined>) {
     return xs.filter(Boolean).join(" ");
 }
-function valueToCell(v: any) {
+function valueToCell(v: unknown) {
     if (v == null) return "";
     if (Array.isArray(v) || typeof v === "object") return JSON.stringify(v);
     return String(v);
@@ -23,18 +26,21 @@ function valueToCell(v: any) {
 
 /* ----------------------------- Main Component ----------------------------- */
 export default function AdminDashboard() {
-    const { user } = useAuth();
+    const { user } = useAuth() as any;
 
     const allowed = useMemo(() => {
         if (!user) return false;
-        return (
-            (!!user.email && ADMIN_EMAILS.includes(user.email)) ||
-            ADMIN_UIDS.includes(user.uid)
-        );
+        const email = (user.email || "") as string;
+        return (!!email && ADMIN_EMAILS.includes(email)) || ADMIN_UIDS.includes(user.uid);
     }, [user]);
 
-    const [token, setToken] = useState("");
-    const [loading, setLoading] = useState(true);
+    const isSuper = useMemo(() => {
+        const email = (user?.email || "").toLowerCase() as string;
+        return !!email && SUPER_ADMIN_EMAILS.map(e => e.toLowerCase()).includes(email);
+    }, [user]);
+
+    const [token, setToken] = useState<string>("");
+    const [loading, setLoading] = useState<boolean>(true);
     const [err, setErr] = useState<string | null>(null);
 
     const [kpi, setKpi] = useState<KPI | null>(null);
@@ -43,10 +49,10 @@ export default function AdminDashboard() {
     // Products (CSV/Table mode state preserved so you can switch back & forth)
     const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
     const [csvRows, setCsvRows] = useState<string[][]>([]);
-    const [savingCsv, setSavingCsv] = useState(false);
+    const [savingCsv, setSavingCsv] = useState<boolean>(false);
 
     // Tabs
-    const [tab, setTab] = useState<"overview" | "products" | "orders" | "users">("overview");
+    const [tab, setTab] = useState<Tab>("overview");
 
     // Products sub-view: "grid" (embedded) or "table" (CSV editor)
     const [productsView, setProductsView] = useState<"grid" | "table">("grid");
@@ -61,7 +67,7 @@ export default function AdminDashboard() {
         (async () => {
             try {
                 if (!user || !allowed) { if (mounted) setLoading(false); return; }
-                const tok = await user.getIdToken(true);
+                const tok: string = await user.getIdToken(true);
                 if (!mounted) return;
                 setToken(tok);
 
@@ -71,11 +77,11 @@ export default function AdminDashboard() {
                     fetch("/api/admin/products", { headers: { authorization: `Bearer ${tok}` } }),
                 ]);
 
-                const s = await safeJson(sRes);
-                const o = await safeJson(oRes);
-                const p = await safeJson(pRes);
+                const s = await safeJson<KPI>(sRes);
+                const o = await safeJson<any>(oRes);
+                const p = await safeJson<any>(pRes);
 
-                if (sRes.ok && s) setKpi(s as KPI);
+                if (sRes.ok && s) setKpi(s);
                 if (oRes.ok && o) setOrders((o as any).orders || []);
 
                 // Normalize products for CSV/Table view (kept intact)
@@ -114,7 +120,7 @@ export default function AdminDashboard() {
 
     /* --------------------------- Products CSV actions ------------------------ */
     const updateProduct = useCallback(
-        async (id: string, patch: any) => {
+        async (id: string, patch: Record<string, unknown>) => {
             if (!token) return alert("Not authenticated");
             const res = await fetch(`/api/admin/products/${id}`, {
                 method: "PUT",
@@ -122,7 +128,7 @@ export default function AdminDashboard() {
                 body: JSON.stringify(patch),
             });
             const b = await safeJson(res);
-            if (!res.ok) throw new Error(b?.error || "Failed to update product");
+            if (!res.ok) throw new Error((b as any)?.error || "Failed to update product");
         }, [token]
     );
 
@@ -135,7 +141,7 @@ export default function AdminDashboard() {
                 headers: { authorization: `Bearer ${token}` },
             });
             const b = await safeJson(res);
-            if (!res.ok) throw new Error(b?.error || "Failed to delete product");
+            if (!res.ok) throw new Error((b as any)?.error || "Failed to delete product");
 
             // remove from table state
             const idIdx = csvHeaders.indexOf("id");
@@ -149,7 +155,7 @@ export default function AdminDashboard() {
         if (!token) return alert("Not authenticated.");
         try {
             const res = await fetch("/api/admin/migrate-csv", { method: "POST", headers: { authorization: `Bearer ${token}` } });
-            const body = await safeJson(res);
+            const body = await safeJson<any>(res);
             if (!res.ok) throw new Error(body?.error || "CSV migration failed");
             alert(`CSV migrated: ${body?.count ?? 0} products updated.`);
             await reloadProducts();
@@ -167,7 +173,7 @@ export default function AdminDashboard() {
                 headers: { "Content-Type": "application/json", authorization: `Bearer ${token}` },
                 body: JSON.stringify({ headers: csvHeaders, rows: csvRows }),
             });
-            const body = await safeJson(res);
+            const body = await safeJson<any>(res);
             if (!res.ok) throw new Error(body?.error || "Failed to save products");
             alert("Products updated.");
         } catch (e: any) {
@@ -180,13 +186,13 @@ export default function AdminDashboard() {
     async function reloadProducts() {
         if (!token) return;
         const pRes = await fetch("/api/admin/products", { headers: { authorization: `Bearer ${token}` } });
-        const p = await safeJson(pRes);
+        const p = await safeJson<any>(pRes);
         if (!pRes.ok) {
             console.error("[AdminDashboard] reloadProducts error", p);
-            alert(p?.error || "Failed to load products");
+            alert((p as any)?.error || "Failed to load products");
             return;
         }
-        if (Array.isArray(p.products)) {
+        if (Array.isArray(p?.products)) {
             const list = p.products.map((prod: any) => ({ id: prod.id, ...prod }));
             const headerSet = new Set<string>(["id"]);
             (p.headers || []).forEach((h: string) => headerSet.add(h));
@@ -199,7 +205,7 @@ export default function AdminDashboard() {
             setCsvRows(rows);
             return;
         }
-        if (Array.isArray(p.headers) && Array.isArray(p.rows)) {
+        if (Array.isArray(p?.headers) && Array.isArray(p?.rows)) {
             setCsvHeaders(p.headers);
             setCsvRows(p.rows);
             return;
@@ -214,7 +220,7 @@ export default function AdminDashboard() {
         const res = await fetch(`/api/admin/users?perUserOrders=3`, {
             headers: { authorization: `Bearer ${token}` },
         });
-        const b = await safeJson(res);
+        const b = await safeJson<any>(res);
         if (res.ok) setUsers(b?.users || []);
     }, [token]);
 
@@ -223,7 +229,7 @@ export default function AdminDashboard() {
         const res = await fetch(`/api/admin/users/${uid}`, {
             headers: { authorization: `Bearer ${token}` },
         });
-        const b = await safeJson(res);
+        const b = await safeJson<any>(res);
         if (res.ok) setSelectedUser(b);
     }, [token]);
 
@@ -235,7 +241,7 @@ export default function AdminDashboard() {
     /* --------------------------------- Guards -------------------------------- */
     if (!user) return <div className="min-h-[60vh] grid place-items-center text-sm text-gray-600">Please log in.</div>;
     if (!allowed) return <div className="min-h-[60vh] grid place-items-center text-sm text-gray-600">You do not have access to this page.</div>;
-    if (loading) return <div className="min-h-[60vh] grid place-items-center text-sm text-gray-600">Loading admin data…</div>;
+    if (loading) return <div className="min-h-[60vh] grid place-items-center text-sm text-gray-600"> <LoadingScreen /></div>;
 
     /* ---------------------------------- UI ----------------------------------- */
     return (
@@ -264,6 +270,17 @@ export default function AdminDashboard() {
                                 {t.toUpperCase()}
                             </button>
                         ))}
+                        {isSuper && (
+                            <button
+                                onClick={() => setTab("super")}
+                                className={clsx(
+                                    "px-3 py-1.5 rounded-full border text-xs sm:text-sm",
+                                    tab === "super" ? "bg-black text-white" : "hover:bg-gray-100"
+                                )}
+                            >
+                                SUPER
+                            </button>
+                        )}
                     </nav>
 
                     {/* Quick open to full-page grid */}
@@ -308,7 +325,6 @@ export default function AdminDashboard() {
                     {/* GRID (embedded) */}
                     {productsView === "grid" && (
                         <div className="rounded-2xl border overflow-hidden">
-                            {/* Embeds your existing /admin/products/grid page directly */}
                             <iframe
                                 src="/admin/products/grid"
                                 title="Products Grid"
@@ -367,11 +383,11 @@ export default function AdminDashboard() {
                                                                 const idIdx = csvHeaders.indexOf("id");
                                                                 const id = csvRows[rIdx]?.[idIdx];
                                                                 if (!id) return alert("Row missing id");
-                                                                const obj: any = {};
+                                                                const obj: Record<string, unknown> = {};
                                                                 csvHeaders.forEach((h, idx) => {
                                                                     if (h !== "id") {
                                                                         const raw = csvRows[rIdx]?.[idx] ?? "";
-                                                                        try { obj[h] = JSON.parse(raw); } catch { obj[h] = raw; }
+                                                                        try { obj[h] = JSON.parse(raw as string); } catch { obj[h] = raw; }
                                                                     }
                                                                 });
                                                                 try { await updateProduct(id, obj); alert("Saved"); }
@@ -386,7 +402,7 @@ export default function AdminDashboard() {
                                                                 const idIdx = csvHeaders.indexOf("id");
                                                                 const id = csvRows[rIdx]?.[idIdx];
                                                                 if (!id) return alert("Row missing id");
-                                                                deleteProduct(id).catch((e) => alert(e.message));
+                                                                deleteProduct(id).catch((e: any) => alert(e.message));
                                                             }}
                                                             className="px-3 py-1 rounded-full border text-xs text-red-600 hover:bg-red-600 hover:text-white"
                                                         >
@@ -473,7 +489,7 @@ export default function AdminDashboard() {
                         <div className="border rounded-2xl p-4">
                             <div className="font-semibold mb-2">Users</div>
                             <ul className="divide-y">
-                                {users.map((u) => (
+                                {users.map((u: any) => (
                                     <li key={u.id} className="py-2 flex items-center justify-between">
                                         <div>
                                             <div className="text-sm font-medium">{u.name || u.email || u.id}</div>
@@ -524,7 +540,89 @@ export default function AdminDashboard() {
                     </div>
                 </section>
             )}
+
+            {/* SUPER (super admin only) */}
+            {tab === "super" && isSuper && (
+                <section className="max-w-3xl mx-auto px-4 md:px-6 pb-16">
+                    <h2 className="text-xl font-bold mb-4">Super Admin</h2>
+                    <p className="text-sm text-gray-600 mb-4">
+                        Only emails listed in <code>SUPER_ADMIN_EMAILS</code> can edit the Admin Config.
+                    </p>
+                    <SuperAdminPanel token={token} />
+                </section>
+            )}
         </main>
+    );
+}
+
+/* ---------------------- Super Admin Config Management --------------------- */
+function SuperAdminPanel({ token }: { token: string }) {
+    const [adminEmails, setAdminEmails] = useState<string>("");
+    const [busy, setBusy] = useState<boolean>(false);
+    const [msg, setMsg] = useState<string>("");
+
+    // Load current config
+    useEffect(() => {
+        let mounted = true;
+        (async () => {
+            try {
+                if (!token) return;
+                const res = await fetch("/api/admin/config", { headers: { authorization: `Bearer ${token}` } });
+                const j = await safeJson<AdminConfigDoc>(res);
+                if (mounted && res.ok && j?.adminEmails) setAdminEmails(j.adminEmails.join(", "));
+            } catch { /* ignore */ }
+        })();
+        return () => { mounted = false; };
+    }, [token]);
+
+    async function save() {
+        if (!token) return;
+        setBusy(true); setMsg("");
+        try {
+            const list = adminEmails
+                .split(",")
+                .map((x: string) => x.trim())
+                .filter((x: string) => !!x);
+
+            const res = await fetch("/api/admin/config", {
+                method: "POST",
+                headers: {
+                    "content-type": "application/json",
+                    authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({ adminEmails: list }),
+            });
+
+            const j = await safeJson<AdminConfigDoc & { ok?: boolean }>(res);
+            if (!res.ok) throw new Error((j as any)?.error || "Failed to save config");
+            setMsg("Saved.");
+        } catch (e: any) {
+            setMsg(e?.message || "Failed.");
+        } finally {
+            setBusy(false);
+        }
+    }
+
+    return (
+        <div className="rounded-2xl border p-4">
+            <p className="text-sm mb-2">Manage <b>Admin Emails</b> (comma-separated). Only super admins can edit.</p>
+            <textarea
+                value={adminEmails}
+                onChange={(e) => setAdminEmails(e.target.value)}
+                className="w-full border rounded-md p-2 text-sm h-28"
+                placeholder="admin1@example.com, admin2@example.com"
+            />
+            <div className="mt-3 flex items-center gap-3">
+                <button
+                    onClick={save}
+                    disabled={busy}
+                    className={`px-4 py-2 rounded-full border text-sm ${busy ? "opacity-50" : "hover:bg-black hover:text-white"}`}
+                >
+                    {busy ? "Saving…" : "Save"}
+                </button>
+                {msg && <span className="text-sm text-gray-600">{msg}</span>}
+            </div>
+        </div>
     );
 }
 
@@ -544,12 +642,12 @@ function Td({ children, className = "" }: { children: React.ReactNode; className
     return <td className={clsx("px-4 py-2 align-top", className)}>{children}</td>;
 }
 
-function csvEscape(v: any) {
+function csvEscape(v: unknown) {
     const s = v == null ? "" : String(v);
     return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
-function toCsv(rows: any[][]) {
-    return rows.map(r => r.map(csvEscape).join(",")).join("\n");
+function toCsv(rows: unknown[][]) {
+    return rows.map((r) => r.map(csvEscape).join(",")).join("\n");
 }
 function orderToFlatRow(o: any) {
     const placed =
@@ -569,11 +667,9 @@ function orderToFlatRow(o: any) {
         o.amounts?.total ?? "",
         o.amounts?.currency || "INR",
         o.status || "",
-        // compact items as one JSON cell
         JSON.stringify((o.items || []).map((it: any) => ({
             id: it.id, title: it.title || it.name, size: it.size, qty: it.qty, unitPrice: it.unitPrice ?? it.price
         }))),
-        // payment ids
         o.payment?.razorpay_order_id || o.paymentInfo?.razorpay_order_id || "",
         o.payment?.razorpay_payment_id || o.paymentInfo?.razorpay_payment_id || "",
         placed,

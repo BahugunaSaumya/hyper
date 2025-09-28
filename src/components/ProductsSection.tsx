@@ -132,8 +132,8 @@ export default function ProductsSection() {
         } else {
           console.warn("[ProductsSection] /api/products failed", res.status, body);
         }
-      } catch (e) {
-        console.error("[ProductsSection] failed to load products:", e);
+        } catch (e) {
+          console.error("[ProductsSection] failed to load products:", e);
       }
     })();
   }, []);

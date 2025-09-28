@@ -4,6 +4,7 @@
 import React, { useEffect, useMemo, useState, use as usePromise } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import LoadingScreen from "@/components/LoadingScreen";
 
 type OrderDoc = {
   id: string;
@@ -91,6 +92,7 @@ export default function OrderDetailPage(props: { params: Promise<{ id: string }>
   }, [orderId]);
 
   // Load from API
+  // Load from API
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -104,7 +106,17 @@ export default function OrderDetailPage(props: { params: Promise<{ id: string }>
         const body = await getJson(res);
         if (!mounted) return;
         if (!res.ok) throw new Error(body?.error || "Failed to load order");
-        setOrder(body);
+
+        // 🔧 normalize both shapes:
+        // - public: { ok:true, order:{ orderId, ... } }
+        // - admin : { id, ... }
+        let o = body?.order ?? body;
+
+        if (o && !o.id && o.orderId) {
+          o = { id: o.orderId, ...o };
+        }
+
+        setOrder(o as OrderDoc);
       } catch (e: any) {
         setErr(e?.message || "Failed to load order");
       } finally {
@@ -119,9 +131,7 @@ export default function OrderDetailPage(props: { params: Promise<{ id: string }>
   if (loading && !order) {
     return (
       <main className="offset-header">
-        <div className="max-w-4xl mx-auto px-6 py-12 text-center text-gray-600">
-          Loading order…
-        </div>
+       <LoadingScreen />
       </main>
     );
   }
