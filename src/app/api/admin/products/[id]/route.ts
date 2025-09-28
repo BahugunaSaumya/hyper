@@ -1,26 +1,48 @@
-// src/app/api/admin/products/[id]/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/firebaseAdmin";
 import { requireAdmin } from "../../_lib/auth";
+import * as cache from "@/lib/cache";
 
 export const runtime = "nodejs";
+
+const TTL_MS = 60_000;
+const SWR_MS = 5 * 60_000;
+const docKey = (id: string) => `admin:doc:products/${id}`;
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   const unauthorized = await requireAdmin(req);
   if (unauthorized) return unauthorized;
 
+  const k = docKey(params.id);
+  const peek = cache.peek(k);
+  let xcache = "MISS";
+
   try {
-    console.log("[/api/admin/products/:id GET] start", { id: params.id });
-    const db = getDb();
-    const doc = await db.collection("products").doc(params.id).get();
-    if (!doc.exists) {
-      console.warn("[/api/admin/products/:id GET] not found", { id: params.id });
+    const product = await cache.remember<Record<string, any> | null>(
+      k,
+      TTL_MS,
+      SWR_MS,
+      async () => {
+        const db = getDb();
+        const doc = await db.collection("products").doc(params.id).get();
+        return doc.exists ? ({ id: doc.id, ...doc.data() }) : null;
+      }
+    );
+
+    if (!product) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
-    console.log("[/api/admin/products/:id GET] found", { id: doc.id });
-    return NextResponse.json({ id: doc.id, ...doc.data() }, { status: 200 });
+
+    if (peek.has && (peek.fresh || peek.stale)) xcache = peek.fresh ? "HIT" : "STALE";
+
+    return NextResponse.json(product, {
+      status: 200,
+      headers: {
+        "Cache-Control": "private, max-age=30, stale-while-revalidate=120",
+        "X-Cache": xcache,
+      },
+    });
   } catch (e: any) {
-    console.error("[/api/admin/products/:id GET] error:", e?.stack || e?.message || e);
     return NextResponse.json({ error: e?.message || "Failed" }, { status: 500 });
   }
 }
@@ -31,13 +53,18 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 
   try {
     const patch = await req.json();
-    console.log("[/api/admin/products/:id PUT] start", { id: params.id, keys: Object.keys(patch || {}) });
     const db = getDb();
-    await db.collection("products").doc(params.id).set({ ...patch, updatedAt: new Date() }, { merge: true });
-    console.log("[/api/admin/products/:id PUT] updated", { id: params.id });
+    await db.collection("products").doc(params.id).set(
+      { ...patch, updatedAt: new Date() },
+      { merge: true }
+    );
+
+    // Invalidate doc + lists
+    cache.del(docKey(params.id));
+    cache.del("admin:qry:products");
+
     return NextResponse.json({ ok: true }, { status: 200 });
   } catch (e: any) {
-    console.error("[/api/admin/products/:id PUT] error:", e?.stack || e?.message || e);
     return NextResponse.json({ error: e?.message || "Failed to update" }, { status: 500 });
   }
 }
@@ -47,13 +74,15 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
   if (unauthorized) return unauthorized;
 
   try {
-    console.log("[/api/admin/products/:id DELETE] start", { id: params.id });
     const db = getDb();
     await db.collection("products").doc(params.id).delete();
-    console.log("[/api/admin/products/:id DELETE] deleted", { id: params.id });
+
+    // Invalidate doc + lists
+    cache.del(docKey(params.id));
+    cache.del("admin:qry:products");
+
     return NextResponse.json({ ok: true }, { status: 200 });
   } catch (e: any) {
-    console.error("[/api/admin/products/:id DELETE] error:", e?.stack || e?.message || e);
     return NextResponse.json({ error: e?.message || "Failed to delete" }, { status: 500 });
   }
 }

@@ -42,39 +42,58 @@
 //     return NextResponse.json({ error: "Unable to create Razorpay order", details: err.message }, { status: 500 });
 //   }
 // }
+// -----------VERSION 2
+// // src/app/api/razorpay-order/route.ts
+// import { NextResponse } from "next/server";
 
+// export async function POST(req: Request) {
+//   console.log("[mock] /api/razorpay-order POST called");
+
+//   try {
+//     const body = await req.json();
+//     const total = body?.total;
+
+//     if (!total || total < 1) {
+//       return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
+//     }
+
+//     // Instead of calling real Razorpay, we simulate it:
+//     const order = {
+//       id: "order_" + Math.random().toString(36).substring(2, 12),
+//       amount: total * 100,
+//       currency: "INR",
+//       receipt: `order_rcptid_${Date.now()}`,
+//       status: "created",
+//       created_at: Date.now(),
+//     };
+
+//     console.log("[mock] Returning fake Razorpay order:", order);
+
+//     return NextResponse.json(order, { status: 200 });
+//   } catch (err: any) {
+//     console.error("[mock] Razorpay order creation error:", err);
+//     return NextResponse.json(
+//       { error: "Unable to create Razorpay order", details: err.message },
+//       { status: 500 }
+//     );
+//   }
+// }
 // src/app/api/razorpay-order/route.ts
 import { NextResponse } from "next/server";
 
-export async function POST(req: Request) {
+export const runtime = "nodejs";
+
+export async function POST() {
+  const now = Date.now();
+  const mock = {
+    id: `order_${Math.random().toString(36).slice(2, 12)}`,
+    amount: 458700, // paise
+    currency: "INR",
+    receipt: `order_rcptid_${now}`,
+    status: "created",
+    created_at: now,
+  };
   console.log("[mock] /api/razorpay-order POST called");
-
-  try {
-    const body = await req.json();
-    const total = body?.total;
-
-    if (!total || total < 1) {
-      return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
-    }
-
-    // Instead of calling real Razorpay, we simulate it:
-    const order = {
-      id: "order_" + Math.random().toString(36).substring(2, 12),
-      amount: total * 100,
-      currency: "INR",
-      receipt: `order_rcptid_${Date.now()}`,
-      status: "created",
-      created_at: Date.now(),
-    };
-
-    console.log("[mock] Returning fake Razorpay order:", order);
-
-    return NextResponse.json(order, { status: 200 });
-  } catch (err: any) {
-    console.error("[mock] Razorpay order creation error:", err);
-    return NextResponse.json(
-      { error: "Unable to create Razorpay order", details: err.message },
-      { status: 500 }
-    );
-  }
+  console.log("[mock] Returning fake Razorpay order:", mock);
+  return NextResponse.json(mock, { status: 200 });
 }

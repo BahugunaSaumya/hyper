@@ -18,12 +18,12 @@ const RING_VARS = {
   near: { base: "50vw", sm: "26vw", md: "20vw", lg: "18vw" },
   far: { base: "52vw", sm: "48vw", md: "36vw", lg: "32vw" },
   itemGap: { base: "0px", sm: "2px", md: "4px", lg: "6px" },
-  headingGap: { base: "-90px", sm: "-64px", md: "-24px", lg: "20px" },
+  headingGap: { base: "-50px", sm: "-64px", md: "-24px", lg: "20px" },
 };
 
 const SPACING_VARS = {
   ringPadBottom: { base: "180px", sm: "200px", md: "220px", lg: "240px" },
-  overlayOffset: { base: "-20px", sm: "-24px", md: "-28px", lg: "-32px" },
+  overlayOffset: { base: "30px", sm: "-24px", md: "-28px", lg: "-32px" },
 };
 
 /* Hook for responsive ring sizing */
@@ -241,7 +241,7 @@ export default function ProductsSection() {
       id="products"
       className="bleed-x relative bg-cover bg-center overflow-x-clip overflow-y-hidden
                  scroll-mt-[120px] overscroll-x-none touch-pan-y
-                 pt-14 md:pt-16 pb-20 md:pb-20"
+                 pt-14 md:pt-16 pb-1 md:pb-20"
       style={{
         backgroundImage: "url('/assets/design.png')",
         ...cssVars,

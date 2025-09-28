@@ -4,162 +4,95 @@
 export default function Hero() {
   return (
     <section
-      id="heroSection"
-      className="relative bg-black text-white overflow-hidden w-full"
-      style={{ paddingTop: "calc(var(--nav-h, 88px) + 16px)" }}
+      className="relative w-full text-white"
+      style={{
+        // ===== DESKTOP KNOBS =====
+        ["--x" as any]: "40.5rem",     // horizontal offset (from right edge)
+        ["--y" as any]: "44%",        // vertical center position
+        ["--w" as any]: "44rem",      // max width of text block
+        ["--btn-nudge" as any]: "8.01em", // fine-tune button alignment
+
+        // ===== MOBILE KNOBS =====
+        ["--mx" as any]: "2.5rem",   // left/right margin
+        ["--my" as any]: "85%",       // vertical position
+        ["--mw" as any]: "44rem",     // max width for mobile text
+        ["--mbtn" as any]: "1.75rem", // space between text and button
+      }}
     >
-      <style jsx>{`
-        /* ======= TUNING KNOBS ======= */
-        #heroSection {
-          /* stage height & spacing */
-          --stage-h: 65vh;
-          --stage-gap: 16px;
+      {/* Background image with mobile fallback */}
+      <picture>
+        <source media="(max-width: 640px)" srcSet="/assets/hero-mobile.png" />
+        <img
+          src="/assets/hero.png"
+          alt="Athlete training — Hyper Gear"
+          className="w-full h-[88vh] lg:h-[130vh] object-contain lg:object-cover"
+          style={{ objectPosition: "center" }}
+          fetchPriority="high"
+        />
+      </picture>
 
-          /* model scale (1 = original), and max width cap */
-          --model-zoom: 0.86;
-          --model-max-w: 1400px;
+      {/* Subtle overlay for contrast */}
+      <div className="pointer-events-none absolute inset-0 bg-black/8 lg:bg-black/5" />
 
-          /* floor glow (strength/size/height) */
-          --glow-color: 255, 212, 88; /* warm gold-ish (RGB) */
-          --glow-opacity: 0.22;       /* intensity of the glow */
-          --glow-height: 28%;         /* thickness of floor glow band */
-          --glow-spread: 120%;        /* width of the glow ellipse */
-          --glow-fade: 62%;           /* where the glow fades to 0 */
+      {/* === Desktop Content === */}
+      <div className="absolute inset-0">
+        <div
+          className="absolute translate-y-[-50%] right-[var(--x)] top-[var(--y)] hidden lg:block"
+          style={{ width: "min(var(--w), 90vw)" }}
+        >
+          <div className="grid grid-cols-[1fr_auto] items-center gap-8">
 
-          /* vignette around the whole stage */
-          --vignette-intensity: 0.20; /* darker edge */
-        }
+            {/* Title: Each phrase on its own line */}
+            <h1 className="font-extrabold tracking-wide text-[4.85rem] leading-[1.1] drop-shadow-[0_3px_12px_rgba(0,0,0,0.35)] whitespace-nowrap">
+              <div>FORGED BY PRECISION,</div>
+              <div>DRIVEN BY ENDURANCE</div>
+            </h1>
 
-        @media (max-width: 640px) {
-          #heroSection {
-            --stage-h: 30vh;
-            --stage-gap: 2px;
-            --model-zoom: 0.98;
+            {/* Button Section */}
+            <div style={{ transform: "translateY(var(--btn-nudge))" }}>
+              <a
+                href="#products"
+                className="translate-x-[-100%] inline-flex items-center justify-center rounded-full px-44 py-5 mt-20 text-2xl font-bold bg-pink-500 hover:bg-pink-400 active:scale-[.99] transition shadow-lg whitespace-nowrap"
+              >
+                Place your Order
+              </a>
+            </div>
 
-            --glow-opacity: 0.40;
-            --glow-height: 39%;
-            --glow-spread: 160%;
-            --glow-fade: 60%;
-          }
-        }
-
-        @media (min-width: 1024px) {
-          #heroSection {
-            --stage-h: 38vh;
-            --stage-gap: 18px;
-            --model-zoom: 0.88;
-
-            --glow-opacity: 0.24;
-            --glow-height: 49%;
-            --glow-spread: 110%;
-            --glow-fade: 64%;
-          }
-        }
-
-        /* ======= Layout ======= */
-        #heroVeil {
-          background:
-            /* soft top veil */
-            radial-gradient(
-              ellipse at 50% 15%,
-              rgba(255, 255, 255, 0.06) 0%,
-              rgba(0, 0, 0, 0) 55%
-            ),
-            /* subtle down fade */
-            linear-gradient(
-              to bottom,
-              rgba(0, 0, 0, 0) 0%,
-              rgba(0, 0, 0, 0.25) 100%
-            );
-        }
-
-        #heroStage {
-          position: relative;
-          height: var(--stage-h);
-          margin-top: var(--stage-gap);
-          width: 100%;
-          overflow: hidden;
-          isolation: isolate; /* keep blending tidy */
-        }
-
-        /* ======= Painted floor glow (CSS-only) ======= */
-        .floorGlow {
-          position: absolute;
-          inset: 0;
-          z-index: 0;
-          pointer-events: none;
-
-          /* two layers:
-             1) vignette around edges
-             2) golden glow ellipse sitting on the floor
-           */
-          background:
-            radial-gradient(
-              120% 100% at 50% 40%,
-              rgba(0,0,0,0) 0%,
-              rgba(0,0,0,var(--vignette-intensity)) 100%
-            ),
-            radial-gradient(
-              /* shape & position of glow ellipse */
-              var(--glow-spread) var(--glow-height) at 50% 100%,
-              rgba(var(--glow-color), var(--glow-opacity)) 0%,
-              rgba(var(--glow-color), calc(var(--glow-opacity) * 0.6)) 35%,
-              rgba(var(--glow-color), 0) var(--glow-fade)
-            );
-        }
-
-        /* ======= Models ======= */
-        .models {
-          position: absolute;
-          bottom: 0;
-          left: 50%;
-          transform: translateX(-50%) scale(var(--model-zoom));
-          transform-origin: center bottom;
-          width: 100%;
-          max-width: var(--model-max-w);
-          height: 100%;
-          object-fit: contain; /* keep legs on the floor */
-          object-position: center bottom;
-          z-index: 1;
-        }
-      `}</style>
-
-      {/* Copy + CTA */}
-      <div className="relative z-20 max-w-6xl mx-auto px-6 pt-8 pb-2 text-center">
-        <h1 className="text-3xl sm:text-5xl md:text-6xl font-extrabold tracking-wide">
-          PRE–LAUNCH SALE IS LIVE <span className="align-middle">📣</span>
-        </h1>
-        <p className="mt-4 max-w-3xl mx-auto text-white/80 text-sm sm:text-base leading-relaxed">
-          Elevate your game with premium shorts that keep you ahead and set you apart.
-          Get yours today and own the gear made for champions.
-        </p>
-
-        <div className="mt-6 flex flex-col items-center gap-2">
-          <div className="flex items-center gap-2 text-xs font-extrabold tracking-wide uppercase text-white/90">
-            <span className="text-lg">⏱</span>
-            <span>Last Minute Offer</span>
           </div>
+        </div>
+
+        {/* === Mobile Content === */}
+        <div
+          className="lg:hidden absolute left-[var(--mx)] translate-y-[-50%]"
+          style={{
+            top: "var(--my)",
+            width: "min(var(--mw), calc(100vw - 2*var(--mx)))",
+          }}
+        >
+          <h1 className="font-extrabold tracking-wide text-[1.3rem] leading-[1.1] drop-shadow-[0_3px_12px_rgba(0,0,0,0.45)]">
+            <span className="block">FORGED BY PRECISION,</span>
+            <span className="block">DRIVEN BY ENDURANCE</span>
+          </h1>
+
           <a
             href="#products"
-            className="inline-flex items-center justify-center rounded-full w-[250px] px-6 py-3 text-base font-semibold bg-pink-500 hover:bg-pink-400 active:scale-[.99] transition shadow-lg"
+            className="mt-[var(--mbtn)] inline-flex w-[9000px] items-center justify-center rounded-full w-full px-6 py-3 text-base font-semibold bg-pink-500 hover:bg-pink-400 active:scale-[10000.99] transition shadow-lg"
           >
             Place your Order
           </a>
         </div>
       </div>
 
-      {/* Soft veil over the whole hero */}
-      <div id="heroVeil" className="pointer-events-none absolute inset-0 z-0" />
-
-      {/* Stage: models + CSS floor glow */}
-      <div id="heroStage" className="relative z-10">
-        <div className="floorGlow" />
-        <img
-          src="/assets/cage-bg.png"
-          alt="Athletes"
-          className="models"
-        />
-      </div>
+      {/* Gradient for header readability */}
+      <style jsx>{`
+        :global(header) {
+          background: linear-gradient(
+            to bottom,
+            rgba(0, 0, 0, 0.35),
+            rgba(0, 0, 0, 0)
+          );
+        }
+      `}</style>
     </section>
   );
 }

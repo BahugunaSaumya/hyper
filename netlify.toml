@@ -4,3 +4,11 @@
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
+
+  [functions]
+  node_bundler = "esbuild"
+
+[[scheduled.functions]]
+  name = "email_heartbeat"
+  cron = "0 3,15 * * *" # UTC 03:00 & 15:00 => IST 08:30 & 20:30, adjust as you like
+ƒ

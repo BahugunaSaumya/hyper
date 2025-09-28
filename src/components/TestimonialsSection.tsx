@@ -144,7 +144,7 @@ export default function TestimonialsSection() {
   return (
     <section
       id="testimonials"
-      className="bg-black px-5 sm:px-6 md:px-8 py-14 md:py-16 overflow-x-hidden"
+      className="bg-black px-5 sm:px-6 md:px-8 py-14 md:py-16 overflow-x-hidden font-title"
       aria-label="What our fighters are saying"
       style={
         {

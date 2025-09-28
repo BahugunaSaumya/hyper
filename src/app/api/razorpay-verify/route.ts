@@ -1,68 +1,139 @@
-// // src/pages/api/razorpay-verify.ts
-// import type { NextApiRequest, NextApiResponse } from "next";
-// import crypto from "crypto";
-
-// export default function handler(req: NextApiRequest, res: NextApiResponse) {
-//   if (req.method !== "POST") {
-//     return res.status(405).json({ error: "Method Not Allowed" });
-//   }
-
-//   const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
-
-//   if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
-//     return res.status(400).json({ error: "Missing payment details" });
-//   }
-
-//   const body = `${razorpay_order_id}|${razorpay_payment_id}`;
-//   const expectedSignature = crypto
-//     .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET!)
-//     .update(body.toString())
-//     .digest("hex");
-
-//   console.log("[server] Expected Signature:", expectedSignature);
-//   console.log("[server] Received Signature:", razorpay_signature);
-
-//   if (expectedSignature === razorpay_signature) {
-//     return res.status(200).json({ success: true });
-//   } else {
-//     return res.status(400).json({ error: "Invalid signature" });
-//   }
-// }
-
 // src/app/api/razorpay-verify/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { getDb } from "@/lib/firebaseAdmin";
+import { sendOrderEmails } from "@/lib/email";
 
-export async function POST(req: Request) {
+export const runtime = "nodejs";
+
+export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = body;
+    const body = await req.json().catch(() => ({}));
+    console.log("[verify] incoming body:", body);
 
-    console.log("[mock verify] Received payload:", body);
+    let {
+      orderId,                  // Firestore orders/<orderId> (optional in mock)
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature,
+      // optional passthroughs to create an order if orderId is missing
+      customer,
+      items,
+      total,
+      currency = "INR",
+      shippingAddress,
+      note,
+    } = body || {};
 
-    // Validate required fields
-    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
-      return NextResponse.json({ error: "Missing payment details" }, { status: 400 });
+    const db = getDb();
+
+    // If orderId is missing, create a minimal order so emails can still be tested in dev
+    if (!orderId) {
+      const created = await db.collection("orders").add({
+        status: "created",
+        customer: customer || {},
+        items: Array.isArray(items) ? items : [],
+        total: typeof total === "number" ? total : 0, // paise
+        currency,
+        shippingAddress: shippingAddress || null,
+        note: note || null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        payment: { provider: "razorpay", status: "created", mode: "mock" },
+        source: "mock-verify-no-orderId",
+      });
+      orderId = created.id;
+      console.log("[verify] created order because orderId missing:", orderId);
     }
 
-    // MOCK: Always pass verification for now
-    const result = {
+    // Fill mock Razorpay fields if missing
+    const now = Date.now();
+    razorpay_order_id = razorpay_order_id || `order_mock_${now}`;
+    razorpay_payment_id = razorpay_payment_id || `pay_mock_${now}`;
+    razorpay_signature = razorpay_signature || `sig_mock_${now}`;
+
+    const ref = db.collection("orders").doc(String(orderId));
+
+    // Transaction for idempotency and safe updates
+    await db.runTransaction(async (tx) => {
+      const snap = await tx.get(ref);
+      const existing = snap.exists ? (snap.data() || {}) : {};
+
+      const alreadyPaid = existing?.status === "paid";
+      const alreadyEmailed =
+        !!existing?.email?.customerSentAt && !!existing?.email?.adminSentAt;
+
+      // Always ensure we have a base order if it didn't exist
+      if (!snap.exists) {
+        tx.set(ref, {
+          status: "created",
+          customer: customer || {},
+          items: Array.isArray(items) ? items : [],
+          total: typeof total === "number" ? total : 0,
+          currency,
+          shippingAddress: shippingAddress || null,
+          note: note || null,
+          createdAt: new Date(),
+          source: "mock-verify-created",
+        }, { merge: true });
+      }
+
+      // If already paid + emailed, do nothing (idempotent)
+      if (alreadyPaid && alreadyEmailed) return;
+
+      // Mark paid + record payment fields
+      tx.set(ref, {
+        status: "paid",
+        payment: {
+          ...(existing.payment || {}),
+          provider: "razorpay",
+          status: "paid",
+          razorpay_order_id,
+          razorpay_payment_id,
+          razorpay_signature,
+          verifiedAt: new Date(),
+          mode: "mock",
+        },
+        updatedAt: new Date(),
+        email: { ...(existing.email || {}), willSendNow: true },
+      }, { merge: true });
+    });
+
+    // Send the two emails exactly once
+    const snap = await ref.get();
+    const order = { id: snap.id, ...(snap.data() || {}) };
+
+    if (!order?.email?.customerSentAt || !order?.email?.adminSentAt) {
+      try {
+        await sendOrderEmails(String(orderId), order);
+        await ref.set({
+          email: {
+            ...(order.email || {}),
+            customerSentAt: order.email?.customerSentAt || new Date(),
+            adminSentAt: order.email?.adminSentAt || new Date(),
+            willSendNow: false,
+          },
+          updatedAt: new Date(),
+        }, { merge: true });
+      } catch (e) {
+        console.error("[verify] email error:", e);
+        await ref.set({
+          email: { ...(order.email || {}), willSendNow: false, lastError: String((e as any)?.message || e) },
+        }, { merge: true });
+      }
+    }
+
+    return NextResponse.json({
       success: true,
       verified: true,
       mode: "mock",
-      message: "Mock verification passed",
+      message: "Order marked paid; emails sent (idempotent).",
       order_id: razorpay_order_id,
       payment_id: razorpay_payment_id,
-      signature: razorpay_signature,
-    };
+      orderId,
+    }, { status: 200 });
 
-    console.log("[mock verify] Returning:", result);
-
-    return NextResponse.json(result, { status: 200 });
   } catch (err: any) {
-    console.error("[mock verify] Error processing request:", err.message);
-    return NextResponse.json(
-      { error: "Unable to verify payment", details: err.message },
-      { status: 500 }
-    );
+    console.error("[verify] fatal:", err?.message || err);
+    return NextResponse.json({ error: "Unable to verify payment" }, { status: 500 });
   }
 }

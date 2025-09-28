@@ -1,16 +1,16 @@
-// src/app/api/admin/migrate-csv/route.ts
-export const runtime = "nodejs"; // ensure Node runtime for fs/path
+export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "../_lib/auth";
 import { getDb } from "@/lib/firebaseAdmin";
+import * as cache from "@/lib/cache";
 import fs from "node:fs/promises";
 import path from "node:path";
 const hyphenOnly = (s: string) =>
   String(s || "").replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
 
 /** RFC4180-ish CSV parser (handles quotes, commas, newlines in fields) */
-function parseCSV(text: string): string[][] {
+function parseCSV(text: string): string[][] { /* unchanged */ 
   const rows: string[][] = [];
   let row: string[] = [];
   let cur = "";
@@ -107,7 +107,6 @@ export async function POST(req: NextRequest) {
     let count = 0;
 
     for (const obj of objects) {
-      // Choose a stable doc id: prefer explicit id, else slug(title)
       const title = (obj.title || "").trim();
       const explicitId = (obj.id || "").trim();
       const id = explicitId || title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
@@ -115,7 +114,6 @@ export async function POST(req: NextRequest) {
 
       const data: Record<string, any> = { ...obj };
 
-      // Normalize numeric fields commonly seen in your CSV
       const numericFields = [
         "MRP",
         "discounted price",
@@ -131,7 +129,6 @@ export async function POST(req: NextRequest) {
         if (n !== undefined) data[f] = n;
       }
 
-      // Normalize sizes -> array
       if (typeof obj.sizes === "string") {
         data.sizes = obj.sizes
           .split("|")
@@ -139,7 +136,6 @@ export async function POST(req: NextRequest) {
           .filter(Boolean);
       }
 
-      // Derive convenience fields you use in UI
       data.slug = (obj.slug || id);
       data.mrp = data.mrp ?? obj.MRP;
       data.discountedPrice = data.discountedPrice ?? obj["discounted price"];
@@ -155,7 +151,13 @@ export async function POST(req: NextRequest) {
     }
 
     await batch.commit();
-    return NextResponse.json({ ok: true, count });
+
+    // 🔓 Invalidate caches so lists flip to fresh Firestore data immediately
+    cache.del("admin:qry:products");
+    cache.del("csv:products");
+    cache.del("csv:all-products");
+
+    return NextResponse.json({ ok: true, count }, { status: 200 });
   } catch (e: any) {
     console.error("[migrate-csv] error:", e);
     return NextResponse.json({ ok: false, error: e?.message || "Failed to migrate CSV" }, { status: 500 });

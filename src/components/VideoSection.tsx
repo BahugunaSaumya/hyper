@@ -1,4 +1,3 @@
-// src/components/VideoSection.tsx
 "use client";
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -19,6 +18,10 @@ export default function VideoSection() {
   // Geometry state
   const [{ small, W, H }, setDims] = useState({ small: 120, W: 1280, H: 720 });
   const [expanded, setExpanded] = useState(false);
+
+  // NEW: manual scaling controls
+  const [containerScale, setContainerScale] = useState(1); // default 100%
+  const [videoScale, setVideoScale] = useState(4); // default 100%
 
   /* Mount */
   useEffect(() => setMounted(true), []);
@@ -63,11 +66,7 @@ export default function VideoSection() {
           setIsPlaying(false);
         }
       },
-      {
-        root: null,
-        rootMargin: "0px",
-        threshold: [0, 0.5, 1],
-      }
+      { root: null, rootMargin: "0px", threshold: [0, 0.5, 1] }
     );
 
     io.observe(el);
@@ -78,9 +77,9 @@ export default function VideoSection() {
   const spring = useSpring({
     from: { w: 0, h: 0, r: 999, s: 0.6, o: 0.9, blur: 6 },
     to: {
-      w: expanded ? W : small,
-      h: expanded ? H : small,
-      r: expanded ? 2 : small / 2,
+      w: expanded ? W * containerScale : small * containerScale,
+      h: expanded ? H * containerScale : small * containerScale,
+      r: expanded ? 2 : (small * containerScale) / 2,
       s: expanded ? 1 : 0.95,
       o: 1,
       blur: expanded ? 0 : 2,
@@ -102,7 +101,7 @@ export default function VideoSection() {
     () => ({
       controls: ["play", "mute", "volume", "fullscreen"],
       ratio: "16:9",
-      clickToPlay: false, // we handle taps manually
+      clickToPlay: false,
       hideControls: true,
       fullscreen: { enabled: true, fallback: true, iosNative: true },
       keyboard: { global: false },
@@ -119,7 +118,7 @@ export default function VideoSection() {
 
   const pauseVideo = () => {
     playerRef.current?.plyr?.pause();
-    setIsPlaying(false); // ensure immediate update
+    setIsPlaying(false);
   };
 
   return (
@@ -129,15 +128,15 @@ export default function VideoSection() {
     >
       {/* Intro text */}
       <div className="max-w-5xl mx-auto px-6 pt-16">
-        <h3 className="text-[14px] md:text-[16px] tracking-[0.28em] uppercase font-semibold">
+        <h3 className="text-[24px] md:text-[16px] tracking-[0.28em] uppercase font-semibold">
           Welcome to Hyper
         </h3>
-        <div className="mt-3 flex gap-2 text-black">
+        <div className="mt-2 mb-2 flex gap-2 text-black">
           {Array.from({ length: 12 }).map((_, i) => (
             <span key={i} className="text-2xl leading-none select-none">|</span>
           ))}
         </div>
-        <h2 className="mt-5 text-[34px] sm:text-[46px] md:text-[58px] leading-[1.05] font-extrabold uppercase tracking-tight">
+        <h2 className="mt-50 text-[34px] sm:text-[46px] md:text-[58px] leading-[1.05] font-extrabold uppercase tracking-tight font-tile">
           Why We Created Hyper
         </h2>
         <div className="mt-5 space-y-3 max-w-5xl text-[13px] md:text-[14px] leading-relaxed text-black/80">
@@ -148,7 +147,7 @@ export default function VideoSection() {
       </div>
 
       {/* Video container */}
-      <div className="mt-14 md:mt-16 mb-10">
+      <div className="mt-4 md:mt-14 mb-10">
         <div className="flex justify-center">
           <animated.div
             ref={frameRef}
@@ -162,25 +161,13 @@ export default function VideoSection() {
               filter: spring.blur.to((b) => `blur(${b}px)`),
             }}
           >
-            {/* Prevent video from interfering with scroll */}
-            <style jsx global>{`
-              .plyr--video video {
-                object-fit: cover !important;
-                width: 100% !important;
-                height: 100% !important;
-                pointer-events: auto !important;
-              }
-              .plyr__poster {
-                background-size: cover !important;
-              }
-              .plyr--video, .plyr__video-wrapper {
-                width: 100% !important;
-                height: 100% !important;
-              }
-            `}</style>
-
-            {/* Plyr */}
-            <div className="absolute inset-0">
+            <div
+              className="absolute inset-0"
+              style={{
+                transform: `scale(${videoScale})`, // NEW scaling for video only
+                transformOrigin: "center",
+              }}
+            >
               {mounted && (
                 <PlyrComponent
                   ref={playerRef}
@@ -203,10 +190,6 @@ export default function VideoSection() {
                 aria-label="Pause video"
                 className="absolute inset-0 z-20 bg-transparent"
                 onClick={pauseVideo}
-                style={{
-                  touchAction: "manipulation",
-                  WebkitTapHighlightColor: "transparent",
-                }}
               />
             )}
 
@@ -234,11 +217,7 @@ export default function VideoSection() {
 
                     {/* Center play icon */}
                     <div className="w-14 h-14 sm:w-16 sm:h-16 bg-white/90 rounded-full grid place-items-center shadow-md">
-                      <svg
-                        className="w-6 h-6 sm:w-7 sm:h-7 text-gray-900"
-                        viewBox="0 0 24 24"
-                        fill="currentColor"
-                      >
+                      <svg className="w-6 h-6 text-gray-900" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M8 5v14l11-7z" />
                       </svg>
                     </div>

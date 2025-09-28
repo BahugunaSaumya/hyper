@@ -39,7 +39,7 @@ export default function FaqSection() {
         <img
           src="/assets/frequently-asked-heading.png"
           alt="Frequently Asked Questions"
-          className="mx-auto w-[260px] sm:w-[320px] md:w-[420px] h-auto"
+          className="mx-auto w-[350px] sm:w-[320px] md:w-[420px] h-auto"
         />
       </div>
 

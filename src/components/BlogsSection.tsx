@@ -129,11 +129,7 @@ export default function BlogsSection() {
           alt="Our Blogs"
           className="mx-auto mb-4 w-64 sm:w-80"
         />
-        <img
-          src="/assets/bars.png"
-          alt="Bars Graphic"
-          className="w-24 sm:w-32 md:w-40 ml-[.3rem] sm:ml-[.3rem] md:ml-[12rem] z-10 -mb-2"
-        />
+   
       </div>
 
       <div className="relative max-w-7xl mx-auto mt-4 no-scrollbar">
