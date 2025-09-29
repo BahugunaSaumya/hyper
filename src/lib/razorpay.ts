@@ -1,29 +1,13 @@
 // src/lib/razorpay.ts
 export const loadRazorpayScript = () =>
-  new Promise((resolve) => {
-    console.log("[mock] Loading Razorpay script...");
-    (window as any).Razorpay = function (options: any) {
-      return {
-        open: () => {
-          console.log("[mock] Razorpay.open() called with:", options);
-          setTimeout(() => {
-            const paymentId = "pay_" + Math.random().toString(36).slice(2, 12);
-            const orderId = options.order_id || "order_" + Math.random().toString(36).slice(2, 12);
-            // recognizable mock signature the server can trust
-            const signature = `mock_${orderId}|${paymentId}`;
+  new Promise<boolean>((resolve, reject) => {
+    if (typeof window === "undefined") return resolve(false);
+    if ((window as any).Razorpay) return resolve(true);
 
-            const response = {
-              razorpay_order_id: orderId,
-              razorpay_payment_id: paymentId,
-              razorpay_signature: signature,
-            };
-
-            console.log("[mock] Payment success:", response);
-            options?.handler?.(response);
-          }, 5000);
-        },
-      };
-    };
-    console.log("[mock] Razorpay script loaded");
-    resolve(true);
+    const s = document.createElement("script");
+    s.src = "https://checkout.razorpay.com/v1/checkout.js";
+    s.async = true;
+    s.onload = () => resolve(true);
+    s.onerror = () => reject(new Error("Failed to load Razorpay script"));
+    document.body.appendChild(s);
   });

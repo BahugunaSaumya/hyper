@@ -127,23 +127,15 @@ export default function VideoSection() {
       className="bleed-x relative bg-white text-black overflow-x-visible overflow-y-hidden"
     >
       {/* Intro text */}
-      <div className="max-w-5xl mx-auto px-6 pt-16">
-        <h3 className="text-[20px] md:text-[16px] tracking-[0.28em] uppercase font-semibold">
-          Welcome to Hyper
-        </h3>
-        <div className="mt-4 mb-6 flex gap-2 text-black">
-          {Array.from({ length: 12 }).map((_, i) => (
-            <span key={i} className="text-2xl leading-none select-none">|</span>
-          ))}
+      <div className="max-w-5xl mx-auto px-6 pt-4">
         </div>
-        <h2 className="mt-50 text-[22px] sm:text-[46px] md:text-[58px] leading-[1.05] font-extrabold uppercase tracking-tight font-tile">
+        <h2 className="p-7 pt-[-2000px] text-[22px] sm:text-[46px] md:text-[58px] leading-[1.05] font-extrabold uppercase tracking-tight font-tile">
           Why We Created Hyper
         </h2>
-        <div className="mt-5 space-y-3 max-w-5xl text-[13px] md:text-[14px] leading-relaxed text-black/80">
-          <p>India’s MMA scene is growing fast — but the gear hasn’t kept up…</p>
-          <p>Our unique apparel has been precision engineered to endure mixed martial arts…</p>
-          <p>We know that India has the power to compete on the global stage…</p>
-        </div>
+        <div className="mt-[-20px] space-y-6 max-w-5xl text-[13px] md:text-[14px] leading-relaxed text-black/80 p-3">
+          <p >India’s MMA scene is growing fast — but the gear hasn’t kept up. Fighters were stuck with limited, low-quality options that weren’t built for real training. We felt this first-hand — and so did top athletes like Aminder Bisht and Digambar Rawat. Together, we decided to fix it. To build what was missing.</p>
+          <p>Our unique apparel has been precision engineered to endure mixed martial arts from jiu-jitsu to wrestling to kick boxing - from the gym to the cage. Drawing on decades of knowledge while delivering modern needs - HYPER is designed by fighters, for fighters. Our apparel is made to move hard, train harder, and go the distance. </p>
+          <p>We know that India has the power to compete on the global stage. HYPER is more than a brand—it’s a platform for bold dreams and the discipline to make them real.</p>
       </div>
 
       {/* Video container */}

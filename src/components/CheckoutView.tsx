@@ -1,3 +1,4 @@
+// src/components/CheckoutView.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -54,6 +55,9 @@ export default function CheckoutView() {
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
 
+  // Track whether user has typed this session (prevents server overwrites)
+  const [dirtyContact, setDirtyContact] = useState(false);
+
   // Editable address form
   const [pin, setPin] = useState("");
   const [pinHelp, setPinHelp] = useState("Enter a valid 6-digit PIN (e.g., 560001).");
@@ -76,26 +80,23 @@ export default function CheckoutView() {
   const [editingShipping, setEditingShipping] = useState<boolean>(false);
   const [saveAsDefault, setSaveAsDefault] = useState<boolean>(true); // default checked when editing
 
-  // Log for sanity
-  useEffect(() => {
-    console.log("[checkout] user:", user?.uid || null);
-    console.log("[checkout] profile (context):", profile);
-  }, [user, profile]);
+  // explicit save state for the button
+  const [savingProfile, setSavingProfile] = useState<boolean>(false);
 
-  // Prefill WHO from profile context (best-effort)
+  // Prefill WHO from profile context (best-effort) — do not mark dirty
   useEffect(() => {
     if (!profile) return;
     const baseName = (profile.name || "").trim();
-    if (baseName) {
+    if (baseName && !firstName && !lastName) {
       const [fn, ...rest] = baseName.split(" ").filter(Boolean);
-      setFirst((v) => v || fn || "");
-      setLast((v) => v || rest.join(" ") || "");
+      setFirst(fn || "");
+      setLast(rest.join(" ") || "");
     }
-    setEmail((e) => e || profile.email || user?.email || "");
-    setPhone((p) => p || profile.phone || "");
-  }, [profile, user?.email]);
+    if (!email) setEmail(profile.email || user?.email || "");
+    if (!phone) setPhone(profile.phone || "");
+  }, [profile, user?.email]); // eslint-disable-line
 
-  // Fetch authoritative profile from Firestore to get saved address
+  // Fetch authoritative profile from Firestore to get saved address **and** contact
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
@@ -107,18 +108,22 @@ export default function CheckoutView() {
           cache: "no-store",
         });
         const body = await res.json().catch(() => null);
-        if (!res.ok || !body) return;
-        if (cancelled) return;
+        if (!res.ok || !body || cancelled) return;
 
-        // Name/phone/email if not already set
-        const nameStr: string = body?.user?.name || profile?.name || "";
-        if (nameStr && !(firstName || lastName)) {
-          const [fn, ...rest] = nameStr.split(" ").filter(Boolean);
-          setFirst(fn || "");
-          setLast(rest.join(" ") || "");
+        // Always trust server unless user has typed (dirtyContact = true)
+        const serverName: string = body?.user?.name || profile?.name || "";
+        const serverEmail: string = body?.user?.email || user?.email || "";
+        const serverPhone: string = body?.user?.phone || "";
+
+        if (!dirtyContact) {
+          if (serverName) {
+            const [fn, ...rest] = serverName.split(" ").filter(Boolean);
+            setFirst(fn || "");
+            setLast(rest.join(" ") || "");
+          }
+          setEmail(serverEmail || "");
+          setPhone(serverPhone || "");
         }
-        setEmail((e) => e || body?.user?.email || user?.email || "");
-        setPhone((p) => p || body?.user?.phone || "");
 
         if (body.address) {
           const a: Address = body.address || {};
@@ -143,11 +148,11 @@ export default function CheckoutView() {
       }
     })();
     return () => { cancelled = true; };
-  }, [user, profile?.name]);
+  }, [user, profile?.name, dirtyContact]); // eslint-disable-line
 
   // PIN → format + API verification (only when editing the address form)
   useEffect(() => {
-    if (!editingShipping) return;             // don’t verify when using saved
+    if (!editingShipping) return; // don’t verify when using saved
     if (!pinFormatValid) {
       setPinStatus(pin ? "invalid" : "idle");
       setPinHelp("Enter a valid 6-digit PIN (e.g., 560001).");
@@ -259,6 +264,7 @@ export default function CheckoutView() {
     try {
       const tok = await user.getIdToken?.();
       const body = {
+        user: { name: nameFromState(), email, phone },
         address: {
           name: nameFromState(),
           phone,
@@ -269,12 +275,66 @@ export default function CheckoutView() {
           country: "IN",
         } as Address,
       };
+      // fire-and-forget is fine; the next visit will pull from server
       fetch("/api/me/profile", {
         method: "PUT",
         headers: { "content-type": "application/json", authorization: `Bearer ${tok}` },
         body: JSON.stringify(body),
       }).catch(() => { });
     } catch { /* ignore */ }
+  }
+
+  // Explicit “Save address & contact” button action
+  async function saveAddressAndContactNow() {
+    if (!user) {
+      alert("Please log in to save your address.");
+      return;
+    }
+    const missing = need();
+    if (missing) { alert(`Please fill: ${missing}`); return; }
+
+    const ship = shippingFromState();
+    const payload = {
+      user: { name: nameFromState(), email, phone },
+      address: {
+        name: nameFromState(),
+        phone,
+        street: ship.addr1,
+        city: ship.city,
+        state: ship.state,
+        postal: ship.postal,
+        country: "IN",
+      },
+    };
+console.log("Saving profile payload:", payload);
+
+    try {
+      setSavingProfile(true);
+      const tok = await user.getIdToken?.();
+      const res = await fetch("/api/me/profile", {
+        method: "PUT",
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${tok}`,
+        },
+        body: JSON.stringify(payload),
+      });
+      const body = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(body?.error || "Failed to save profile");
+
+      // reflect in UI
+      setSavedAddr(payload.address);
+      setUsingSaved(true);
+      setEditingShipping(false);
+      setSaveAsDefault(true);
+      setDirtyContact(false); // we now trust server copy again
+      alert("Saved to your profile.");
+    } catch (e: any) {
+      console.error("[checkout] save profile failed:", e);
+      alert(e?.message || "Could not save address. Try again.");
+    } finally {
+      setSavingProfile(false);
+    }
   }
 
   async function onCheckout() {
@@ -294,24 +354,52 @@ export default function CheckoutView() {
         return;
       }
 
+      // --- server-authoritative order creation (secure recompute) ---
       stepWait("creating your order…");
+
+      const ship = shippingFromState();
+      const listArr: any[] = Object.values(items);
+      const itemsForOrder = listArr.map((it: any) => ({
+        id: it.id,
+        title: it.name,
+        size: it.size,
+        qty: it.quantity,
+        unitPrice: parseINR(it.price), // hint only; server recomputes
+        image: it.image,
+      }));
+
+      const orderInitPayload = {
+        customer: { name: nameFromState(), email, phone },
+        shippingAddress: {
+          country: ship.country, state: ship.state, city: ship.city,
+          postal: ship.postal, addr1: ship.addr1, addr2: ship.addr2
+        },
+        items: itemsForOrder,
+        clientTotals: { subtotal, shipping, total, currency: "INR" }, // hint only
+        notes: { source: "checkout-page" },
+      };
+      console.log("[checkout] sending to /api/razorpay-order:", orderInitPayload);
+
       const res = await fetch("/api/razorpay-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ total }),
+        body: JSON.stringify(orderInitPayload),
       });
       const data = await res.json();
 
-      if (!data.id) {
+      if (!data?.id) {
         stopWait();
         alert("Unable to create Razorpay order.");
         return;
       }
 
+      // If server created a draft order in Firestore, capture it for verify
+      const draftOrderId: string | undefined = data.orderId;
+
       const options = {
         key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-        amount: total * 100,
-        currency: "INR",
+        amount: data.amount ?? total * 100, // prefer server amount
+        currency: data.currency ?? "INR",
         name: "HYPER MMA",
         description: "Order Payment",
         order_id: data.id,
@@ -321,18 +409,52 @@ export default function CheckoutView() {
             const verifyRes = await fetch("/api/razorpay-verify", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(response),
+              body: JSON.stringify({
+                ...response,
+                orderId: draftOrderId, // lets server mark paid + email idempotently
+                customer: { name: nameFromState(), email, phone },
+                items: itemsForOrder,
+                total: Math.round(total * 100), // paise (hint only)
+                currency: "INR",
+                shippingAddress: orderInitPayload.shippingAddress,
+                note: "client-verified",
+              }),
             });
             const verifyData = await verifyRes.json();
 
-            if (!verifyData.success) {
+            if (!verifyData?.success) {
               stopWait();
               alert("Payment verification failed. Order not saved.");
               return;
             }
 
             stepWait("finalizing your order…");
-            await saveOrderToFirestore(response);
+
+            // If server already created & finalized the order, only store snapshot (no duplicate client create)
+            if (verifyData.orderId) {
+              try {
+                const snapshot = {
+                  orderId: verifyData.orderId,
+                  placedAt: new Date().toISOString(),
+                  customer: orderInitPayload.customer,
+                  shipping: orderInitPayload.shippingAddress,
+                  items: itemsForOrder,
+                  amounts: { subtotal, shipping, total, currency: "INR" },
+                  paymentInfo: {
+                    razorpay_order_id: response.razorpay_order_id,
+                    razorpay_payment_id: response.razorpay_payment_id,
+                    razorpay_signature: response.razorpay_signature,
+                  },
+                };
+                sessionStorage.setItem("lastOrderSnapshot", JSON.stringify(snapshot));
+              } catch (e) {
+                console.warn("[checkout] failed to write lastOrderSnapshot:", e);
+              }
+            } else {
+              // Fallback: your existing Firestore create (kept intact)
+              await saveOrderToFirestore(response);
+            }
+
             clear();
             stopWait();
             router.push(`/thank-you?payment_id=${response.razorpay_payment_id}`);
@@ -369,7 +491,7 @@ export default function CheckoutView() {
   async function saveOrderToFirestore(paymentResponse: any) {
     const listArr: any[] = Object.values(items);
     const itemsForOrder = listArr.map((it: any) => ({
-      id: it.id,
+      id: it.id ?? it.slug,
       title: it.name,
       size: it.size,
       qty: it.quantity,
@@ -392,6 +514,15 @@ export default function CheckoutView() {
         razorpay_signature: paymentResponse.razorpay_signature,
       },
     } as const;
+
+    // Optional micro-guard to avoid duplicate writes if server already created the order
+    try {
+      const existing = sessionStorage.getItem("lastOrderSnapshot");
+      if (existing) {
+        const snap = JSON.parse(existing || "{}");
+        if (snap?.orderId) return snap.orderId;
+      }
+    } catch { }
 
     try {
       stepWait("saving your order…");
@@ -444,24 +575,6 @@ export default function CheckoutView() {
     }
   }
 
-  async function devPing() {
-    try {
-      const pingId = await createOrder({
-        userId: null,
-        customer: { name: "Dev Ping", email: "dev@ping" },
-        shipping: { country: "India", state: "Karnataka", city: "Bengaluru", postal: "560001", addr1: "-", addr2: "" },
-        items: [],
-        amounts: { subtotal: 0, shipping: 0, total: 0, currency: "INR" },
-        status: "created",
-      } as any);
-      console.log("[checkout] dev ping ok — order id:", pingId);
-      alert(`Firestore OK. Dev ping order id: ${pingId}`);
-    } catch (e) {
-      console.error("[checkout] dev ping failed:", e);
-      alert("Firestore write failed. Check console for details.");
-    }
-  }
-
   // ---- UI
   return (
     <section className="px-6 py-12 max-w-6xl mx-auto bg-white text-black">
@@ -485,18 +598,28 @@ export default function CheckoutView() {
       <section className="mb-10">
         <h2 className="text-lg font-bold mb-4 uppercase">Who is placing the order?</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <input value={firstName} onChange={(e) => setFirst(e.target.value)} placeholder="First name" className="border-b py-2 outline-none" />
-          <input value={lastName} onChange={(e) => setLast(e.target.value)} placeholder="Last name" className="border-b py-2 outline-none" />
+          <input
+            value={firstName}
+            onChange={(e) => { setFirst(e.target.value); setDirtyContact(true); }}
+            placeholder="First name"
+            className="border-b py-2 outline-none"
+          />
+          <input
+            value={lastName}
+            onChange={(e) => { setLast(e.target.value); setDirtyContact(true); }}
+            placeholder="Last name"
+            className="border-b py-2 outline-none"
+          />
           <input
             value={phone}
-            onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+            onChange={(e) => { setPhone(e.target.value.replace(/\D/g, "").slice(0, 10)); setDirtyContact(true); }}
             inputMode="tel"
             placeholder="10 digit mobile number"
             className={`border-b py-2 outline-none ${phone && !phoneValid ? "border-red-500" : ""}`}
           />
           <input
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e) => { setEmail(e.target.value); setDirtyContact(true); }}
             type="email"
             placeholder="Email address"
             className={`border-b py-2 outline-none ${email && !emailValid ? "border-red-500" : ""}`}
@@ -504,6 +627,19 @@ export default function CheckoutView() {
         </div>
         {!phoneValid && phone ? <p className="text-xs text-red-600 mt-1">Enter a valid 10-digit Indian mobile starting with 6–9.</p> : null}
         {!emailValid && email ? <p className="text-xs text-red-600 mt-1">Please enter a valid email address.</p> : null}
+
+        {/* Save address & contact button */}
+        {user && (
+          <div className="mt-4">
+            <button
+              onClick={saveAddressAndContactNow}
+              disabled={savingProfile}
+              className="text-xs px-3 py-1.5 rounded-full border hover:bg-black hover:text-white transition disabled:opacity-60"
+            >
+              {savingProfile ? "Saving…" : "Save address & contact to my profile"}
+            </button>
+          </div>
+        )}
       </section>
 
       {/* ADDRESS */}
@@ -639,4 +775,23 @@ export default function CheckoutView() {
       )}
     </section>
   );
+}
+
+// (dev ping kept same)
+async function devPing() {
+  try {
+    const pingId = await createOrder({
+      userId: null,
+      customer: { name: "Dev Ping", email: "dev@ping" },
+      shipping: { country: "India", state: "Karnataka", city: "Bengaluru", postal: "560001", addr1: "-", addr2: "" },
+      items: [],
+      amounts: { subtotal: 0, shipping: 0, total: 0, currency: "INR" },
+      status: "created",
+    } as any);
+    console.log("[checkout] dev ping ok — order id:", pingId);
+    alert(`Firestore OK. Dev ping order id: ${pingId}`);
+  } catch (e) {
+    console.error("[checkout] dev ping failed:", e);
+    alert("Firestore write failed. Check console for details.");
+  }
 }

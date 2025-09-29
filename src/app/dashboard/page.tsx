@@ -10,11 +10,12 @@ import LoadingScreen from "@/components/LoadingScreen";
 
 type OrderLite = {
   id: string;
-  total?: number | string;
+  total?: number | string;                // legacy top-level (often paise)
   status?: string;
-  createdAt?: any;      // Firestore Timestamp | ISO | number
-  placedAt?: string;    // ISO/string
-  amounts?: { total?: number; currency?: string };
+  createdAt?: any;                        // Firestore Timestamp | ISO | number
+  placedAt?: string;                      // ISO/string
+  amounts?: { total?: number; currency?: string };  // new-ish rupees
+  totals?: { total?: number; currency?: string };   // new rupees
   customer?: { name?: string };
 };
 
@@ -124,15 +125,11 @@ export default function DashboardPage() {
             postal: body.address.postal || "",
             country: body.address.country || "IN",
           });
-          setEditingAddr(false); // show read-only view if exists in Firestore
+          setEditingAddr(false);
         }
-      } catch {
-        // ignore network errors; local draft already applied
-      }
+      } catch { /* ignore */ }
     })();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [user, profile?.name, profile?.phone]);
 
   // Load orders (paged) from API
@@ -160,7 +157,7 @@ export default function DashboardPage() {
         setFirstLoad(false);
       }
     })();
-  }, [user]); // run once per session
+  }, [user]);
 
   async function loadMore() {
     if (!user || !nextCursor || fetching) return;
@@ -191,12 +188,7 @@ export default function DashboardPage() {
   // Derived KPIs
   const kpis = useMemo(() => {
     const count = orders.length;
-    const totalSpend = orders.reduce((sum, o) => {
-      const n =
-        o?.amounts?.total ??
-        (typeof o?.total === "string" ? parseFloat(o.total) : Number(o?.total || 0));
-      return sum + (isFinite(n) ? n : 0);
-    }, 0);
+    const totalSpend = orders.reduce((sum, o) => sum + getTotalRupees(o), 0);
 
     const latestWhen =
       toISO(orders[0]?.createdAt) ||
@@ -214,7 +206,7 @@ export default function DashboardPage() {
   if (loading || (!user && typeof window !== "undefined")) {
     return (
       <main className="min-h-[60vh] grid place-items-center text-sm text-gray-600">
-      <LoadingScreen />
+        <LoadingScreen />
       </main>
     );
   }
@@ -376,11 +368,7 @@ export default function DashboardPage() {
               <tbody className="divide-y">
                 {orders.length ? (
                   orders.map((o) => {
-                    const total =
-                      o?.amounts?.total ??
-                      (typeof o?.total === "string"
-                        ? parseFloat(o.total)
-                        : Number(o?.total || 0));
+                    const total = getTotalRupees(o);
                     const when = toISO(o.createdAt) || o.placedAt || null;
                     return (
                       <tr key={o.id} className="hover:bg-gray-50">
@@ -554,26 +542,33 @@ function Labeled({ label, value }: { label: string; value?: string }) {
   );
 }
 
+// ---- money/time utils that support legacy & new orders ----
+function getTotalRupees(o: any): number {
+  // Prefer explicit rupees in new shapes
+  if (typeof o?.amounts?.total === "number") return o.amounts.total;
+  if (typeof o?.totals?.total === "number") return o.totals.total;
+
+  // Legacy: top-level `total` often in paise
+  const top = typeof o?.total === "string" ? parseFloat(o.total) : Number(o?.total || 0);
+  if (isFinite(top) && top > 0) return top / 100;
+
+  return 0;
+}
 function fmtINR(n?: number) {
   return Number(n || 0).toLocaleString("en-IN");
 }
 function safeParse(json: any) {
-  try {
-    return JSON.parse(json);
-  } catch {
-    return null;
-  }
+  try { return JSON.parse(json); } catch { return null; }
 }
 function toISO(ts: any): string | null {
   try {
     if (!ts) return null;
     if (typeof ts?.toDate === "function") return ts.toDate().toISOString();
     if (typeof ts?.seconds === "number") return new Date(ts.seconds * 1000).toISOString();
+    if (typeof ts?._seconds === "number") return new Date(ts._seconds * 1000).toISOString();
     const d = new Date(ts);
     return isNaN(+d) ? null : d.toISOString();
-  } catch {
-    return null;
-  }
+  } catch { return null; }
 }
 function tsMs(ts: any) {
   const iso = toISO(ts);

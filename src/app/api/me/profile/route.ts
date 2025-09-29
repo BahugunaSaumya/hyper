@@ -1,3 +1,4 @@
+// src/app/api/me/profile/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { getDb, getAuth } from "@/lib/firebaseAdmin";
 import * as cache from "@/lib/cache";
@@ -22,6 +23,61 @@ async function getUidFromReq(req: NextRequest) {
   return { uid: decoded.uid, email: decoded.email || null };
 }
 
+function cleanStr(v: any) {
+  return typeof v === "string" ? v.trim() : "";
+}
+
+function normalizeAddress(raw: any = {}) {
+  // Accept multiple shapes coming from the client
+  const street = cleanStr(raw.street ?? raw.addr1);
+  const city = cleanStr(raw.city);
+  const state = cleanStr(raw.state);
+  const phone = cleanStr(raw.phone);
+  const name = cleanStr(raw.name);
+  const country = cleanStr(raw.country) || "IN";
+
+  // Accept pin/pincode/postal/postalCode and unify
+  const p =
+    cleanStr(raw.postal) ||
+    cleanStr(raw.postalCode) ||
+    cleanStr(raw.pin) ||
+    cleanStr(raw.pincode);
+
+  return {
+    name,
+    phone,
+    street,
+    city,
+    state,
+    postal: p,       // what the UI reads
+    postalCode: p,   // compatibility (old writes)
+    country,
+  };
+}
+
+function normalizeDocForResponse(doc: any) {
+  const user = doc?.user || {
+    name: cleanStr(doc?.name),
+    email: cleanStr(doc?.email),
+    phone: cleanStr(doc?.phone),
+  };
+
+  // ensure postal is present even if only postalCode exists in DB
+  const addr = doc?.address || {};
+  const addrNorm = {
+    name: cleanStr(addr.name),
+    phone: cleanStr(addr.phone),
+    street: cleanStr(addr.street),
+    city: cleanStr(addr.city),
+    state: cleanStr(addr.state),
+    postal: cleanStr(addr.postal) || cleanStr(addr.postalCode),
+    postalCode: cleanStr(addr.postalCode) || cleanStr(addr.postal),
+    country: cleanStr(addr.country) || "IN",
+  };
+
+  return { id: doc?.id, user, address: addrNorm, updatedAt: doc?.updatedAt || null, email: doc?.email || null };
+}
+
 export async function GET(req: NextRequest) {
   const id = await getUidFromReq(req);
   if ("error" in id) return id.error;
@@ -32,8 +88,10 @@ export async function GET(req: NextRequest) {
 
   const payload = await cache.remember<Record<string, any> | null>(k, TTL_MS, SWR_MS, async () => {
     const db = getDb();
-    const doc = await db.collection("users").doc(id.uid).get();
-    return doc.exists ? ({ id: doc.id, ...doc.data() }) : null;
+    const snap = await db.collection("users").doc(id.uid).get();
+    if (!snap.exists) return null;
+    const data = { id: snap.id, ...snap.data() };
+    return normalizeDocForResponse(data);
   });
 
   if (!payload) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -52,32 +110,42 @@ export async function PUT(req: NextRequest) {
   const id = await getUidFromReq(req);
   if ("error" in id) return id.error;
 
-  const db = getDb();
-  const body = await req.json().catch(() => ({}));
-  const incoming = (body?.address ?? {}) as Record<string, any>;
+  // ✅ Read the body ONCE
+  const body = await req.json().catch(() => ({} as any));
+  console.log("[/api/me/profile] PUT body:", body);
 
-  const clean = (v: any) => (typeof v === "string" ? v.trim() : "");
-  const address = {
-    name: clean(incoming.name),
-    phone: clean(incoming.phone),
-    street: clean(incoming.street),
-    city: clean(incoming.city),
-    state: clean(incoming.state),
-    postalCode: clean(incoming.postalCode || incoming.pin || incoming.pincode),
-    country: incoming.country || "IN",
+  const incomingUser = body?.user || {};
+  const userPatch = {
+    name: cleanStr(incomingUser.name),
+    email: cleanStr(incomingUser.email) || cleanStr(id.email),
+    phone: cleanStr(incomingUser.phone),
   };
 
+  // normalize & unify address keys
+  const address = normalizeAddress(body?.address || body);
+
+  // also keep top-level email + emailLower for querying
+  const email = userPatch.email || id.email || null;
+  const emailLower = email ? email.toLowerCase() : null;
+
+  const db = getDb();
   await db.collection("users").doc(id.uid).set(
     {
-      email: id.email || null,
+      user: userPatch,
+      email,
+      emailLower,
       address,
       updatedAt: new Date().toISOString(),
     },
     { merge: true }
   );
 
-  // Invalidate profile cache after write
+  // Bust cache so subsequent GET returns fresh data
   cache.del(keyFor(id.uid));
 
-  return NextResponse.json({ ok: true, address }, { status: 200 });
+  // Read back fresh doc to return normalized payload
+  const snap = await db.collection("users").doc(id.uid).get();
+  const fresh = snap.exists ? normalizeDocForResponse({ id: snap.id, ...snap.data() }) : null;
+
+  return NextResponse.json({ ok: true, ...fresh }, { status: 200 });
 }

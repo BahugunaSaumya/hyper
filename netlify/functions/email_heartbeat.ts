@@ -4,8 +4,8 @@ import { Resend } from "resend";
 import admin from "firebase-admin";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "orders@yourdomain.com";
-const SITE_NAME = process.env.SITE_NAME || "Your Store";
+const ADMIN_EMAIL = process.env.EMAIL_ADMIN || "orders@yourdomain.com";
+const SITE_NAME = process.env.STORE_NAME || "Your Store";
 
 // Minimal Firebase Admin init (avoid re-init in dev)
 if (!admin.apps.length) {
