@@ -18,6 +18,6 @@ SECRETS_SCAN_OMIT_KEYS = "NEXT_PUBLIC_FIREBASE_API_KEY,NEXT_PUBLIC_FIREBASE_AUTH
 
 # Omit *both* the repo copy (if any) and Next build copy
 SECRETS_SCAN_OMIT_PATHS = "public/assets/admin_files/iframe.html,.next/assets/admin_files/iframe.html,.next/**/admin_files/iframe.html"
-[build.environment]
+
 SECRETS_SCAN_OMIT_KEYS = "NEXT_PUBLIC_RAZORPAY_KEY_ID,RAZORPAY_KEY_ID,RAZORPAY_KEY_SECRET"
 SECRETS_SCAN_OMIT_PATHS = ".next/**"
