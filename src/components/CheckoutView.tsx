@@ -306,7 +306,6 @@ export default function CheckoutView() {
         country: "IN",
       },
     };
-console.log("Saving profile payload:", payload);
 
     try {
       setSavingProfile(true);
@@ -378,7 +377,6 @@ console.log("Saving profile payload:", payload);
         clientTotals: { subtotal, shipping, total, currency: "INR" }, // hint only
         notes: { source: "checkout-page" },
       };
-      console.log("[checkout] sending to /api/razorpay-order:", orderInitPayload);
 
       const res = await fetch("/api/razorpay-order", {
         method: "POST",
@@ -396,13 +394,30 @@ console.log("Saving profile payload:", payload);
       // If server created a draft order in Firestore, capture it for verify
       const draftOrderId: string | undefined = data.orderId;
 
+      // ---------- ROBUST NON-HANGING RZP FLOW ----------
+      let closed = false;
+      const endWait = (msg?: string) => {
+        if (closed) return;
+        closed = true;
+        stopWait();
+        if (msg) alert(msg);
+      };
+
       const options = {
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID as string,
         amount: data.amount ?? total * 100, // prefer server amount
         currency: data.currency ?? "INR",
         name: "HYPER MMA",
         description: "Order Payment",
         order_id: data.id,
+
+        // Always called when modal is dismissed for ANY reason
+        modal: {
+          ondismiss: () => endWait(),
+          escape: true,
+          confirm_close: false,
+        },
+
         handler: async (response: any) => {
           try {
             stepWait("verifying payment…");
@@ -411,7 +426,7 @@ console.log("Saving profile payload:", payload);
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 ...response,
-                orderId: draftOrderId, // lets server mark paid + email idempotently
+                orderId: draftOrderId,
                 customer: { name: nameFromState(), email, phone },
                 items: itemsForOrder,
                 total: Math.round(total * 100), // paise (hint only)
@@ -423,14 +438,12 @@ console.log("Saving profile payload:", payload);
             const verifyData = await verifyRes.json();
 
             if (!verifyData?.success) {
-              stopWait();
-              alert("Payment verification failed. Order not saved.");
-              return;
+              return endWait("Payment verification failed. Order not saved.");
             }
 
             stepWait("finalizing your order…");
 
-            // If server already created & finalized the order, only store snapshot (no duplicate client create)
+            // If server already created & finalized the order, only store snapshot
             if (verifyData.orderId) {
               try {
                 const snapshot = {
@@ -451,36 +464,40 @@ console.log("Saving profile payload:", payload);
                 console.warn("[checkout] failed to write lastOrderSnapshot:", e);
               }
             } else {
-              // Fallback: your existing Firestore create (kept intact)
+              // Fallback: client-side create
               await saveOrderToFirestore(response);
             }
 
             clear();
-            stopWait();
+            endWait();
             router.push(`/thank-you?payment_id=${response.razorpay_payment_id}`);
           } catch (err) {
             console.error(err);
-            stopWait();
-            alert("Payment verification failed. Order not saved.");
+            endWait("Payment verification failed. Order not saved.");
           }
         },
+
         prefill: {
           name: nameFromState(),
           email,
           contact: phone,
         },
         theme: { color: "#f472b6" },
-      };
+      } as any;
 
       const rzp = new (window as any).Razorpay(options);
-      rzp.on?.("modal.closed", () => stopWait());
+
+      // Payment failure callback (card decline, auth fail, etc.)
       rzp.on?.("payment.failed", () => {
-        stopWait();
-        alert("Payment failed or cancelled. Please try again.");
+        endWait("Payment failed or cancelled. Please try again.");
       });
 
       rzp.open();
       stepWait("waiting for payment… complete in the Razorpay window");
+
+      // Watchdog: if nothing fires (edge cases), clear overlay after 3 minutes
+      setTimeout(() => endWait(), 180000);
+      // ---------- /ROBUST FLOW ----------
     } catch (e) {
       console.error(e);
       stopWait();
@@ -527,7 +544,6 @@ console.log("Saving profile payload:", payload);
     try {
       stepWait("saving your order…");
       const orderId = await createOrder(payload);
-      console.log("[checkout] order saved:", orderId);
 
       try {
         const snapshot = {
@@ -788,7 +804,6 @@ async function devPing() {
       amounts: { subtotal: 0, shipping: 0, total: 0, currency: "INR" },
       status: "created",
     } as any);
-    console.log("[checkout] dev ping ok — order id:", pingId);
     alert(`Firestore OK. Dev ping order id: ${pingId}`);
   } catch (e) {
     console.error("[checkout] dev ping failed:", e);

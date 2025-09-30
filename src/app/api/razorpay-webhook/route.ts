@@ -33,7 +33,6 @@ export async function POST(req: NextRequest) {
     }
 
     const payload = JSON.parse(rawBody);
-    console.log("[webhook] verified event:", payload.event);
 
     if (payload.event === "payment.captured") {
       const { order_id, id: payment_id } = payload.payload.payment.entity;

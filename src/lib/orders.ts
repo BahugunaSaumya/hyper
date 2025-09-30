@@ -22,11 +22,9 @@ export type OrderPayload = {
 };
 
 export async function createOrder(p: OrderPayload) {
-  console.log("[checkout] creating order in Firestore…", p);
   const ref = await addDoc(collection(db, "orders"), {
     ...p,
     createdAt: serverTimestamp(),
   });
-  console.log("[checkout] order created with id:", ref.id);
   return ref.id;
 }

@@ -112,7 +112,6 @@ export async function PUT(req: NextRequest) {
 
   // ✅ Read the body ONCE
   const body = await req.json().catch(() => ({} as any));
-  console.log("[/api/me/profile] PUT body:", body);
 
   const incomingUser = body?.user || {};
   const userPatch = {

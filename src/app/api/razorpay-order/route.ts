@@ -107,12 +107,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
     }
 
-    console.log("[razorpay-order] incoming:", {
-      itemsLen: Array.isArray(body?.items) ? body!.items.length : 0,
-      hasCustomer: !!body?.customer,
-      hintTotals: body?.clientTotals,
-    });
-
     if (!Array.isArray(body?.items) || body.items.length === 0) {
       console.warn("[razorpay-order] No items on request");
       return NextResponse.json({ error: "No items" }, { status: 400 });
@@ -153,10 +147,7 @@ export async function POST(req: NextRequest) {
       };
     });
 
-    console.log(
-      "[razorpay-order] serverItems:",
-      serverItems.map((s) => ({ id: s.id, qty: s.qty, unit: s.unitPrice }))
-    );
+    
 
     const subtotalRupees = serverItems.reduce((sum, it) => sum + it.unitPrice * it.qty, 0);
 
@@ -238,8 +229,7 @@ export async function POST(req: NextRequest) {
       notes: { ...(body.notes || {}), orderId },
     });
 
-    console.log("[razorpay-order] created:", { rzpId: rzpOrder.id, amountPaise, orderId });
-
+ 
     return NextResponse.json(
       {
         ...rzpOrder,

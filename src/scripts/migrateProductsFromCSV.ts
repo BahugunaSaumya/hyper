@@ -122,13 +122,11 @@ async function main() {
     // Commit every 400 ops to avoid batch limit
     if (count % 400 === 0) {
       await batch.commit();
-      console.log(`Committed ${count} products...`);
     }
   }
 
   // Final commit if any pending
   await batch.commit();
-  console.log(`Done. Upserted ${count} products from ${path.basename(csvPath)}.`);
 }
 
 main().catch(err => {
