@@ -129,7 +129,7 @@ export default function VideoSection() {
       {/* Intro text */}
       <div className="max-w-5xl mx-auto px-6 pt-4">
         </div>
-        <h2 className="p-7 pt-[-2000px] text-[22px] sm:text-[46px] md:text-[58px] leading-[1.05] font-extrabold uppercase tracking-tight font-tile">
+        <h2 className="p-[5%] text-[21px] sm:text-[56px] md:text-[58px] leading-[1.05] font-extrabold uppercase tracking-tight font-tile">
           Why We Created Hyper
         </h2>
         <div className="mt-[-20px] space-y-6 max-w-5xl text-[13px] md:text-[14px] leading-relaxed text-black/80 p-3">
