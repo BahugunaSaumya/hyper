@@ -18,6 +18,8 @@ type Product = {
   image?: string;
   price?: any;
   sizes?: string[] | string;
+  new_launch: boolean,
+  categories: string[],
 } & Dict;
 
 type Editable = Partial<Omit<Product, "id">> & { id?: string };
@@ -418,6 +420,27 @@ export default function AdminProductsGridPage() {
                     onChange={(e) => draftSet("sizes", e.target.value)}
                   />
                 </Field>
+                <Field label="New Launch (Yes/No)">
+                  <select
+                    className="w-full border rounded px-3 py-2"
+                    value={draft.new_launch ? "1" : "0"}
+                    onChange={(e) => draftSet("new_launch", e.target.value === "1")}
+                  >
+                    <option value="0">No</option>
+                    <option value="1">Yes</option>
+                  </select>
+                </Field>
+
+                {/* <Field label="Categories (comma separated)">
+                  <input
+                    className="w-full border rounded px-3 py-2"
+                    placeholder="e.g. T-shirts, Men, Summer"
+                    value={Array.isArray(draft.category) ? draft.category.join(", ") : (draft.category || "")}
+                    onChange={(e) =>
+                      draftSet("categories", e.target.value.split(",").map((s) => s.trim()).filter(Boolean))
+                    }
+                  />
+                </Field> */}
 
                 <div className="flex items-center gap-2">
                   <button

@@ -81,8 +81,8 @@ export default function ProductTile({
   const imgRef = useRef<HTMLImageElement | null>(null);
 
   const content = (
-    <div className={`rounded-2xl bg-white p-4 sm:p-5 shadow-sm hover:shadow-md transition ${className}`}>
-      <div className="rounded-xl bg-neutral-100 overflow-hidden flex items-center justify-center aspect-square">
+    <div className={`rounded-2xl bg-white hover:shadow-md transition`}>
+      <div className="bg-neutral-100 overflow-hidden flex items-center justify-center aspect-square">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img ref={imgRef} src={image} alt={title} className="w-full h-full object-contain" />
       </div>

@@ -6,9 +6,11 @@ export type Product = {
   "discount percentage": string;
   "presale price": string;
   "presale price percentage": string;
-  category: string;
+  gender: string;
   sizes: string;
   image: string;
+  new_launch?: boolean;
+  categories?: string[];
   rating?: string;
 };
 
@@ -20,9 +22,11 @@ export type ProductModel = {
   discountPct: string;
   presalePrice: string;
   presalePct: string;
-  category: string;
+  gender: string;
   sizes: string[];
   image: string;
+  new_launch?: boolean;
+  categories?: string[];
   rating: number | null;
 };
 
@@ -59,9 +63,11 @@ export function mapProducts(raw: Product[]): ProductModel[] {
     discountPct: r["discount percentage"] || "",
     presalePrice: r["presale price"] || "",
     presalePct: r["presale price percentage"] || "",
-    category: r["category"] || "",
+    gender: r["gender"] || "",
     sizes: (r.sizes || "").split("|").filter(Boolean),
     image: r.image || "",
+    new_launch: r["new_launch"] ?? false,
+    categories: (r["categories"] || "").split("|").map((c) => c.trim()).filter(Boolean),
     rating: r.rating ? Number(r.rating) : null,
   }));
 }

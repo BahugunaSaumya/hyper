@@ -1,4 +1,43 @@
-node_modules
-.next
+node_modules/
+.next/
 next
 .env.local
+
+# Node
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+package-lock.json
+.pnpm-debug.log*
+
+# Next.js build output
+out/
+dist/
+app-build-manifest.json
+build-manifest.json
+react-loadable-manifest.json
+
+# Local environment variables
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Mac & system files
+.DS_Store
+Thumbs.db
+
+# Logs
+logs
+*.log
+
+# Editor files
+.vscode/
+.idea/
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Optional: if you use Firebase, Vercel, etc.
+.firebase/
+.vercel/
