@@ -37,16 +37,15 @@ export default function FooterSection() {
           <div className="flex flex-col gap-4 md:w-4/12">
             <div className="mt-8 md:mt-0 mb-5 font-bold">Help</div>
             <div>Whatsapp Us: +91 8077925417</div>
-            <div>Email Us : Hyperfitness.in</div>
+            <div>Email Us :  hyperfitness.in@gmail.com</div>
           </div>
 
           <div className="flex flex-col gap-4 md:w-4/12">
             <div className="mt-8 md:mt-0 mb-5 font-bold">Policies</div>
-            <a href="/return-and-exchange" className="hover:underline underline-offset-4">Return & Exchange</a>
-            <a href="/return-and-exchange" className="hover:underline underline-offset-4">Refund & Return Policy</a>
-            <a href="/return-and-exchange" className="hover:underline underline-offset-4">Shipping Policy</a>
-            <a href="/return-and-exchange" className="hover:underline underline-offset-4">Privacy Policy</a>
-            <a href="/terms-and-condition" className="hover:underline underline-offset-4">Terms of Service</a>
+            <a href="/refund-and-return" className="hover:underline underline-offset-4">Refund & Return Policy</a>
+            <a href="/shipping" className="hover:underline underline-offset-4">Shipping Policy</a>
+            <a href="/privacy" className="hover:underline underline-offset-4">Privacy Policy</a>
+            <a href="/terms-of-service" className="hover:underline underline-offset-4">Terms of Service</a>
           </div>
 
           <div className="inline-flex items-center md:items-start gap-3 mt-8 md:mt-0 md:w-2/12">
