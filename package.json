@@ -6,10 +6,20 @@
     "dev": "next dev ",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "orders:backup": "node scripts/backup-orders.js",
+    "orders:purge:dry": "node scripts/purge-nonlive.js --dry-run",
+    "orders:purge": "node scripts/purge-nonlive.js --apply",
+    "orders:test": "node scripts/test-firestore.js",
+    "orders:repair": "node scripts/repair-orders.js --apply",
+    "orders:deleteByEmail:dry": "node scripts/delete-orders-by-email.js --email=\"user@example.com\"",
+    "orders:deleteByEmail": "node scripts/delete-orders-by-email.js --email=\"user@example.com\" --apply"
   },
   "dependencies": {
+    "classx": "^0.2.0",
+    "clsx": "^2.1.1",
     "crypto-js": "^4.2.0",
+    "dotenv": "^17.2.3",
     "firebase": "^12.2.1",
     "firebase-admin": "^13.5.0",
     "framer-motion": "^12.23.16",

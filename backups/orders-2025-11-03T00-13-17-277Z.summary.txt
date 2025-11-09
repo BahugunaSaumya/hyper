@@ -1,0 +1,12 @@
+Total orders: 90
+
+[By status]
+- created: 35
+- paid: 55
+
+[By mode]
+- live: 55
+- unknown: 21
+- mock: 14
+
+Missing payment.mode: 21
