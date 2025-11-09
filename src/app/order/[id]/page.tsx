@@ -10,46 +10,56 @@ type OrderDoc = {
   id: string;
   status?: string;
   createdAt?: any;
-  placedAt?: string;
-  customer?: { name?: string; email?: string; phone?: string };
-  shipping?: { country?: string; state?: string; city?: string; postal?: string; addr1?: string; addr2?: string };
-  shippingAddress?: any;
-  items?: Array<{ id?: string; title?: string; size?: string; qty?: number; unitPrice?: number; image?: string }>;
+  placedAt?: any;
+  updatedAt?: any;
+  customer?: { name?: string; email?: string; phone?: string; address?: any };
+  shipping?: any;            // may be address object OR a number (shipping cost)
+  shippingAddress?: any;     // legacy address container
+  items?: Array<{ id?: string; title?: string; size?: string; qty?: number; unitPrice?: number; price?: number; image?: string }>;
   amounts?: { subtotal?: number; shipping?: number; discount?: number; tax?: number; total?: number; currency?: string };
   totals?: { subtotal?: number; shipping?: number; discount?: number; tax?: number; total?: number; currency?: string };
-  paymentInfo?: Record<string, any>;
+  hintTotals?: { subtotal?: number; shipping?: number; discount?: number; tax?: number; total?: number; currency?: string };
+  paymentInfo?: any;         // may contain verifiedAt, notes.*, address.*, etc.
+  payment?: any;             // sometimes present with amount (in paise)
 };
 
-// ---- time helpers ----
-function toISO(ts: any): string | null {
+// ---------- Timestamp helpers ----------
+function toMillis(ts: any): number {
   try {
-    if (!ts) return null;
-    if (typeof ts?.toDate === "function") return ts.toDate().toISOString();
-    if (typeof ts?.seconds === "number") return new Date(ts.seconds * 1000).toISOString();
-    if (typeof ts?._seconds === "number") return new Date(ts._seconds * 1000).toISOString();
-    const d = new Date(ts);
-    return isNaN(+d) ? null : d.toISOString();
-  } catch {
-    return null;
-  }
+    if (!ts) return 0;
+    if (typeof ts === "number") {
+      if (ts > 0 && ts < 1e12) return ts * 1000; // seconds → ms
+      return ts;
+    }
+    if (typeof ts === "string") {
+      const ms = Date.parse(ts);
+      return Number.isFinite(ms) ? ms : 0;
+    }
+    if (ts instanceof Date) return ts.getTime();
+
+    // Firestore client Timestamp
+    if (typeof ts?.toMillis === "function") return ts.toMillis();
+    if (typeof ts?.toDate === "function") return ts.toDate().getTime();
+
+    // Firestore Admin/serialized
+    const seconds =
+      (typeof ts.seconds === "number" ? ts.seconds : undefined) ??
+      (typeof ts._seconds === "number" ? ts._seconds : undefined);
+    const nanos =
+      (typeof ts.nanoseconds === "number" ? ts.nanoseconds : undefined) ??
+      (typeof ts._nanoseconds === "number" ? ts._nanoseconds : undefined);
+    if (typeof seconds === "number") {
+      return seconds * 1000 + (typeof nanos === "number" ? Math.floor(nanos / 1e6) : 0);
+    }
+  } catch {}
+  return 0;
 }
 
 function toDateSafe(ts: any): Date | null {
-  if (!ts) return null;
-  try {
-    if (ts instanceof Date) return isNaN(ts.getTime()) ? null : ts;
-    if (typeof ts?.toDate === "function") {
-      const d = ts.toDate();
-      return isNaN(d.getTime()) ? null : d;
-    }
-    if (typeof ts?.seconds === "number") return new Date(ts.seconds * 1000);
-    if (typeof ts?._seconds === "number") return new Date(ts._seconds * 1000);
-    if (typeof ts === "number" || typeof ts === "string") {
-      const d = new Date(ts);
-      return isNaN(d.getTime()) ? null : d;
-    }
-  } catch { }
-  return null;
+  const ms = toMillis(ts);
+  if (!ms) return null;
+  const d = new Date(ms);
+  return isNaN(d.getTime()) ? null : d;
 }
 
 function formatDateTime(d: Date | null) {
@@ -79,27 +89,30 @@ function timeAgo(d: Date | null) {
 
 const formatINR = (n?: number) => "₹ " + Number(n || 0).toLocaleString("en-IN");
 
-// ---- display normalization ----
+// ---------- Totals (prefers amounts → totals → hintTotals; derives as needed) ----------
 function getDisplayTotals(order: OrderDoc) {
-  const b = (order?.amounts as any) || (order?.totals as any) || {};
+  const b: any =
+    (order?.amounts && Object.keys(order.amounts).length ? order.amounts : null) ??
+    (order?.totals && Object.keys(order.totals).length ? order.totals : null) ??
+    (order?.hintTotals && Object.keys(order.hintTotals).length ? order.hintTotals : null) ??
+    {};
 
-  // Try declared amounts first
   let subtotal = Number(b?.subtotal);
   let shipping = Number(b?.shipping);
   let discount = Number(b?.discount);
-  let tax = Number(b?.tax);
+  let tax = Number(b?.tax); // <- GST will be here
   let total = Number(b?.total);
-  const currency = b?.currency || (order as any)?.currency || "INR";
+  const currency = (b?.currency || (order as any)?.currency || "INR") as string;
 
-  // Fallback: derive subtotal from items (supports unitPrice in ₹ or price in paise)
+  // derive subtotal from items if needed
   const items = Array.isArray(order?.items) ? order.items : [];
   const derivedSubtotal = items.reduce((sum, it: any) => {
     const qty = Number(it?.qty ?? 1) || 1;
     const unit =
       typeof it?.unitPrice === "number"
-        ? it.unitPrice // rupees
+        ? it.unitPrice              // rupees
         : typeof it?.price === "number"
-          ? it.price / 100 // paise -> rupees
+          ? it.price / 100         // paise → rupees
           : 0;
     return sum + unit * qty;
   }, 0);
@@ -109,31 +122,97 @@ function getDisplayTotals(order: OrderDoc) {
   if (!(discount >= 0)) discount = 0;
   if (!(tax >= 0)) tax = 0;
 
-  // If total missing/zero, compose it from parts
+  // if no explicit total, compose it OR fallback to payment amount
   if (!(total > 0)) {
-    total = Math.max(0, subtotal + shipping + tax - discount);
+    const composed = Math.max(0, subtotal + shipping + tax - discount);
+    const payPaise = Number((order as any)?.payment?.amount ?? (order as any)?.paymentInfo?.amount);
+    const payRupees = !Number.isNaN(payPaise) && payPaise > 0 ? payPaise / 100 : 0;
+    total = Math.max(composed, payRupees);
   }
 
-  // Legacy: some really old docs store top-level total in paise
+  // ultra-legacy: top-level total in paise
   if (!(total > 0) && typeof (order as any)?.total === "number") {
     total = (order as any).total / 100;
-    if (!(subtotal > 0)) subtotal = derivedSubtotal; // keep a sane subtotal
+    if (!(subtotal > 0)) subtotal = derivedSubtotal;
   }
 
   return { subtotal, shipping, discount, tax, total, currency };
 }
 
+// ---------- Shipping normalization (robust) ----------
+const isNonEmpty = (v: any) => typeof v === "string" && v.trim().length > 0;
 
-function getShipping(order: OrderDoc) {
-  const a: any = order?.shipping || order?.shippingAddress || {};
-  return {
-    addr1: a.addr1 || a.line1 || "",
-    addr2: a.addr2 || a.line2 || "",
-    city: a.city || "",
-    state: a.state || "",
-    postal: a.postal || a.postalCode || "",
-    country: a.country || "",
-  };
+type ShipOut = { addr1?: string; addr2?: string; city?: string; state?: string; postal?: string; country?: string };
+
+function normalizeDirectShape(a: any): ShipOut {
+  if (!a || typeof a !== "object") return {};
+  const addr1   = a.addr1   ?? a.address1 ?? a.address_line1 ?? a.line1 ?? a.address ?? a.street ?? "";
+  const addr2   = a.addr2   ?? a.address2 ?? a.address_line2 ?? a.line2 ?? a.apartment ?? a.flat ?? a.street2 ?? "";
+  const city    = a.city    ?? a.town ?? a.locality ?? a.district ?? "";
+  const state   = a.state   ?? a.province ?? a.region ?? a.state_code ?? "";
+  const postal  = a.postal  ?? a.postalCode ?? a.postcode ?? a.zip ?? a.zipcode ?? a.pincode ?? "";
+  const country = (a.country ?? a.countryCode ?? a.country_code ?? "") as string; // keep original casing
+  return { addr1, addr2, city, state, postal, country };
+}
+
+function hasMeaningfulAddress(x: ShipOut | null | undefined) {
+  if (!x) return false;
+  const { addr1, addr2, city, state, postal, country } = x;
+  return [addr1, addr2, city, state, postal, country].some(isNonEmpty);
+}
+
+function getShipping(order: any): ShipOut | null {
+  if (!order) return null;
+
+  // 1) Current schema: shippingAddress object
+  if (order.shippingAddress && typeof order.shippingAddress === "object") {
+    const n = normalizeDirectShape(order.shippingAddress);
+    if (hasMeaningfulAddress(n)) return n;
+  }
+
+  // 2) Treat order.shipping as address only if it's an object (ignore numeric shipping cost)
+  if (order.shipping && typeof order.shipping === "object") {
+    const n = normalizeDirectShape(order.shipping.address || order.shipping);
+    if (hasMeaningfulAddress(n)) return n;
+  }
+
+  // 3) Other legacy/common locations
+  const candidates = [
+    order.address,
+    order.customer?.address,
+    order.customer?.shipping,
+    order.deliveryAddress,
+    order.fulfillment?.shippingAddress,
+    order.paymentInfo?.shipping,
+    order.paymentInfo?.address,
+    order.paymentInfo?.notes,
+    order.payment?.shipping,
+    order.payment?.address,
+    order.payment?.notes,
+    {
+      addr1: order.address1, addr2: order.address2,
+      city: order.city, state: order.state,
+      postal: order.postal || order.zipcode || order.pincode,
+      country: order.country,
+    },
+  ];
+
+  for (const c of candidates) {
+    if (!c) continue;
+    const n = normalizeDirectShape(c);
+    if (hasMeaningfulAddress(n)) return n;
+  }
+
+  // 4) Rare: address lines array fallback
+  if (Array.isArray(order.addressLines) && order.addressLines.length) {
+    return {
+      addr1: order.addressLines[0],
+      addr2: order.addressLines.slice(1).join(", "),
+      city: "", state: "", postal: "", country: "",
+    };
+  }
+
+  return null;
 }
 
 // Pretty-print values inside the Payment box
@@ -142,11 +221,7 @@ function prettyValue(v: any): string {
   if (d) return `${formatDateTime(d)} (${timeAgo(d)})`;
   if (v == null) return "—";
   if (typeof v === "object") {
-    try {
-      return JSON.stringify(v, null, 2);
-    } catch {
-      return String(v);
-    }
+    try { return JSON.stringify(v, null, 2); } catch { return String(v); }
   }
   return String(v);
 }
@@ -156,7 +231,7 @@ async function getJson(res: Response) {
 }
 
 export default function OrderDetailPage(props: { params: Promise<{ id: string }> }) {
-  // Unwrap the params Promise (Next.js 15 change)
+  // Unwrap Next 15 params promise
   const { id: orderId } = usePromise(props.params);
 
   const [loading, setLoading] = useState(true);
@@ -181,13 +256,12 @@ export default function OrderDetailPage(props: { params: Promise<{ id: string }>
         const u = new URL(ref);
         if (u.pathname.startsWith("/admin")) {
           setBack({ href: "/admin", label: "Back to Admin" });
-          return;
         }
       }
-    } catch { }
+    } catch {}
   }, [search]);
 
-  // Use checkout snapshot quickly if present
+  // Use checkout snapshot quickly if present (and matching)
   useEffect(() => {
     const snap = sessionStorage.getItem("lastOrderSnapshot");
     if (!snap) return;
@@ -207,7 +281,7 @@ export default function OrderDetailPage(props: { params: Promise<{ id: string }>
           status: o.status || "paid",
         });
       }
-    } catch { }
+    } catch {}
   }, [orderId]);
 
   // Load from API
@@ -236,7 +310,18 @@ export default function OrderDetailPage(props: { params: Promise<{ id: string }>
     return () => { mounted = false; };
   }, [orderId]);
 
-  const placedAt = useMemo(() => order?.placedAt || toISO(order?.createdAt) || null, [order]);
+  // Placed date: prefer placedAt → createdAt → paymentInfo.verifiedAt → updatedAt
+  const placedDate = useMemo<Date | null>(() => {
+    if (!order) return null;
+    return (
+      toDateSafe(order.placedAt) ||
+      toDateSafe(order.createdAt) ||
+      toDateSafe(order?.paymentInfo?.verifiedAt) ||
+      toDateSafe(order.updatedAt) ||
+      null
+    );
+  }, [order]);
+
   const totals = useMemo(() => (order ? getDisplayTotals(order) : null), [order]);
   const ship = useMemo(() => (order ? getShipping(order) : null), [order]);
 
@@ -278,7 +363,7 @@ export default function OrderDetailPage(props: { params: Promise<{ id: string }>
               </div>
               <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
                 <div><span className="text-gray-600">Status:</span> <b>{order.status || "created"}</b></div>
-                <div><span className="text-gray-600">Placed:</span> {placedAt ? new Date(placedAt).toLocaleString() : "—"}</div>
+                <div><span className="text-gray-600">Placed:</span> {formatDateTime(placedDate)}</div>
                 <div><span className="text-gray-600">Customer:</span> {order.customer?.name || "—"}</div>
                 <div><span className="text-gray-600">Email:</span> {order.customer?.email || "—"}</div>
               </div>
@@ -287,10 +372,16 @@ export default function OrderDetailPage(props: { params: Promise<{ id: string }>
             <div className="rounded-xl border p-4">
               <div className="text-sm text-gray-600 mb-2">Shipping Address</div>
               <div className="text-sm">
-                <div>{ship?.addr1 || "—"}</div>
-                {ship?.addr2 ? <div>{ship.addr2}</div> : null}
-                <div>{[ship?.city, ship?.postal].filter(Boolean).join(" ")}</div>
-                <div>{[ship?.state, ship?.country].filter(Boolean).join(", ")}</div>
+                {ship ? (
+                  <>
+                    <div>{ship.addr1 || "—"}</div>
+                    {ship.addr2 ? <div>{ship.addr2}</div> : null}
+                    <div>{[ship.city, ship.postal].filter(Boolean).join(" ")}</div>
+                    <div>{[ship.state, ship.country].filter(Boolean).join(", ")}</div>
+                  </>
+                ) : (
+                  <div className="text-gray-500">No shipping address on file.</div>
+                )}
               </div>
             </div>
 
@@ -302,15 +393,19 @@ export default function OrderDetailPage(props: { params: Promise<{ id: string }>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
-                  {(order.items || []).map((it, i) => (
-                    <tr key={i}>
-                      <Td>{it.title || it.id || "—"}</Td>
-                      <Td>{(it as any).size || "—"}</Td>
-                      <Td>{it.qty ?? "—"}</Td>
-                      <Td>{formatINR(it.unitPrice)}</Td>
-                      <Td>{formatINR((it.unitPrice || 0) * (it.qty || 0))}</Td>
-                    </tr>
-                  ))}
+                  {(order.items || []).map((it, i) => {
+                    const qty = Number(it.qty ?? 0);
+                    const unit = typeof it.unitPrice === "number" ? it.unitPrice : (typeof (it as any).price === "number" ? (it as any).price / 100 : 0);
+                    return (
+                      <tr key={i}>
+                        <Td>{it.title || it.id || "—"}</Td>
+                        <Td>{(it as any).size || "—"}</Td>
+                        <Td>{qty || "—"}</Td>
+                        <Td>{formatINR(unit)}</Td>
+                        <Td>{formatINR(unit * qty)}</Td>
+                      </tr>
+                    );
+                  })}
                   {(!order.items || !order.items.length) && (
                     <tr><Td colSpan={5} className="text-gray-500">No items.</Td></tr>
                   )}
@@ -324,8 +419,9 @@ export default function OrderDetailPage(props: { params: Promise<{ id: string }>
               <div className="text-sm text-gray-600 mb-2">Summary</div>
               <Row label="Subtotal" value={formatINR(totals?.subtotal)} />
               <Row label="Shipping" value={formatINR(totals?.shipping)} />
+              {/* 👇 label changed to GST (5%) */}
+              {totals?.tax ? <Row label="GST (5%)" value={formatINR(totals?.tax)} /> : null}
               {totals?.discount ? <Row label="Discount" value={`-${formatINR(totals?.discount)}`} /> : null}
-              {totals?.tax ? <Row label="Tax" value={formatINR(totals?.tax)} /> : null}
               <div className="flex justify-between font-semibold text-base mt-2">
                 <span>Total</span><span>{formatINR(totals?.total)}</span>
               </div>

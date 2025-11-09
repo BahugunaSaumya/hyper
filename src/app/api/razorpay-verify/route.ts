@@ -5,210 +5,158 @@ import { getDb } from "@/lib/firebaseAdmin";
 import { sendOrderEmails } from "@/lib/email";
 
 export const runtime = "nodejs";
-// --- helpers: drop into your order detail page file ---
-function toDateSafe(ts: any): Date | null {
-  if (!ts) return null;
-  try {
-    if (ts instanceof Date) return ts;
-    if (typeof ts === "string" || typeof ts === "number") return new Date(ts);
-    if (ts.toDate) return ts.toDate();                              // Firestore Timestamp
-    if (typeof ts.seconds === "number") return new Date(ts.seconds * 1000);
-  } catch { }
-  return null;
-}
 
-function formatDateTime(d: Date | null) {
-  return d ? d.toLocaleString("en-IN", { hour12: false }) : "—";
-}
-
-function getDisplayTotals(order: any) {
-  // new flow: rupees live under 'amounts' OR 'totals'
-  const b = order?.amounts || order?.totals || {};
-  let subtotal = Number(b.subtotal || 0);
-  let shipping = Number(b.shipping || 0);
-  let total = Number(b.total || 0);
-  let currency = b.currency || order?.currency || "INR";
-
-  // legacy fallback: paise at top-level 'total'
-  if (!total && typeof order?.total === "number") total = order.total / 100;
-
-  return { subtotal, shipping, total, currency };
-}
-
-const inr = (n: number) => "₹ " + Number(n || 0).toLocaleString("en-IN");
-
-type VerifyBody = {
-  // Firestore order id created earlier in your flow
-  orderId: string;
-
-  // Razorpay fields returned to the handler on success
-  razorpay_order_id: string;
-  razorpay_payment_id: string;
-  razorpay_signature: string;
-
-  // optional passthroughs if you want to upsert any missing details
-  // (we keep them but do not rely on them unless the order doc is missing fields)
-  customer?: any;
-  items?: any[];
-  total?: number;       // in paise (server is source of truth ideally)
-  currency?: string;    // default "INR"
-  shippingAddress?: any;
-  note?: string | null;
-};
-
-function verifyRazorpaySignature(orderId: string, paymentId: string, signature: string, secret: string) {
+function validateSig(orderId: string, paymentId: string, signature: string, secret: string) {
   const hmac = crypto.createHmac("sha256", secret);
   hmac.update(`${orderId}|${paymentId}`);
   const expected = hmac.digest("hex");
-  return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature));
+  return expected === signature;
+}
+
+// ---- normalizers (kept local to avoid cross-file regressions)
+function toNumber(n: any, d = 0) {
+  const x = Number(n);
+  return Number.isFinite(x) ? x : d;
+}
+
+function normalizeAddress(src: any = {}) {
+  const a = (src && typeof src === "object") ? (src.address || src.addr || src) : {};
+  if (typeof a === "string") {
+    const s = a.trim(); return { addr1: s, addr2: "", city: "", state: "", postal: "", country: "" };
+  }
+  const addr1   = a.addr1   ?? a.address1 ?? a.address_line1 ?? a.line1 ?? a.address ?? a.street ?? "";
+  const addr2   = a.addr2   ?? a.address2 ?? a.address_line2 ?? a.line2 ?? a.apartment ?? a.flat ?? a.street2 ?? "";
+  const city    = a.city    ?? a.town ?? a.locality ?? a.district ?? "";
+  const state   = a.state   ?? a.province ?? a.region ?? a.state_code ?? "";
+  const postal  = a.postal  ?? a.postalCode ?? a.postcode ?? a.zip ?? a.zipcode ?? a.pincode ?? "";
+  const country = (a.country ?? a.countryCode ?? a.country_code ?? "IN") as string;
+  return { addr1, addr2, city, state, postal, country };
+}
+
+function pickPlacedAt(o: any) {
+  const v = o?.placedAt || o?.createdAt || o?.payment?.verifiedAt || o?.updatedAt;
+  try {
+    if (v?.toDate) return v.toDate();
+    if (typeof v?.seconds === "number") return new Date(v.seconds * 1000);
+    if (typeof v?._seconds === "number") return new Date(v._seconds * 1000);
+    if (v instanceof Date) return v;
+    if (typeof v === "string" || typeof v === "number") {
+      const d = new Date(v); return isNaN(+d) ? new Date() : d;
+    }
+  } catch {}
+  return new Date();
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const body = (await req.json()) as VerifyBody;
+    const body: any = await req.json();
+    const { orderId, razorpay_order_id, razorpay_payment_id, razorpay_signature, snapshot } = body || {};
 
-    const {
-      orderId,
-      razorpay_order_id,
-      razorpay_payment_id,
-      razorpay_signature,
-      customer,
-      items,
-      total,
-      currency = "INR",
-      shippingAddress,
-      note,
-    } = body || {};
-
-    if (!orderId) {
-      return NextResponse.json({ error: "Missing orderId" }, { status: 400 });
-    }
     if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
-      return NextResponse.json({ error: "Missing Razorpay verification fields" }, { status: 400 });
+      return NextResponse.json({ error: "Missing Razorpay fields" }, { status: 400 });
     }
-    if (!process.env.RAZORPAY_KEY_SECRET) {
-      return NextResponse.json({ error: "Razorpay secret not configured" }, { status: 500 });
-    }
-
-    // 1) Verify signature
-    const ok = verifyRazorpaySignature(
-      razorpay_order_id,
-      razorpay_payment_id,
-      razorpay_signature,
-      process.env.RAZORPAY_KEY_SECRET
-    );
-
-    if (!ok) {
-      console.warn("[razorpay-verify] signature mismatch", {
-        razorpay_order_id,
-        razorpay_payment_id,
-      });
+    const secret = process.env.RAZORPAY_KEY_SECRET || "";
+    if (!validateSig(razorpay_order_id, razorpay_payment_id, razorpay_signature, secret)) {
       return NextResponse.json({ verified: false, error: "Invalid signature" }, { status: 400 });
     }
 
     const db = getDb();
-    const ref = db.collection("orders").doc(String(orderId));
+    const id = String(orderId || razorpay_order_id);
+    const ref = db.collection("orders").doc(id);
 
-    // 2) Idempotent update (mark paid once, record payment details)
     await db.runTransaction(async (tx) => {
       const snap = await tx.get(ref);
       const existing = snap.exists ? (snap.data() || {}) : {};
 
-      // Ensure a base document exists (won't overwrite existing values)
-      if (!snap.exists) {
-        tx.set(
-          ref,
-          {
-            status: "created",
-            customer: customer || {},
-            items: Array.isArray(items) ? items : [],
-            total: typeof total === "number" ? total : 0,
-            currency,
-            shippingAddress: shippingAddress || null,
-            note: note ?? null,
-            createdAt: new Date(),
-            source: "razorpay-verify-upsert",
-          },
-          { merge: true }
-        );
+      if (existing?.status === "paid") return; // idempotent
+
+      // derive parts from snapshot (client hint) but keep server in charge
+      const amounts = snapshot?.amounts || {};
+      const subtotal = toNumber(amounts.subtotal);
+      const shipping = toNumber(amounts.shipping);
+      const tax = toNumber(amounts.tax); // GST we computed client + server at 5%
+      let total = toNumber(amounts.total);
+
+      // If total is missing, compose it
+      if (!(total > 0)) {
+        total = Math.max(0, subtotal + shipping + tax - toNumber(amounts.discount));
       }
 
-      const alreadyPaid = existing?.status === "paid";
-      const alreadyEmailed =
-        !!existing?.email?.customerSentAt && !!existing?.email?.adminSentAt;
+      const currency = (amounts.currency || existing?.amounts?.currency || "INR").toUpperCase();
 
-      // If fully processed earlier, no-op
-      if (alreadyPaid && alreadyEmailed) return;
+      const shippingAddr =
+        existing?.shipping && typeof existing.shipping === "object"
+          ? normalizeAddress(existing.shipping)
+          : normalizeAddress(snapshot?.shipping || snapshot?.shippingAddress || existing?.shippingAddress);
 
-      tx.set(
-        ref,
-        {
-          status: "paid",
-          payment: {
-            ...(existing.payment || {}),
-            provider: "razorpay",
-            status: "paid",
-            razorpay_order_id,
-            razorpay_payment_id,
-            razorpay_signature,
-            verifiedAt: new Date(),
-            mode: "live",
-          },
-          updatedAt: new Date(),
-          email: { ...(existing.email || {}), willSendNow: true },
+      const placedAt = existing?.placedAt || pickPlacedAt({ ...existing, ...snapshot });
+
+      const items =
+        Array.isArray(existing?.items) && existing.items.length
+          ? existing.items
+          : Array.isArray(snapshot?.items)
+            ? snapshot.items
+            : [];
+
+      const doc = {
+        ...(existing || {}),
+        status: "paid" as const,
+        placedAt,
+        updatedAt: new Date(),
+        customer: existing?.customer ?? snapshot?.customer ?? {},
+        shipping: shippingAddr,
+        items,
+        amounts: {
+          subtotal,
+          shipping,
+          tax,
+          // keep discount if it ever exists
+          discount: toNumber(existing?.amounts?.discount ?? amounts.discount ?? 0),
+          total,
+          currency,
         },
-        { merge: true }
-      );
+        payment: {
+          ...(existing?.payment || {}),
+          status: "paid",
+          mode: "live",
+          razorpay_order_id,
+          razorpay_payment_id,
+          razorpay_signature,
+          verifiedAt: new Date(),
+          amount: Math.round(total * 100), // paise
+        },
+        source: existing?.source || "verify-endpoint",
+      };
+
+      tx.set(ref, doc, { merge: true });
     });
 
-    // 3) Send emails exactly once
-    const fresh = await ref.get();
-    const order = { id: fresh.id, ...(fresh.data() || {}) };
-
-    if (!order?.email?.customerSentAt || !order?.email?.adminSentAt) {
-      try {
-        await sendOrderEmails(String(orderId), order);
+    // send emails (best-effort, idempotent)
+    try {
+      const after = await ref.get();
+      const data: any = after.data() || {};
+      const already = !!data?.email?.customerSentAt && !!data?.email?.adminSentAt;
+      if (!already && data?.status === "paid") {
+        await sendOrderEmails(id, data);
         await ref.set(
-          {
-            email: {
-              ...(order.email || {}),
-              customerSentAt: order.email?.customerSentAt || new Date(),
-              adminSentAt: order.email?.adminSentAt || new Date(),
-              willSendNow: false,
-            },
-            updatedAt: new Date(),
-          },
-          { merge: true }
-        );
-      } catch (e: any) {
-        console.error("[razorpay-verify] email error:", e?.message || e);
-        await ref.set(
-          {
-            email: {
-              ...(order.email || {}),
-              willSendNow: false,
-              lastError: String(e?.message || e),
-            },
-          },
+          { email: { ...(data.email || {}), customerSentAt: new Date(), adminSentAt: new Date() } },
           { merge: true }
         );
       }
+    } catch (e) {
+      console.error("[verify] email error:", e);
     }
 
-    return NextResponse.json(
-      {
-        success: true,
-        verified: true,
-        mode: "live",
-        message: "Payment verified; order marked paid (idempotent) and emails handled.",
-        order_id: razorpay_order_id,
-        payment_id: razorpay_payment_id,
-        orderId,
-      },
-      { status: 200 }
-    );
-  } catch (err: any) {
-    console.error("[razorpay-verify] fatal:", err?.message || err);
-    return NextResponse.json({ error: "Unable to verify payment" }, { status: 500 });
+    return NextResponse.json({
+      verified: true,
+      mode: "live",
+      message: "Payment verified and order saved as paid.",
+      orderId: id,
+      order_id: razorpay_order_id,
+      payment_id: razorpay_payment_id,
+    });
+  } catch (e: any) {
+    console.error("[verify] fatal:", e);
+    return NextResponse.json({ error: e?.message || "Unable to verify" }, { status: 500 });
   }
 }

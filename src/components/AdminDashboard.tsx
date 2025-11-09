@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { ADMIN_EMAILS, ADMIN_UIDS, SUPER_ADMIN_EMAILS } from "@/config/admin";
 import LoadingScreen from "./LoadingScreen";
+import OrdersTable from "./OrdersTable"; // add at top with other imports
+
 
 /* ---------------------------------- Types --------------------------------- */
 type KPI = { ordersCount: number; usersCount: number; revenue: number };
@@ -73,7 +75,7 @@ export default function AdminDashboard() {
 
                 const [sRes, oRes, pRes] = await Promise.all([
                     fetch("/api/admin/summary", { headers: { authorization: `Bearer ${tok}` } }),
-                    fetch("/api/admin/orders?limit=50", { headers: { authorization: `Bearer ${tok}` } }),
+                    fetch("/api/admin/orders?limit=50", { headers: { authorization: `Bearer ${tok}` }, cache:"no-store"}),
                     fetch("/api/admin/products", { headers: { authorization: `Bearer ${tok}` } }),
                 ]);
 
@@ -437,50 +439,22 @@ export default function AdminDashboard() {
                 <section className="max-w-6xl mx-auto px-4 md:px-6 pb-12">
                     <header className="px-5 py-3 border-b text-sm font-semibold flex items-center justify-between">
                         <span>Orders</span>
-                        <button
-                            onClick={() => downloadOrdersCsv(orders)}
-                            className="px-3 py-1.5 rounded-full border text-xs hover:bg-black hover:text-white"
-                        >
-                            Download CSV
-                        </button>
-                    </header>
-                    <div className="rounded-2xl border border-gray-200 overflow-hidden">
-                        <header className="px-5 py-3 border-b text-sm font-semibold">Orders</header>
-                        <div className="overflow-x-auto">
-                            <table className="min-w-full text-sm">
-                                <thead className="bg-gray-50">
-                                    <tr>
-                                        <Th>Order ID</Th>
-                                        <Th>Customer</Th>
-                                        <Th>Email</Th>
-                                        <Th>Total</Th>
-                                        <Th>Status</Th>
-                                        <Th>Placed</Th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y">
-                                    {orders.map((o: any) => (
-                                        <tr key={o.id} className="hover:bg-gray-50">
-                                            <Td className="font-mono">
-                                                <a href={`/order/${o.id}`} className="underline decoration-dotted hover:decoration-solid">{o.id}</a>
-                                            </Td>
-                                            <Td>{o.customer?.name || "—"}</Td>
-                                            <Td className="break-all">{o.customer?.email || "—"}</Td>
-                                            <Td>₹ {Number(o?.amounts?.total || 0).toLocaleString("en-IN")}</Td>
-                                            <Td>{o.status || "—"}</Td>
-                                            <Td>
-                                                {o.createdAt?.toDate
-                                                    ? o.createdAt.toDate().toLocaleString()
-                                                    : (o.placedAt?.toDate?.() ? o.placedAt.toDate().toLocaleString() : "—")}
-                                            </Td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => downloadOrdersCsv(orders)}
+                                className="px-3 py-1.5 rounded-full border text-xs hover:bg-black hover:text-white"
+                            >
+                                Download CSV
+                            </button>
                         </div>
-                    </div>
+                    </header>
+
+                    {/* Reusable OrdersTable now handles sorting + amounts */}
+                    <OrdersTable orders={orders} />
                 </section>
             )}
+
+
 
             {/* USERS */}
             {tab === "users" && (

@@ -195,9 +195,13 @@ export default function CheckoutView() {
     [list]
   );
   const shipping = express ? 80 : 0;
-  const total = subtotal + shipping;
 
-  // Helpers
+  // 5% GST on (subtotal + shipping)
+  const gst = useMemo(() => Math.round((subtotal + shipping) * 0.05), [subtotal, shipping]);
+
+  // GST-inclusive total
+  const total = subtotal + shipping + gst;
+
   function shippingFromState(): { country: string; state: string; city: string; postal: string; addr1: string; addr2: string } {
     if (usingSaved && savedAddr && !editingShipping) {
       return {
@@ -240,27 +244,15 @@ export default function CheckoutView() {
     if (!isValidPhone(phone)) return "Valid mobile (10 digits starting 6–9)";
     if (!isValidEmail(email)) return "Valid email address";
 
-    // PIN: format must be valid; if editing, also require either verified or “idle” (network), not “invalid”
     const pinOk = isValidPinFormat(ship.postal || "");
     if (!pinOk) return "Valid 6-digit PIN code";
-
     if (editingShipping && pinStatus === "invalid") return "A serviceable PIN code";
-
     return null;
-  }
-
-  function makeOrderNo() {
-    const d = new Date(),
-      y = ("" + d.getFullYear()).slice(-2),
-      m = ("0" + (d.getMonth() + 1)).slice(-2),
-      day = ("0" + d.getDate()).slice(-2);
-    return `HYP-${y}${m}${day}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
   }
 
   async function maybePersistAddress() {
     if (!user) return;
     if (!(editingShipping && saveAsDefault)) return;
-
     try {
       const tok = await user.getIdToken?.();
       const body = {
@@ -275,16 +267,14 @@ export default function CheckoutView() {
           country: "IN",
         } as Address,
       };
-      // fire-and-forget is fine; the next visit will pull from server
       fetch("/api/me/profile", {
         method: "PUT",
         headers: { "content-type": "application/json", authorization: `Bearer ${tok}` },
         body: JSON.stringify(body),
       }).catch(() => { });
-    } catch { /* ignore */ }
+    } catch {}
   }
 
-  // Explicit “Save address & contact” button action
   async function saveAddressAndContactNow() {
     if (!user) {
       alert("Please log in to save your address.");
@@ -321,12 +311,11 @@ export default function CheckoutView() {
       const body = await res.json().catch(() => null);
       if (!res.ok) throw new Error(body?.error || "Failed to save profile");
 
-      // reflect in UI
       setSavedAddr(payload.address);
       setUsingSaved(true);
       setEditingShipping(false);
       setSaveAsDefault(true);
-      setDirtyContact(false); // we now trust server copy again
+      setDirtyContact(false);
       alert("Saved to your profile.");
     } catch (e: any) {
       console.error("[checkout] save profile failed:", e);
@@ -339,11 +328,10 @@ export default function CheckoutView() {
   async function onCheckout() {
     const missing = need();
     if (missing) { alert(`Please fill: ${missing}`); return; }
-    if (!list.length) { alert("Your cart is empty."); return; }
+    if (!Object.values(items).length) { alert("Your cart is empty."); return; }
 
     try {
       startWait("preparing secure checkout…");
-
       void maybePersistAddress();
 
       const loaded = await loadRazorpayScript();
@@ -353,7 +341,7 @@ export default function CheckoutView() {
         return;
       }
 
-      // --- server-authoritative order creation (secure recompute) ---
+      // server-authoritative order creation
       stepWait("creating your order…");
 
       const ship = shippingFromState();
@@ -374,7 +362,8 @@ export default function CheckoutView() {
           postal: ship.postal, addr1: ship.addr1, addr2: ship.addr2
         },
         items: itemsForOrder,
-        clientTotals: { subtotal, shipping, total, currency: "INR" }, // hint only
+        // include tax in what we tell the server (still "hint only")
+        clientTotals: { subtotal, shipping, tax: gst, total, currency: "INR" },
         notes: { source: "checkout-page" },
       };
 
@@ -391,10 +380,9 @@ export default function CheckoutView() {
         return;
       }
 
-      // If server created a draft order in Firestore, capture it for verify
       const draftOrderId: string | undefined = data.orderId;
 
-      // ---------- ROBUST NON-HANGING RZP FLOW ----------
+      // ---------- robust flow ----------
       let closed = false;
       const endWait = (msg?: string) => {
         if (closed) return;
@@ -405,19 +393,12 @@ export default function CheckoutView() {
 
       const options = {
         key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID as string,
-        amount: data.amount ?? total * 100, // prefer server amount
+        amount: data.amount ?? total * 100, // prefer server
         currency: data.currency ?? "INR",
         name: "HYPER MMA",
         description: "Order Payment",
         order_id: data.id,
-
-        // Always called when modal is dismissed for ANY reason
-        modal: {
-          ondismiss: () => endWait(),
-          escape: true,
-          confirm_close: false,
-        },
-
+        modal: { ondismiss: () => endWait(), escape: true, confirm_close: false },
         handler: async (response: any) => {
           try {
             stepWait("verifying payment…");
@@ -433,39 +414,41 @@ export default function CheckoutView() {
                 currency: "INR",
                 shippingAddress: orderInitPayload.shippingAddress,
                 note: "client-verified",
+                // include tax in snapshot too
+                snapshot: {
+                  customer: { name: nameFromState(), email, phone },
+                  items: itemsForOrder,
+                  amounts: { subtotal, shipping, tax: gst, total, currency: "INR" },
+                  shipping: orderInitPayload.shippingAddress,
+                },
               }),
             });
             const verifyData = await verifyRes.json();
 
-            if (!verifyData?.success) {
+            if (!verifyData?.verified) {
               return endWait("Payment verification failed. Order not saved.");
             }
 
             stepWait("finalizing your order…");
 
-            // If server already created & finalized the order, only store snapshot
-            if (verifyData.orderId) {
-              try {
-                const snapshot = {
-                  orderId: verifyData.orderId,
-                  placedAt: new Date().toISOString(),
-                  customer: orderInitPayload.customer,
-                  shipping: orderInitPayload.shippingAddress,
-                  items: itemsForOrder,
-                  amounts: { subtotal, shipping, total, currency: "INR" },
-                  paymentInfo: {
-                    razorpay_order_id: response.razorpay_order_id,
-                    razorpay_payment_id: response.razorpay_payment_id,
-                    razorpay_signature: response.razorpay_signature,
-                  },
-                };
-                sessionStorage.setItem("lastOrderSnapshot", JSON.stringify(snapshot));
-              } catch (e) {
-                console.warn("[checkout] failed to write lastOrderSnapshot:", e);
-              }
-            } else {
-              // Fallback: client-side create
-              await saveOrderToFirestore(response);
+            // Persist a local snapshot for the Thank You / order page
+            try {
+              const snapshot = {
+                orderId: verifyData.orderId || draftOrderId,
+                placedAt: new Date().toISOString(),
+                customer: orderInitPayload.customer,
+                shipping: orderInitPayload.shippingAddress,
+                items: itemsForOrder,
+                amounts: { subtotal, shipping, tax: gst, total, currency: "INR" },
+                paymentInfo: {
+                  razorpay_order_id: response.razorpay_order_id,
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_signature: response.razorpay_signature,
+                },
+              };
+              sessionStorage.setItem("lastOrderSnapshot", JSON.stringify(snapshot));
+            } catch (e) {
+              console.warn("[checkout] failed to write lastOrderSnapshot:", e);
             }
 
             clear();
@@ -476,28 +459,17 @@ export default function CheckoutView() {
             endWait("Payment verification failed. Order not saved.");
           }
         },
-
-        prefill: {
-          name: nameFromState(),
-          email,
-          contact: phone,
-        },
+        prefill: { name: nameFromState(), email, contact: phone },
         theme: { color: "#f472b6" },
       } as any;
 
       const rzp = new (window as any).Razorpay(options);
-
-      // Payment failure callback (card decline, auth fail, etc.)
-      rzp.on?.("payment.failed", () => {
-        endWait("Payment failed or cancelled. Please try again.");
-      });
-
+      rzp.on?.("payment.failed", () => endWait("Payment failed or cancelled. Please try again."));
       rzp.open();
       stepWait("waiting for payment… complete in the Razorpay window");
 
-      // Watchdog: if nothing fires (edge cases), clear overlay after 3 minutes
       setTimeout(() => endWait(), 180000);
-      // ---------- /ROBUST FLOW ----------
+      // ---------- /robust flow ----------
     } catch (e) {
       console.error(e);
       stopWait();
@@ -518,12 +490,13 @@ export default function CheckoutView() {
 
     const ship = shippingFromState();
 
+    // Include tax (gst) here as well for consistency in the client fallback
     const payload = {
       userId: user?.uid || null,
       customer: { name: nameFromState(), email, phone },
       shipping: { country: ship.country, state: ship.state, city: ship.city, postal: ship.postal, addr1: ship.addr1, addr2: ship.addr2 },
       items: itemsForOrder,
-      amounts: { subtotal, shipping, total, currency: "INR" },
+      amounts: { subtotal, shipping, tax: gst, total, currency: "INR" },
       status: "paid",
       paymentInfo: {
         razorpay_order_id: paymentResponse.razorpay_order_id,
@@ -532,14 +505,13 @@ export default function CheckoutView() {
       },
     } as const;
 
-    // Optional micro-guard to avoid duplicate writes if server already created the order
     try {
       const existing = sessionStorage.getItem("lastOrderSnapshot");
       if (existing) {
         const snap = JSON.parse(existing || "{}");
         if (snap?.orderId) return snap.orderId;
       }
-    } catch { }
+    } catch {}
 
     try {
       stepWait("saving your order…");
@@ -563,7 +535,7 @@ export default function CheckoutView() {
             subtotal: payload.amounts.subtotal,
             shipping: payload.amounts.shipping,
             discount: (payload as any).amounts?.discount ?? undefined,
-            tax: (payload as any).amounts?.tax ?? 0,
+            tax: payload.amounts.tax ?? 0,
             total: payload.amounts.total,
             currency: payload.amounts.currency,
           },
@@ -662,7 +634,6 @@ export default function CheckoutView() {
       <section className="mb-10">
         <h2 className="text-lg font-bold mb-4 uppercase">Shipping Address</h2>
 
-        {/* Read-only saved address (if available & not editing) */}
         {user && savedAddr && usingSaved && !editingShipping ? (
           <div className="rounded-2xl border p-4 flex items-start justify-between gap-4">
             <div className="text-sm">
@@ -686,7 +657,6 @@ export default function CheckoutView() {
             </button>
           </div>
         ) : (
-          // Editable address form
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <select value="India" className="border-b py-2 outline-none" onChange={() => { }}>
               <option value="India">India</option>
@@ -752,6 +722,10 @@ export default function CheckoutView() {
               </label>
             </span>
           </div>
+          {/* NEW: show GST */}
+          <div className="flex justify-between text-sm mb-2">
+            <span>GST (5%)</span><span>{formatINR(gst)}</span>
+          </div>
           <div className="flex justify-between font-semibold">
             <span>Total</span><span>{formatINR(total)}</span>
           </div>
@@ -768,15 +742,8 @@ export default function CheckoutView() {
         >
           {loading ? "Processing…" : "Proceed to Payment"}
         </button>
-        {DEV && (
-          <button onClick={devPing}
-            className="px-4 py-3 rounded-full border text-sm hover:bg-black hover:text-white transition">
-            Run Firestore ping (dev)
-          </button>
-        )}
       </div>
 
-      {/* overlay */}
       {loading && (
         <div className="fixed inset-0 z-[1000] bg-black/70 backdrop-blur-sm flex items-center justify-center p-6">
           <div className="w-full max-w-sm rounded-2xl bg-white text-black p-6 text-center shadow-2xl">
@@ -791,22 +758,4 @@ export default function CheckoutView() {
       )}
     </section>
   );
-}
-
-// (dev ping kept same)
-async function devPing() {
-  try {
-    const pingId = await createOrder({
-      userId: null,
-      customer: { name: "Dev Ping", email: "dev@ping" },
-      shipping: { country: "India", state: "Karnataka", city: "Bengaluru", postal: "560001", addr1: "-", addr2: "" },
-      items: [],
-      amounts: { subtotal: 0, shipping: 0, total: 0, currency: "INR" },
-      status: "created",
-    } as any);
-    alert(`Firestore OK. Dev ping order id: ${pingId}`);
-  } catch (e) {
-    console.error("[checkout] dev ping failed:", e);
-    alert("Firestore write failed. Check console for details.");
-  }
 }
