@@ -48,12 +48,12 @@ export default function Hero() {
             </h1>
 
             <div style={{ transform: "translateY(var(--btn-nudge))" }}>
-              {/* <a
-                href="#products"
+              <a
+                href="/products"
                 className="translate-x-[-100%] inline-flex items-center justify-center rounded-full px-44 py-5 mt-20 text-2xl font-bold bg-pink-500 hover:bg-pink-400 active:scale-[.99] transition shadow-lg whitespace-nowrap"
               >
-                Place your Order
-              </a> */}
+                View Products
+              </a>
             </div>
           </div>
         </div>
@@ -72,12 +72,12 @@ export default function Hero() {
             <span className="block">DRIVEN BY ENDURANCE</span>
           </h1>
 
-          {/* <a
-            href="#products"
+          <a
+            href="/products"
             className="mt-[var(--mbtn)] inline-flex w-full items-center justify-center rounded-full px-6 py-3 text-[clamp(.95rem,3.5vw,1.05rem)] font-semibold bg-pink-500 hover:bg-pink-400 active:scale-[.99] transition shadow-lg"
           >
-            Place your Order
-          </a> */}
+            View Products
+          </a>
         </div>
       </div>
 

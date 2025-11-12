@@ -1,16 +1,30 @@
 title,desc,MRP,discounted price,discount percentage,presale price,presale price percentage,gender,sizes,image,quantity,new_launch,categories
 Neon Bone Blitz,"• Premium MMA shorts engineered for superior comfort,strength,and agility.
 • Reinforced stitching and stress points for lasting durability.
-• Crafted from premium,quick-drying fabric that keeps you cool and dry during intense sessions.",₹1799.00,₹1529.00,15%,₹1259.00,30%,Male,S|M|L|XL,./assets/models/Neon Bone Blitz.png,0,1,male-mma-shorts|male-compressions
+• Crafted from premium,quick-drying fabric that keeps you cool and dry during intense sessions.",₹1799.00,₹1499.00,17%,₹1299.00,30%,Male,S|M|L|XL|XXL,./assets/models/Neon Bone Blitz.png,0,1,male-mma-shorts
 Thunder Fang - Grey,"• Premium MMA shorts engineered for superior comfort,strength,and agility.
 • Reinforced stitching and stress points for lasting durability.
-• Crafted from premium,quick-drying fabric that keeps you cool and dry during intense sessions.",₹1799.00,₹1529.00,15%,₹1259.00,30%,Male,S|M|L|XL,./assets/models/Thunder Fang - Grey.png,0,0,female-mma-shorts
+• Crafted from premium,quick-drying fabric that keeps you cool and dry during intense sessions.",₹1799.00,₹1499.00,17%,₹1299.00,30%,Male,S|M|L|XL|XXL,./assets/models/Thunder Fang - Grey.png,0,0,female-mma-shorts
 Thunder Fang - Green,"• Premium MMA shorts engineered for superior comfort,strength,and agility.
 • Reinforced stitching and stress points for lasting durability.
-• Crafted from premium,quick-drying fabric that keeps you cool and dry during intense sessions.",₹1799.00,₹1529.00,15%,₹1259.00,30%,Male,S|M|L|XL,./assets/models/Thunder Fang - Green.png,0,1,male-mma-shorts|male-compressions
+• Crafted from premium,quick-drying fabric that keeps you cool and dry during intense sessions.",₹1799.00,₹1499.00,17%,₹1299.00,30%,Male,S|M|L|XL|XXL,./assets/models/Thunder Fang - Green.png,0,1,male-mma-shorts
 Neon Bone Blitz - Female,"• Premium MMA shorts engineered for superior comfort,strength,and agility.
 • Reinforced stitching and stress points for lasting durability.
-• Crafted from premium,quick-drying fabric that keeps you cool and dry during intense sessions.",₹1799.00,₹1529.00,15%,₹1259.00,30%,Female,S|M,./assets/models/Neon Bone Blitz - Female.png,0,1,male-mma-shorts|male-compressions
+• Crafted from premium,quick-drying fabric that keeps you cool and dry during intense sessions.",₹1799.00,₹1499.00,17%,₹1299.00,30%,Female,S,./assets/models/Neon Bone Blitz - Female.png,0,1,female-mma-shorts
 Crimson Eclipse,"• Premium MMA shorts engineered for superior comfort,strength,and agility.
 • Reinforced stitching and stress points for lasting durability.
-• Crafted from premium,quick-drying fabric that keeps you cool and dry during intense sessions.",₹1799.00,₹1529.00,15%,₹1259.00,30%,Female,S|M,./assets/models/Crimson Eclipse.png,0,1,male-mma-shorts|male-compressions
+• Crafted from premium,quick-drying fabric that keeps you cool and dry during intense sessions.",₹1799.00,₹1499.00,17%,₹1299.00,30%,Female,S,./assets/models/Crimson Eclipse.png,0,1,female-mma-shorts
+Celestial ,"• Premium MMA shorts engineered for superior comfort,strength,and agility.
+• Reinforced stitching and stress points for lasting durability.
+• Crafted from premium,quick-drying fabric that keeps you cool and dry during intense sessions.",₹1799.00,₹1499.00,17%,₹1299.00,30%,Male,S|M|L|XL,,,,male-mma-shorts
+Fire Fighter ,"• Premium MMA shorts engineered for superior comfort,strength,and agility.
+• Reinforced stitching and stress points for lasting durability.
+• Crafted from premium,quick-drying fabric that keeps you cool and dry during intense sessions.",₹1799.00,₹1499.00,17%,₹1299.00,30%,Male,S|M|L,,,,male-mma-shorts
+Pink Theme Compression ,"• Premium MMA shorts engineered for superior comfort,strength,and agility.
+• Reinforced stitching and stress points for lasting durability.
+• Crafted from premium,quick-drying fabric that keeps you cool and dry during intense sessions.",₹1799.00,₹1299.00,28%,₹1050.00,30%,Male ,S|M|L,,,,male-mma-compression
+Pink Theme Shorts ,"• Premium MMA shorts engineered for superior comfort,strength,and agility.
+• Reinforced stitching and stress points for lasting durability.
+• Crafted from premium,quick-drying fabric that keeps you cool and dry during intense sessions.",₹1799.00,₹1499.00,17%,₹1299.00,30%,Male,S|M|L|XL,,,,male-mma-shorts
+Funky Theme Compression ,,₹1799.00,₹1299.00,28%,₹1050.00,30%,Male,S|M|L,,,,male-mma-compression
+Funky Theme Shorts ,,₹1799.00,₹1499.00,17%,₹1299.00,30%,Male,S|M|L|XL,,,,male-mma-shorts
