@@ -4,19 +4,19 @@ import useEmblaCarousel from "embla-carousel-react";
 import Autoplay from "embla-carousel-autoplay";
 
 const proFighterStatements = [
-  { image: "/assets/riyathapa.avif", title: "Riya Thapa" },
-  { image: "/assets/Digamber-Singh-Rawat.avif", title: "Digamber Singh Rawat" },
-  { image: "/assets/Aminder-Singh-Bisht.avif", title: "Aminder Singh Bisht" },
-  { image: "/assets/Sagar-Thapa.avif", title: "Sagar Thapa" },
-  { image: "/assets/Tribhuvan-Issar.avif", title: "Tribhuvan Issar" },
-  { image: "/assets/Satyam-Kumar.avif", title: "Satyam Kumar" },
-  { image: "/assets/Abhishek-Negi.jpg", title: "Abhishek Negi" },
+  { image: "/assets/riya-thapa.avif", title: "Riya Thapa" },
+  { image: "/assets/digambar-singh.avif", title: "Digamber Singh Rawat" },
+  // { image: "/assets/Aminder-Singh-Bisht.avif", title: "Aminder Singh Bisht" },
+  { image: "/assets/sagar-thapa.avif", title: "Sagar Thapa" },
+  { image: "/assets/tribhuvan.avif", title: "Tribhuvan Issar" },
+  { image: "/assets/satyam.avif", title: "Satyam Kumar" },
+  { image: "/assets/abhishek-negi.avif", title: "Abhishek Negi" },
 ];
 
 export default function ProFighterSection() {
   const [imageWidths, setImageWidths] = useState<Record<string, number>>({});
   const autoplay = useRef(
-    Autoplay({ delay: 3000, stopOnInteraction: false, stopOnMouseEnter: true })
+    Autoplay({ delay: 2000, stopOnInteraction: false, stopOnMouseEnter: true })
   );
 
   const [emblaRef] = useEmblaCarousel(
