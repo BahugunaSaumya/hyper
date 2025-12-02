@@ -20,7 +20,7 @@ const productCategories = [
   },
   {
     slug: "male-compressions",
-    image: "/assets/male-mma-shorts.avif",
+    image: "/assets/male-compressions.avif",
     title: "Male Compressions",
     description:
       "High-performance compression wear that enhances mobility, boosts recovery, and keeps you fight-ready.",
