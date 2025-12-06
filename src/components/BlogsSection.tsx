@@ -7,12 +7,6 @@ import { useRouter } from "next/navigation";
 
 const BLOGS = [
   {
-    slug: "winning-the-cage-hyper-athletes-shine-at-mfn",
-    date: "07 July, 2025",
-    image: "/assets/winning-the-cage.avif",
-    title: "Winning the Cage: Hyper Athletes Shine at MFN",
-  },
-  {
     slug: "elevate-your-game-with-hyper",
     date: "07 July, 2025",
     image: "/assets/elevate-your-game.avif",
@@ -23,6 +17,12 @@ const BLOGS = [
     date: "07 July, 2025",
     image: "/assets/team-hyper.avif",
     title: "Team Hyper: Power, Passion, and Pure Energy",
+  },
+  {
+    slug: "winning-the-cage-hyper-athletes-shine-at-mfn",
+    date: "07 July, 2025",
+    image: "/assets/winning-the-cage.avif",
+    title: "Winning the Cage: Hyper Athletes Shine at MFN",
   },
 ];
 

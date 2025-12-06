@@ -41,20 +41,17 @@ export default function Hero() {
           className="absolute translate-y-[-50%] right-[var(--x)] top-[var(--y)] hidden lg:block"
           style={{ width: "min(var(--w), 90vw)" }}
         >
-          <div className="grid grid-cols-[1fr_auto] items-center gap-8">
+          <div className="flex flex-col items-start gap-8">
             <h1 className="font-extrabold tracking-wide text-[4.85rem] leading-[1.1] drop-shadow-[0_3px_12px_rgba(0,0,0,0.35)] whitespace-nowrap">
               <div>FORGED BY PRECISION,</div>
               <div>DRIVEN BY ENDURANCE</div>
             </h1>
-
-            <div style={{ transform: "translateY(var(--btn-nudge))" }}>
-              <a
-                href="/products"
-                className="translate-x-[-100%] inline-flex items-center justify-center rounded-full px-44 py-5 mt-20 text-2xl font-bold bg-pink-500 hover:bg-pink-400 active:scale-[.99] transition shadow-lg whitespace-nowrap"
-              >
-                View Products
-              </a>
-            </div>
+            <a
+              href="/products"
+              className="inline-flex items-center justify-center rounded-full px-44 py-5 mt-20 text-2xl font-bold bg-pink-500 hover:bg-pink-400 active:scale-[.99] transition shadow-lg whitespace-nowrap"
+            >
+              View Products
+            </a>
           </div>
         </div>
 

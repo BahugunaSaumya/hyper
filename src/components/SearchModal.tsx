@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 type Product = {
   title: string;
+  slug: string;
   image: string;
   mrp?: string;
   discountedPrice?: string;
@@ -34,8 +35,9 @@ export default function SearchModal({ onClose }: { onClose: () => void }) {
               image:
                 (Array.isArray(p?.images) && p.images[0]) ||
                 p?.image ||
-                "/assets/placeholder.png",
+                "assets/placeholder.png",
               mrp: p?.mrp ?? p?.MRP,
+              slug: p.slug ?? p.title,
               discountedPrice: p?.discountedPrice ?? p?.["discounted price"],
             }))
           : [];
@@ -87,7 +89,7 @@ export default function SearchModal({ onClose }: { onClose: () => void }) {
 
   function open(p: Product) {
     onClose();
-    router.push(`/product/${encodeURIComponent(p.title)}`);
+    router.push(`/product/${p.slug}`);
   }
 
   return (

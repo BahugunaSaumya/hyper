@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
         return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
       }
     );
-
+    
     if (Array.isArray(products) && products.length > 0) {
       return NextResponse.json({ products }, { status: 200, headers });
     }

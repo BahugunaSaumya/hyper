@@ -62,6 +62,7 @@ function toNumber(v: unknown): number | null {
 /* ---- map product ---- */
 function mapDocToModel(doc: any): ProductModel & { _mrpNum: number | null; _discNum: number | null } {
   const title: string = (doc?.title || doc?.name || doc?.slug || doc?.id || "").toString();
+  const slug: string = (doc?.slug || "").toString();
   const image: string =
     (Array.isArray(doc?.images) && doc.images[0]) || doc?.image || "/assets/placeholder.png";
   const mrp = doc?.mrp ?? doc?.MRP;
@@ -72,6 +73,7 @@ function mapDocToModel(doc: any): ProductModel & { _mrpNum: number | null; _disc
 
   return {
     title,
+    slug,
     image,
     mrp: fmtINR(mrp),
     discountedPrice: fmtINR(discounted),
@@ -285,7 +287,7 @@ export default function NewLaunchSection() {
                 .filter(Boolean)
                 .join(" ");
 
-              const openDetail = () => router.push(`/product/${encodeURIComponent(p.title)}`);
+              const openDetail = () => router.push(`/product/${p.slug}`);
 
               return (
                 <div

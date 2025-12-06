@@ -1,7 +1,7 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
 import useEmblaCarousel from "embla-carousel-react";
-import Autoplay from "embla-carousel-autoplay";
+import AutoScroll from "embla-carousel-auto-scroll";
+import { useCallback, useEffect, useRef } from "react";
 
 const proFighterStatements = [
   { image: "/assets/riya-thapa.avif", title: "Riya Thapa" },
@@ -14,41 +14,43 @@ const proFighterStatements = [
 ];
 
 export default function ProFighterSection() {
-  const [imageWidths, setImageWidths] = useState<Record<string, number>>({});
-  const autoplay = useRef(
-    Autoplay({ delay: 2000, stopOnInteraction: false, stopOnMouseEnter: true })
-  );
-
-  const [emblaRef] = useEmblaCarousel(
+  const autoScroll = useRef(null);
+  const [emblaRef, emblaApi] = useEmblaCarousel(
     {
       loop: true,
-      align: "start",
       dragFree: true,
+      align: "start",
     },
-    [autoplay.current]
+    [
+      AutoScroll({
+        speed: 1.2,
+        stopOnInteraction: true,
+        stopOnMouseEnter: true, 
+      }),
+    ]
   );
 
-  // Load image widths dynamically
   useEffect(() => {
-    const loadWidths = async () => {
-      const widths: Record<string, number> = {};
-      await Promise.all(
-        proFighterStatements.map(
-          (s) =>
-            new Promise<void>((resolve) => {
-              const img = new Image();
-              img.src = s.image;
-              img.onload = () => {
-                widths[s.image] = img.width;
-                resolve();
-              };
-              img.onerror = () => resolve();
-            })
-        )
-      );
-      setImageWidths(widths);
-    };
-    loadWidths();
+    if (emblaApi) {
+      // @ts-ignore
+      autoScroll.current = emblaApi.plugins().autoScroll;
+    }
+  }, [emblaApi]);
+
+  // Handler to STOP scrolling (Desktop: mouse enter, Mobile: touch start)
+  const handleStopScrolling = useCallback(() => {
+    if (autoScroll.current) {
+      // @ts-ignore
+      autoScroll.current.stop();
+    }
+  }, []);
+
+  // Handler to RESUME scrolling (Desktop: mouse leave, Mobile: touch end)
+  const handleResumeScrolling = useCallback(() => {
+    if (autoScroll.current) {
+      // @ts-ignore
+      autoScroll.current.play();
+    }
   }, []);
 
   return (
@@ -57,22 +59,25 @@ export default function ProFighterSection() {
         LOVED BY TOP PRO FIGHTERS
       </h2>
 
-      <div className="relative max-w-7xl mx-auto mt-8 overflow-hidden">
+      <div
+        className="relative max-w-7xl mx-auto mt-8 overflow-hidden"
+        // Desktop Events
+        onMouseEnter={handleStopScrolling}
+        onMouseLeave={handleResumeScrolling}
+        // Mobile/Touch Events
+        onTouchStart={handleStopScrolling}
+        onTouchEnd={handleResumeScrolling}
+      >
         <div className="overflow-hidden" ref={emblaRef}>
           <div className="flex select-none gap-6 px-6">
-            {proFighterStatements.map((statement) => (
-              <div
-                key={statement.title}
-                className="flex-none"
-              >
-                <div className="rounded-lg overflow-hidden">
-                  <img
-                    src={statement.image}
-                    alt={statement.title}
-                    className="rounded-lg h-[350px]"
-                    draggable={false}
-                  />
-                </div>
+            {proFighterStatements.map((s) => (
+              <div key={s.title} className="flex-none">
+                <img
+                  src={s.image}
+                  className="rounded-lg h-[350px]"
+                  alt={s.title}
+                  draggable={false}
+                />
               </div>
             ))}
           </div>

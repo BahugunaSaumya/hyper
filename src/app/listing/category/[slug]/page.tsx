@@ -43,12 +43,16 @@ export default async function CategoryProduct({ params}: { params: Promise<{ slu
     (p.slug || p.title || p.name || p.id || "").trim();
 
   const hrefFor = (p: Product) =>
-    `/product/${encodeURIComponent(String(p.slug || p.title || p.name || p.id || ""))}`;
+    `/product/${p.slug}`;
 
   return (
     <div className="max-w-6xl mx-auto p-6">
       {products.length === 0 ? (
-        <p>No products found for this category.</p>
+         <div className="flex justify-center items-center h-64 px-4 text-center">
+          <h2 className="text-2xl md:text-3xl lg:text-4xl font-extrabold text-gray-700 animate-pulse">
+            Train. Recover. Dominate. Launching Soon! 🚀
+          </h2>
+        </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {products.map((p: Product, index: number) => {
@@ -67,9 +71,7 @@ export default async function CategoryProduct({ params}: { params: Promise<{ slu
                 title={title}
                 image={
                   dir
-                    ? `/assets/models/products/${dir}/${Math.floor(
-                        Math.random() * 5
-                      ) + 1}.jpg`
+                    ? `/assets/models/products/${dir}/${Math.floor(Math.random() * 3) + 1}.avif`
                     : "/assets/placeholder.png"
                 }
                 price={fmtINR(price)}

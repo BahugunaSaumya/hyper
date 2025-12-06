@@ -1,5 +1,6 @@
 export type Product = {
   title: string;
+  slug: string;
   desc: string;
   MRP: string;
   "discounted price": string;
@@ -16,6 +17,7 @@ export type Product = {
 
 export type ProductModel = {
   title: string;
+  slug: string;
   desc: string;
   mrp: string;
   discountedPrice: string;
@@ -57,6 +59,7 @@ export function parseCSV(text: string): Product[] {
 export function mapProducts(raw: Product[]): ProductModel[] {
   return raw.map(r => ({
     title: r.title || "",
+    slug: r.slug || '',
     desc: r.desc || "",
     mrp: r["MRP"] || "",
     discountedPrice: r["discounted price"] || "",
@@ -66,8 +69,8 @@ export function mapProducts(raw: Product[]): ProductModel[] {
     gender: r["gender"] || "",
     sizes: (r.sizes || "").split("|").filter(Boolean),
     image: r.image || "",
-    new_launch: r["new_launch"] ?? false,
-    categories: (r["categories"] || "").split("|").map((c) => c.trim()).filter(Boolean),
+    new_launch: ["1", "true", "yes"].includes(String(r["new_launch"]).toLowerCase()) || false,
+    categories: Array.isArray(r.categories) ? r.categories.map(c => String(c).trim()).filter(Boolean) : String(r.   categories || "").split("|").map(c => c.trim()).filter(Boolean),
     rating: r.rating ? Number(r.rating) : null,
   }));
 }

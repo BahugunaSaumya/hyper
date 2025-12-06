@@ -37,10 +37,7 @@ export default async function AllProductsPage() {
   const dirFrom = (p: Product) =>
     (p.slug || p.title || p.name || p.id || "").trim();
 
-  const hrefFor = (p: Product) =>
-    `/product/${encodeURIComponent(
-      String(p.slug || p.title || p.name || p.id || "")
-    )}`;
+  const hrefFor = (p: Product) =>`/product/${p.slug}`;
 
   return (
     <div className="max-w-6xl mx-auto p-6">
@@ -72,8 +69,8 @@ export default async function AllProductsPage() {
                 image={
                   dir
                     ? `/assets/models/products/${dir}/${Math.floor(
-                        Math.random() * 5
-                      ) + 1}.jpg`
+                        Math.random() * 4
+                      ) + 1}.avif`
                     : "/assets/placeholder.png"
                 }
                 price={fmtINR(price)}

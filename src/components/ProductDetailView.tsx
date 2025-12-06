@@ -47,7 +47,7 @@ type ProductModel = {
   description?: string;
   image?: string;
   images?: string[];
-  category?: string;
+  gender?: string;
   rating?: number;
   mrp?: any;
   discountedPrice?: any;
@@ -56,6 +56,8 @@ type ProductModel = {
   discountPct?: string | number;
   presalePct?: string | number;
   sizes?: string[] | string;
+  new_launch?: boolean;
+  categories?: string[] | string;
 };
 
 /* ---------- helpers ---------- */
@@ -65,7 +67,7 @@ const NAMES = ["1", "2", "3", "4", "5", "6"];
 
 function galleryCandidates(dir: string) {
   const base = `/assets/models/products/${dir}`;
-  return NAMES.map((n) => `${base}/${n}.jpg`);
+  return NAMES.map((n) => `${base}/${n}.avif`);
 }
 function normalizeCsvImage(img: string | undefined, dir: string) {
   if (!img) return "";
@@ -118,7 +120,7 @@ function mapDoc(doc: any): ProductModel {
     subtitle: doc?.subtitle,
     desc: doc?.desc ?? doc?.description ?? "",
     description: doc?.description ?? doc?.desc ?? "",
-    category: doc?.category,
+    gender: doc?.gender,
     rating: typeof doc?.rating === "number" ? doc.rating : undefined,
     mrp: numToStr(doc?.mrp ?? doc?.MRP),
     discountedPrice: numToStr(doc?.discountedPrice ?? doc?.["discounted price"]),
@@ -126,6 +128,8 @@ function mapDoc(doc: any): ProductModel {
     price: numToStr(doc?.price),
     discountPct: doc?.discountPct ?? doc?.["discount percentage"],
     presalePct: doc?.presalePct ?? doc?.["presale price percentage"],
+    new_launch: ["1", 1, true, "true"].includes(doc?.new_launch),
+    categories: doc?.categories ?? [],
     sizes,
   };
 }
@@ -250,10 +254,12 @@ export default function ProductDetailView({ product }: { product: ProductModel }
     add({
       id: full.id ?? `${title}__${selectedSize}`,
       name: title,
+      slug : full.slug ?? title,
       size: selectedSize,
       price: String(displayPrice),
       image: hero,
       quantity: qty,
+      newLaunch: full.new_launch ?? false
     });
 
     // visual feedback
