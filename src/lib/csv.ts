@@ -1,28 +1,34 @@
 export type Product = {
   title: string;
+  slug: string;
   desc: string;
   MRP: string;
   "discounted price": string;
   "discount percentage": string;
   "presale price": string;
   "presale price percentage": string;
-  category: string;
+  gender: string;
   sizes: string;
   image: string;
+  new_launch?: boolean;
+  categories?: string[];
   rating?: string;
 };
 
 export type ProductModel = {
   title: string;
+  slug: string;
   desc: string;
   mrp: string;
   discountedPrice: string;
   discountPct: string;
   presalePrice: string;
   presalePct: string;
-  category: string;
+  gender: string;
   sizes: string[];
   image: string;
+  new_launch?: boolean;
+  categories?: string[];
   rating: number | null;
 };
 
@@ -53,15 +59,18 @@ export function parseCSV(text: string): Product[] {
 export function mapProducts(raw: Product[]): ProductModel[] {
   return raw.map(r => ({
     title: r.title || "",
+    slug: r.slug || '',
     desc: r.desc || "",
     mrp: r["MRP"] || "",
     discountedPrice: r["discounted price"] || "",
     discountPct: r["discount percentage"] || "",
     presalePrice: r["presale price"] || "",
     presalePct: r["presale price percentage"] || "",
-    category: r["category"] || "",
+    gender: r["gender"] || "",
     sizes: (r.sizes || "").split("|").filter(Boolean),
     image: r.image || "",
+    new_launch: ["1", "true", "yes"].includes(String(r["new_launch"]).toLowerCase()) || false,
+    categories: Array.isArray(r.categories) ? r.categories.map(c => String(c).trim()).filter(Boolean) : String(r.   categories || "").split("|").map(c => c.trim()).filter(Boolean),
     rating: r.rating ? Number(r.rating) : null,
   }));
 }

@@ -65,6 +65,12 @@ function toNum(x: any): number | undefined {
   return Number.isNaN(n) ? undefined : n;
 }
 
+function toIntBool(val: any): 0 | 1 {
+  if (!val) return 0;
+  const v = String(val).toLowerCase().trim();
+  return v === "1" || v === "true" || v === "yes" ? 1 : 0;
+}
+
 async function main() {
   const csvPath = process.argv[2] || path.join(process.cwd(), "public", "assets", "hyper-products-sample.csv");
   const csvText = await fs.readFile(csvPath, "utf8");
@@ -85,6 +91,13 @@ async function main() {
       .map(s => s.trim())
       .filter(Boolean);
 
+    const categories = (o.categories || "")
+      .split(",")
+      .map((c) => c.trim())
+      .filter(Boolean);
+
+    const newLaunch = toIntBool(o.new_launch);
+
     const data = {
       id,
       slug: slugify(o.slug || title),
@@ -95,11 +108,13 @@ async function main() {
       discountPct: toNum(o["discount percentage"]),
       presalePrice: toNum(o["presale price"]),
       presalePct: toNum(o["presale price percentage"]),
-      category: o.category || "",
-      sizes,
+      gender: o.gender || "",
       image: o.image || "",
       rating: toNum(o.rating),
       quantity: toNum(o.quantity) ?? 0,
+      sizes,
+      new_launch: newLaunch,
+      categories,
     };
 
     const price = computeEffectivePrice({
@@ -126,8 +141,8 @@ async function main() {
   }
 
   // Final commit if any pending
-  await batch.commit();
-}
+    await batch.commit();
+  }
 
 main().catch(err => {
   console.error(err);

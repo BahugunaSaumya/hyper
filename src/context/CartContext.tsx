@@ -1,4 +1,3 @@
-// src/context/CartContext.tsx
 "use client";
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
@@ -6,10 +5,12 @@ import { createContext, useContext, useEffect, useMemo, useState } from "react";
 export type CartItem = {
   id: string;
   name: string;
+  slug: string;
   size: string;
   price: string;   // keep the "₹..." string like legacy
   image: string;
   quantity: number;
+  newLaunch: boolean;
 };
 
 type CartMap = Record<string, CartItem>;
@@ -23,12 +24,14 @@ type CartCtx = {
   remove: (id: string) => void;
   clear: () => void;
   totalItems: number;
+  isLoaded: boolean;
 };
 
 const Ctx = createContext<CartCtx | null>(null);
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartMap>({});
+  const [isLoaded, setIsLoaded] = useState(false);
 
   // hydrate from localStorage
   useEffect(() => {
@@ -36,28 +39,36 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       const raw = localStorage.getItem("cart");
       if (raw) setItems(JSON.parse(raw));
     } catch {}
+    finally{
+      setIsLoaded(true);
+    }
   }, []);
 
   // persist
   useEffect(() => {
-    try {
-      localStorage.setItem("cart", JSON.stringify(items));
-    } catch {}
-  }, [items]);
+    if (isLoaded) { 
+      try {
+        localStorage.setItem("cart", JSON.stringify(items));
+      } catch {}
+    }
+  }, [items, isLoaded]);
 
   const add: CartCtx["add"] = (it) => {
     setItems((prev) => {
       const id = it.id;
-      const qty = prev[id]?.quantity || 0;
+      const existing = prev[id];
+      const qty = existing?.quantity || 0;
       return {
         ...prev,
         [id]: {
           id,
           name: it.name,
+          slug: it.slug,
           size: it.size || "M",
           price: it.price,
           image: it.image,
           quantity: qty + (it.quantity ?? 1),
+          newLaunch: existing?.newLaunch ?? it.newLaunch ?? false,
         },
       };
     });
@@ -99,7 +110,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <Ctx.Provider value={{ items, list, add, increase, decrease, remove, clear, totalItems }}>
+    <Ctx.Provider value={{ items, list, add, increase, decrease, remove, clear, totalItems, isLoaded }}>
       {children}
     </Ctx.Provider>
   );
