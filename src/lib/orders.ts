@@ -1,4 +1,4 @@
-import { db, serverTimestamp } from "@/lib/firebase/";
+import { db, serverTimestamp } from "@/lib/firebase";
 import { addDoc, collection } from "firebase/firestore";
 
 export type OrderItem = {

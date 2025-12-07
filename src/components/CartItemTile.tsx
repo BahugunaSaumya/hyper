@@ -38,8 +38,7 @@ export default function CartItemTile({
     <div className="py-6 border-b border-black/10 last:border-b-0">
       {newLaunch && today < newLaunchCutoff &&  (
           <div className="mb-4 flex text-pink-700 font-bold">
-            <span className="mr-1">✨ New Launch</span> products available from 
-            <span className="ml-1">Dec 11, 2025! 🎉</span>
+            ✨ New Launch products available from Dec 11, 2025! 🎉
           </div>
       )}
       <div className="flex items-start gap-6 sm:gap-8">
