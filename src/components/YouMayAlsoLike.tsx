@@ -27,7 +27,7 @@ const dirFrom = (p: Product) => (p.slug || p.title || p.name || p.id || "").trim
 const IMG_NAMES = ["1", "2", "3", "4"];
 const oneRandomImg = (dir: string) => {
   const idx = Math.floor(Math.random() * IMG_NAMES.length);
-  return `/assets/models/products/${dir}/${IMG_NAMES[idx]}.jpg`;
+  return `/assets/models/products/${dir}/${IMG_NAMES[idx]}.avif`;
 };
 const fallbackSeq = (dir: string) => IMG_NAMES.map(n => `/assets/models/products/${dir}/${n}.jpg`);
 
@@ -168,7 +168,7 @@ export default function YouMayAlsoLike({
               key={p.id}
               href={hrefFor(p)}
               title={title}
-              image={dir ? `/assets/models/products/${dir}/${Math.floor(Math.random() * 5) + 1}.avif` : "/assets/placeholder.png"}
+              image={dir ? `/assets/models/products/${dir}/${Math.floor(Math.random() * 3) + 1}.avif` : "/assets/placeholder.png"}
               price={fmtINR(price)}
               rating={5}
               showAdd
