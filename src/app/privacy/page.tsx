@@ -9,7 +9,7 @@ export default function PrivacyPolicyPage() {
         data when you visit our website or make a purchase.
       </p>
 
-      <p className="mb-4">
+      <div className="mb-4">
         1. <strong>Information We Collect</strong>
         <ul className="list-disc pl-6 space-y-2 pt-2">
           <li>
@@ -22,9 +22,9 @@ export default function PrivacyPolicyPage() {
             device details, IP address, and browsing patterns to improve website performance.
           </li>
         </ul>
-      </p>
+      </div>
 
-      <p className="mb-4">
+      <div className="mb-4">
         2. <strong>How We Use Your Information</strong>
         <ul className="list-disc pl-6 space-y-2 pt-2">
           <li>To process orders, payments, and deliveries efficiently.</li>
@@ -32,9 +32,9 @@ export default function PrivacyPolicyPage() {
           <li>To send order updates, promotions, and newsletters (only with your consent).</li>
           <li>To analyze site performance and enhance user experience.</li>
         </ul>
-      </p>
+      </div>
 
-      <p className="mb-4">
+      <div className="mb-4">
         3. <strong>Sharing of Information</strong>
         <ul className="list-disc pl-6 space-y-2 pt-2">
           <li>
@@ -45,7 +45,7 @@ export default function PrivacyPolicyPage() {
             logistics partners) to fulfill your orders.
           </li>
         </ul>
-      </p>
+      </div>
 
       <p className="mb-4">
         4. <strong>Data Security</strong>
@@ -55,7 +55,7 @@ export default function PrivacyPolicyPage() {
         completely secure, and we cannot guarantee absolute protection.
       </p>
 
-      <p className="mb-4">
+      <div className="mb-4">
         5. <strong>Your Rights</strong>
         <ul className="list-disc pl-6 space-y-2 pt-2">
           <li>You may request access to the personal information we hold about you.</li>
@@ -64,7 +64,7 @@ export default function PrivacyPolicyPage() {
             team.
           </li>
         </ul>
-      </p>
+      </div>
 
       <p className="mb-4">
         6. <strong>Third-Party Links</strong>

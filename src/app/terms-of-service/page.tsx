@@ -6,7 +6,7 @@ export default function TermsServicesPage() {
                 1. Use of Website
                 You agree to use this Website only for lawful purposes and in a manner that does not infringe the rights of, restrict, or inhibit the use and enjoyment of this Website by any third party.
             </p>
-            <p className="mb-4">
+            <div className="mb-4">
                 2. Eligibility
                 To make purchases on our Website, you must be:
 
@@ -16,9 +16,9 @@ export default function TermsServicesPage() {
                     <li>
                         Providing accurate, current, and complete account and payment information.</li>
                 </ul>
-            </p>
+            </div>
 
-            <p className="mb-4">
+            <div className="mb-4">
                 3. Products and Pricing
                 <ul className="list-disc pl-6 space-y-2 pt-2">
                     <li>
@@ -28,9 +28,9 @@ export default function TermsServicesPage() {
                     <li>
                         Product colors may vary slightly due to screen differences.</li>
                 </ul>
-            </p>
+            </div>
 
-            <p className="mb-4">
+            <div className="mb-4">
                 4. Orders
                 <ul className="list-disc pl-6 space-y-2 pt-2">
                     <li>
@@ -38,7 +38,7 @@ export default function TermsServicesPage() {
                     <li>
                         We reserve the right to refuse or cancel any order for any reason, including suspected fraud or unauthorized activity.</li>
                 </ul>
-            </p>
+            </div>
 
             <p className="mb-4">
 

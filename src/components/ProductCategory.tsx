@@ -82,7 +82,9 @@ export default function ProductCategorySection() {
                 {/* Image */}
                 <div className="h-[280px] flex items-center justify-start">
                   <img
-                    ref={(el) => (imageRefs.current[category.slug] = el)}
+                    ref={(el) => {
+                      imageRefs.current[category.slug] = el;
+                    }}
                     src={category.image}
                     alt={category.title}
                     className="h-full w-auto rounded-lg"
@@ -91,8 +93,7 @@ export default function ProductCategorySection() {
                       if (imageRefs.current[category.slug]) {
                         setWidths((prev) => ({
                           ...prev,
-                          [category.slug]:
-                            imageRefs.current[category.slug]?.offsetWidth || 0,
+                          [category.slug]: imageRefs.current[category.slug]?.offsetWidth || 0,
                         }));
                       }
                     }}
