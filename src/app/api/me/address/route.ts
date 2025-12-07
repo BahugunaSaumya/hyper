@@ -5,5 +5,3 @@ import { GET as profileGET, PUT as profilePUT } from "../profile/route";
 export const GET = profileGET;
 export const PUT = profilePUT;
 
-export const runtime = "edge";
-
