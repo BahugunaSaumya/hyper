@@ -15,6 +15,7 @@ type Product = {
   presalePrice?: number | string;
   salePrice?: number | string;
   mrp?: number | string;
+  new_launch: boolean;
 };
 
 const fmtINR = (n: number | string | undefined) =>
@@ -168,12 +169,14 @@ export default function YouMayAlsoLike({
               key={p.id}
               href={hrefFor(p)}
               title={title}
-              image={dir ? `/assets/models/products/${dir}/${Math.floor(Math.random() * 3) + 1}.avif` : "/assets/placeholder.png"}
+              slug={`${p.slug}`}
+              image={dir ? `/assets/models/products/${dir}/1.avif` : "/assets/placeholder.png"}
               price={fmtINR(price)}
               rating={5}
               showAdd
               // Optional: if your ProductTile supports className, keep the tighter padding:
               className="p-3 sm:p-4"
+              newLaunch={!!p.new_launch}
             // If ProductTile doesn't accept className, you can remove ^ safely.
             />
           );

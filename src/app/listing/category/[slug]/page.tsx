@@ -9,14 +9,14 @@ export default async function CategoryProduct({ params}: { params: Promise<{ slu
 
   // Fetch category products
   const res = await fetch(`${baseUrl}/api/products/category?slug=${slug}`, {
-    next: { revalidate: 12 },
+    next: { revalidate: 7200 },
   });
 
   if (!res.ok) return notFound();
 
   const data = await res.json();
   const products = data.products || [];
-
+  
   type Product = {
     id: string;
     slug?: string;
@@ -27,6 +27,7 @@ export default async function CategoryProduct({ params}: { params: Promise<{ slu
     presalePrice?: number | string;
     salePrice?: number | string;
     mrp?: number | string;
+    new_launch:boolean;
   };
 
   const fmtINR = (n: number | string | undefined) =>
@@ -69,6 +70,7 @@ export default async function CategoryProduct({ params}: { params: Promise<{ slu
                 key={`${p.id || p.slug || p.name || "item"}-${index}`}  
                 href={hrefFor(p)}
                 title={title}
+                slug={`${p.slug}`}
                 image={
                   dir
                     ? `/assets/models/products/${dir}/${Math.floor(Math.random() * 3) + 1}.avif`
@@ -78,6 +80,7 @@ export default async function CategoryProduct({ params}: { params: Promise<{ slu
                 rating={5}
                 showAdd
                 className="p-3 sm:p-4"
+                newLaunch={!!p.new_launch}
               />
             );
           })}

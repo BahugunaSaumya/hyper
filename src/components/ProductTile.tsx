@@ -7,10 +7,12 @@ import Link from "next/link";
 type Props = {
   href?: string;               // PDP link (if present)
   title: string;
+  slug: string;
   image: string;
   price?: string | number;
   rating?: number;             // 0..5
-  showAdd?: boolean;           // show "+ ADD TO CART" pill
+  showAdd?: boolean; 
+  newLaunch:boolean;          // show "+ ADD TO CART" pill
   className?: string;
 };
 
@@ -70,10 +72,12 @@ function flyToCartFrom(sourceEl: HTMLElement | null, imgSrc: string) {
 export default function ProductTile({
   href,
   title,
+  slug,
   image,
   price,
   rating = 5,
   showAdd = true,
+  newLaunch,
   className = "",
 }: Props) {
   const { add } = useCart();
@@ -107,9 +111,11 @@ export default function ProductTile({
                 id: `${title}__tile`,
                 name: title,
                 size: "",
+                slug: slug,
                 price: String(price ?? ""),
                 image,
                 quantity: 1,
+                newLaunch: newLaunch
               });
               flyToCartFrom(imgRef.current as unknown as HTMLElement, image);
               setFlash(true);

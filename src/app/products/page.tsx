@@ -6,7 +6,7 @@ export default async function AllProductsPage() {
 
   // Fetch all products instead of a specific category
   const res = await fetch(`${baseUrl}/api/products`, {
-    next: { revalidate: 12 },
+    next: { revalidate: 7200 },
   });
 
   if (!res.ok) return notFound();
@@ -22,6 +22,7 @@ export default async function AllProductsPage() {
     presalePrice?: number | string;
     salePrice?: number | string;
     mrp?: number | string;
+    new_launch: boolean;
   };
 
   const fmtINR = (n: number | string | undefined) =>
@@ -66,6 +67,7 @@ export default async function AllProductsPage() {
                 key={`${p.id || p.slug || p.name || "item"}-${index}`}
                 href={hrefFor(p)}
                 title={title}
+                slug={`${p.slug}`}
                 image={
                   dir
                     ? `/assets/models/products/${dir}/${Math.floor(
@@ -77,6 +79,7 @@ export default async function AllProductsPage() {
                 rating={5}
                 showAdd
                 className="p-3 sm:p-4"
+                newLaunch={!!p.new_launch}
               />
             );
           })}
