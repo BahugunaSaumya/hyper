@@ -104,6 +104,7 @@ export default function ProductCategorySection() {
                       className="h-full w-auto rounded-lg"
                       draggable={false}
                       priority={loop === 0}
+                      unoptimized
                     />
                   </div>
                   <div
