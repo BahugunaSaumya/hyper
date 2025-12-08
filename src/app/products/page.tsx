@@ -70,9 +70,7 @@ export default async function AllProductsPage() {
                 slug={`${p.slug}`}
                 image={
                   dir
-                    ? `/assets/models/products/${dir}/${Math.floor(
-                        Math.random() * 4
-                      ) + 1}.avif`
+                    ? `/assets/models/products/${dir}/1.avif`
                     : "/assets/placeholder.png"
                 }
                 price={fmtINR(price)}
