@@ -9,12 +9,14 @@ export type Product = {
   discountPct?: number;
   presalePrice?: number;
   presalePct?: number;
-  category?: string;
+  gender: string;
   sizes: string[];
   image?: string;
   rating?: number | null;
   quantity?: number;        // stock
   price: number;            // effective: presale || discounted || mrp
+  new_launch?: boolean;
+  categories?: string[];
   createdAt?: FirebaseFirestore.Timestamp;
   updatedAt?: FirebaseFirestore.Timestamp;
 };

@@ -289,7 +289,7 @@ export default function ProductsSection() {
                 .filter(Boolean)
                 .join(" ");
 
-              const openDetail = () => router.push(`/product/${encodeURIComponent(p.title)}`);
+              const openDetail = () => router.push(`/product/${p.slug}`);
 
               return (
                 <div

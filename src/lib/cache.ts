@@ -70,3 +70,10 @@ export async function remember<T>(
   set(k, fresh, ttlMs, swrMs);
   return fresh;
 }
+
+export function clear() {
+  const size = mem.size;
+  mem.clear();
+  log("CLEAR ALL", { removed: size });
+}
+

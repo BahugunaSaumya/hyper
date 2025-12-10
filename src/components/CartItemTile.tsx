@@ -1,4 +1,3 @@
-// src/components/CartItemTile.tsx
 "use client";
 
 import { useRouter } from "next/navigation";
@@ -6,6 +5,7 @@ import { useRouter } from "next/navigation";
 type Props = {
   id: string;
   title: string;
+  slug: string;
   image: string;
   unitPrice: string | number;
   size?: string;
@@ -13,11 +13,13 @@ type Props = {
   onIncrease: () => void;
   onDecrease: () => void;
   onRemove: () => void;
+  newLaunch: boolean;
 };
 
 export default function CartItemTile({
   id,
   title,
+  slug,
   image,
   unitPrice,
   size,
@@ -25,12 +27,21 @@ export default function CartItemTile({
   onIncrease,
   onDecrease,
   onRemove,
+  newLaunch
 }: Props) {
   const router = useRouter();
-  const open = () => router.push(`/product/${encodeURIComponent(title)}`);
-
+  const imageUrl = slug ?? encodeURIComponent(title); 
+  const open = () => router.push(`/product/${imageUrl}`);
+  const today = new Date();
+  const newLaunchCutoff = new Date("2025-12-11T00:00:00"); // Dec 11, 2025
   return (
     <div className="py-6 border-b border-black/10 last:border-b-0">
+      {newLaunch && today < newLaunchCutoff &&  (
+          <div className="mb-4 flex text-pink-700 font-bold">
+            <span className="mr-1">✨ New Launch</span> products available from 
+            <span className="ml-1">Dec 11, 2025! 🎉</span>
+          </div>
+      )}
       <div className="flex items-start gap-6 sm:gap-8">
         {/* LEFT: Product Image */}
         <button
@@ -38,7 +49,7 @@ export default function CartItemTile({
           className="flex-shrink-0 rounded-2xl bg-neutral-100 p-4 
                      w-[160px] h-[130px] sm:w-[200px] sm:h-[150px] 
                      flex items-center justify-center hover:shadow transition"
-          aria-label={`Open ${title}`}
+          aria-label={`Open ${imageUrl}`}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -54,7 +65,7 @@ export default function CartItemTile({
             <button
               onClick={open}
               className="text-left text-lg sm:text-xl md:text-2xl font-semibold leading-snug hover:underline"
-              aria-label={`Open ${title}`}
+              aria-label={`Open ${imageUrl}`}
             >
               {title}
             </button>
@@ -115,7 +126,6 @@ export default function CartItemTile({
             />
           </svg>
         </button>
-
       </div>
     </div>
   );

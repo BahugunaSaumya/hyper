@@ -44,7 +44,7 @@ export default function FaqSection() {
       </div>
 
       {/* List */}
-      <div className="max-w-5xl mx-auto">
+      <div className="max-w-6xl mx-auto">
         {/* top divider to match screenshot */}
         <div className="border-t border-white/15" />
         {QAS.map((item, i) => (
