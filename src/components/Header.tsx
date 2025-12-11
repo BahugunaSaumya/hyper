@@ -60,7 +60,7 @@ export default function Header() {
 
           {/* Primary nav */}
           <div className="hidden md:flex space-x-8 text-sm font-semibold transition duration-500">
-            <a href="/#products" className={linkHover}>Products</a>
+            <a href="/products" className={linkHover}>Products</a>
             <a href="/#blogs" className={linkHover}>Blogs</a>
             <a href="/#contact" className={linkHover}>Contact</a>
             {isAdmin && <Link href="/admin" className={linkHover}>Admin</Link>}

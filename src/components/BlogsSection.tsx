@@ -79,6 +79,7 @@ export default function BlogsSection() {
             width={40}
             height={40}
             className="rounded-full shadow cursor-pointer"
+            unoptimized
           />
         </button>
 
@@ -118,6 +119,7 @@ export default function BlogsSection() {
             width={40}
             height={40}
             className="rounded-full shadow cursor-pointer"
+            unoptimized
           />
         </button>
       </div>

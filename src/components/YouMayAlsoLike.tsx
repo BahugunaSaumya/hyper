@@ -15,6 +15,7 @@ type Product = {
   presalePrice?: number | string;
   salePrice?: number | string;
   mrp?: number | string;
+  new_launch: boolean;
 };
 
 const fmtINR = (n: number | string | undefined) =>
@@ -27,7 +28,7 @@ const dirFrom = (p: Product) => (p.slug || p.title || p.name || p.id || "").trim
 const IMG_NAMES = ["1", "2", "3", "4"];
 const oneRandomImg = (dir: string) => {
   const idx = Math.floor(Math.random() * IMG_NAMES.length);
-  return `/assets/models/products/${dir}/${IMG_NAMES[idx]}.jpg`;
+  return `/assets/models/products/${dir}/${IMG_NAMES[idx]}.avif`;
 };
 const fallbackSeq = (dir: string) => IMG_NAMES.map(n => `/assets/models/products/${dir}/${n}.jpg`);
 
@@ -168,12 +169,14 @@ export default function YouMayAlsoLike({
               key={p.id}
               href={hrefFor(p)}
               title={title}
-              image={dir ? `/assets/models/products/${dir}/${Math.floor(Math.random() * 5) + 1}.avif` : "/assets/placeholder.png"}
+              slug={`${p.slug}`}
+              image={dir ? `/assets/models/products/${dir}/1.avif` : "/assets/placeholder.png"}
               price={fmtINR(price)}
               rating={5}
               showAdd
               // Optional: if your ProductTile supports className, keep the tighter padding:
               className="p-3 sm:p-4"
+              newLaunch={!!p.new_launch}
             // If ProductTile doesn't accept className, you can remove ^ safely.
             />
           );

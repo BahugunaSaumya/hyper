@@ -20,7 +20,7 @@ export default function ContactSection() {
           {/* Navigation Links */}
           <div className="flex flex-nowrap gap-x-4 sm:gap-x-6 md:gap-x-10 text-sm sm:text-base md:text-lg font-bold text-white tracking-wide ml-0">
             <a href="#about" className="hover:underline whitespace-nowrap">About</a>
-            <a href="#products" className="hover:underline whitespace-nowrap">Products</a>
+            <a href="/products" className="hover:underline whitespace-nowrap">Products</a>
             <a href="#blogs" className="hover:underline whitespace-nowrap">Blogs</a>
             <a href="#contact" className="hover:underline whitespace-nowrap">Contact</a>
           </div>

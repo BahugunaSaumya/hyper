@@ -1,6 +1,7 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import useEmblaCarousel from "embla-carousel-react";
 
 const productCategories = [
@@ -31,30 +32,36 @@ export default function ProductCategorySection() {
   const router = useRouter();
   const [widths, setWidths] = useState<Record<string, number>>({});
 
-  const imageRefs = useRef<Record<string, HTMLImageElement | null>>({});
-
-  // Initialize Embla Carousel
   const [emblaRef] = useEmblaCarousel({
     dragFree: true,
     align: "start",
   });
 
-  // Measure image widths once they load
+  // Preload natural image widths BEFORE render
   useEffect(() => {
-    const handleResize = () => {
-      const newWidths: Record<string, number> = {};
-      for (const cat of productCategories) {
-        const img = imageRefs.current[cat.slug];
-        if (img) {
-          newWidths[cat.slug] = img.offsetWidth;
-        }
-      }
-      setWidths(newWidths);
+    const loadAll = async () => {
+      const data: Record<string, number> = {};
+
+      const promises = productCategories.map(cat => {
+        return new Promise<void>(resolve => {
+          const img = new window.Image();
+          img.src = cat.image;
+
+          img.onload = () => {
+            const naturalW = img.naturalWidth;
+            const naturalH = img.naturalHeight;
+            const renderedWidth = (naturalW / naturalH) * 280;
+            data[cat.slug] = renderedWidth;
+            resolve();
+          };
+        });
+      });
+
+      await Promise.all(promises);
+      setWidths(data);
     };
 
-    handleResize();
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
+    loadAll();
   }, []);
 
   return (
@@ -62,59 +69,56 @@ export default function ProductCategorySection() {
       id="productCategory"
       className="relative bg-white text-black pt-10 sm:pt-12 pb-10 sm:pb-12"
     >
-      <h2 className="text-2xl md:text-2xl font-bold px-6 sm:px-8 text-center">
+      <h2 className="text-2xl md:text-2xl font-bold px-6 sm:px-8 md:text-center text-left">
         PRODUCT CATEGORIES
       </h2>
 
       <div className="relative max-w-7xl mx-auto mt-8">
-        {/* Embla Viewport */}
         <div className="overflow-hidden" ref={emblaRef}>
           <div className="flex items-start md:justify-center gap-6">
-            {productCategories.map((category , loop) => {
-              const isFirst = loop === 0; const isLast = loop === productCategories.length - 1;
-              return(<div
-                key={category.slug}
-                onClick={() =>
-                  router.push(`/listing/category/${category.slug}`)
-                }
-                className={`flex-shrink-0 cursor-pointer text-left focus:outline-none transition-transform ${ isFirst ? "pl-6" : isLast ? "pr-6" : "" }`}
-              >
-                {/* Image */}
-                <div className="h-[280px] flex items-center justify-start">
-                  <img
-                    ref={(el) => {
-                      imageRefs.current[category.slug] = el;
-                    }}
-                    src={category.image}
-                    alt={category.title}
-                    className="h-full w-auto rounded-lg"
-                    draggable={false}
-                    onLoad={() => {
-                      if (imageRefs.current[category.slug]) {
-                        setWidths((prev) => ({
-                          ...prev,
-                          [category.slug]: imageRefs.current[category.slug]?.offsetWidth || 0,
-                        }));
-                      }
-                    }}
-                  />
-                </div>
-
-                {/* Text below image — matches image width */}
+            {productCategories.map((category, loop) => {
+              const isFirst = loop === 0;
+              const isLast = loop === productCategories.length - 1;
+              return (
                 <div
-                  className="pt-2"
-                  style={{
-                    maxWidth: widths[category.slug]
-                      ? `${widths[category.slug]}px`
-                      : "100%",
-                  }}
+                  key={category.slug}
+                  onClick={() =>
+                    router.push(`/listing/category/${category.slug}`)
+                  }
+                  className={`flex-shrink-0 cursor-pointer text-left transition-transform ${
+                    isFirst ? "pl-6" : isLast ? "pr-6" : ""
+                  }`}
                 >
-                  <h3 className="font-semibold">{category.title}</h3>
-                  <p className="text-sm text-gray-700">{category.description}</p>
+                  {/* IMAGE */}
+                  <div
+                    className="h-[280px] flex items-center"
+                    style={{
+                      width: widths[category.slug] || 400, // used instantly
+                    }}
+                  >
+                    <Image
+                      src={category.image}
+                      alt={category.title}
+                      width={400}
+                      height={280}
+                      className="h-full w-auto rounded-lg"
+                      draggable={false}
+                      priority={loop === 0}
+                      unoptimized
+                    />
+                  </div>
+                  <div
+                    className="pt-2"
+                    style={{
+                      width: widths[category.slug] || 400,
+                    }}
+                  >
+                    <h3 className="font-semibold">{category.title}</h3>
+                    <p className="text-sm text-gray-700">{category.description}</p>
+                  </div>
                 </div>
-              </div>
-              )}
-            )}
+              );
+            })}
           </div>
         </div>
       </div>
