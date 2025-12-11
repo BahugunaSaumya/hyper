@@ -119,7 +119,7 @@ export default function NewLaunchSection() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch(`/api/products/new-launch?limit=12`, { cache: "no-store" });
+        const res = await fetch(`/api/products/new-launch?limit=12`, { next: { revalidate: 10800 }});
         const body = await res.json().catch(() => null);
         if (res.ok && Array.isArray(body?.products)) {
           const mapped = body.products.map(mapDocToModel);
@@ -369,6 +369,7 @@ export default function NewLaunchSection() {
               width={40}
               height={40}
               className="rounded-full shadow cursor-pointer"
+              unoptimized
             />
           </button>
           <button
@@ -385,6 +386,7 @@ export default function NewLaunchSection() {
               width={40}
               height={40}
               className="rounded-full shadow cursor-pointer"
+              unoptimized
             />
           </button>
         </div>

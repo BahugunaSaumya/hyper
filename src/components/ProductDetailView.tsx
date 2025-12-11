@@ -52,10 +52,10 @@ type ProductModel = {
   mrp?: any;
   discountedPrice?: any;
   presalePrice?: any;
-  price?: any;
+  price: number;
   discountPct?: string | number;
   presalePct?: string | number;
-  sizes?: string[] | string;
+  sizes: string[];
   new_launch?: boolean;
   categories?: string[] | string;
 };
@@ -82,10 +82,11 @@ function coverFor(p: ProductModel) {
   return norm || galleryCandidates(dir)[0] || "";
 }
 const pickPrice = (p: ProductModel) =>
-  p.price || p.discountedPrice || p.presalePrice || p.mrp || "";
+  p.price || p.mrp || "";
 
 const coerceSizes = (sizes: ProductModel["sizes"]) => {
   if (Array.isArray(sizes)) return sizes.filter(Boolean);
+  console.log(sizes);
   return String(sizes || "XS,S,M,L,XL").split(/[\s,\/|]+/).filter(Boolean);
 };
 
@@ -125,7 +126,7 @@ function mapDoc(doc: any): ProductModel {
     mrp: numToStr(doc?.mrp ?? doc?.MRP),
     discountedPrice: numToStr(doc?.discountedPrice ?? doc?.["discounted price"]),
     presalePrice: numToStr(doc?.presalePrice ?? doc?.["presale price"]),
-    price: numToStr(doc?.price),
+    price: doc?.price,
     discountPct: doc?.discountPct ?? doc?.["discount percentage"],
     presalePct: doc?.presalePct ?? doc?.["presale price percentage"],
     new_launch: ["1", 1, true, "true"].includes(doc?.new_launch),
@@ -195,7 +196,7 @@ export default function ProductDetailView({ product }: { product: ProductModel }
     if (!key) return;
     (async () => {
       try {
-        const res = await fetch("/api/products?limit=200", { cache: "no-store" });
+        const res = await fetch("/api/products?limit=200", {next: { revalidate: 10800 }});
         const body = await res.json().catch(() => null);
         if (!res.ok || !Array.isArray(body?.products)) return;
         const list = body.products as any[];

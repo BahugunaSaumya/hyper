@@ -17,19 +17,12 @@ export default function CartView() {
   const router = useRouter();
   const { list, increase, decrease, remove } = useCart();
   const [express, setExpress] = useState(false);
-  const today = new Date();
-  const newLaunchCutoff = new Date("2025-12-11T00:00:00"); // Dec 11, 2025
-  const allNewLaunch = list.length > 0 && list.every(it => it.newLaunch);
-  const isBeforeLaunch = today < newLaunchCutoff;
-  const disableCheckout = allNewLaunch && isBeforeLaunch;
   const subtotal = useMemo(
     () =>
       list.reduce((s, it) => {
-        // Exclude newLaunch items if before cutoff date
-        if (it.newLaunch && today < newLaunchCutoff) return s;
         return s + parseINR(it.price) * (it.quantity || 0);
       }, 0),
-    [list, today]
+    [list]
   );
   const shipping = express ? 80 : 0;
   const total = subtotal + shipping;
@@ -128,15 +121,11 @@ export default function CartView() {
                 .
               </p>
               <button
-                onClick={() => !disableCheckout && router.push("/checkout")}
-                disabled={disableCheckout}
-                className={`w-full py-3.5 rounded-full font-semibold transition 
-                  ${disableCheckout 
-                    ? "bg-gray-400 cursor-not-allowed" 
-                    : "bg-black text-white hover:bg-pink-600"
+                onClick={() => router.push("/checkout")}
+                className={`w-full py-3.5 rounded-full font-semibold transition bg-black text-white hover:bg-pink-600"
                   }`}
               >
-                {disableCheckout ? "Unavailable Until Dec 11" : "Checkout"}
+                 Checkout
               </button>
 
               <div className="mt-6 text-center">

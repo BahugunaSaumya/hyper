@@ -7,11 +7,13 @@ import Link from "next/link";
 type Props = {
   href?: string;               // PDP link (if present)
   title: string;
+  slug: string;
   image: string;
-  price?: string | number;
+  price: number;
   rating?: number;             // 0..5
   showAdd?: boolean;           // show "+ ADD TO CART" pill
   className?: string;
+  newLaunch: boolean;
 };
 
 function Stars({ value = 4.8 }: { value?: number }) {
@@ -70,11 +72,13 @@ function flyToCartFrom(sourceEl: HTMLElement | null, imgSrc: string) {
 export default function ProductTile({
   href,
   title,
+  slug,
   image,
   price,
   rating = 5,
   showAdd = true,
   className = "",
+  newLaunch,
 }: Props) {
   const { add } = useCart();
   const [flash, setFlash] = useState(false);
@@ -91,9 +95,9 @@ export default function ProductTile({
         <div className="text-base sm:text-lg font-semibold leading-tight line-clamp-2">{title}</div>
 
         <div className="mt-2 flex items-center gap-3">
-          {price !== undefined && price !== "" && (
+          {price !== undefined && (
             <div className="text-sm sm:text-base font-bold">
-              {String(price).startsWith("₹") ? price : `₹ ${price}`}
+              {`₹ ${price}`}
             </div>
           )}
           <Stars value={rating} />
@@ -106,10 +110,12 @@ export default function ProductTile({
               add({
                 id: `${title}__tile`,
                 name: title,
+                slug: slug,
                 size: "",
                 price: String(price ?? ""),
                 image,
                 quantity: 1,
+                newLaunch: newLaunch
               });
               flyToCartFrom(imgRef.current as unknown as HTMLElement, image);
               setFlash(true);

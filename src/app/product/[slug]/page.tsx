@@ -43,7 +43,7 @@ export default async function Page(props: { params: Promise<{ slug: string }> })
       id: name,
       title: name,
       price: "",
-      image: `/assets/models/products/${encodeURI(name)}/1.jpg`,
+      image: `/assets/models/products/${slug}/1.avif`,
       description: "",
       sizes: [],
     };
