@@ -26,7 +26,7 @@ const IMG_NAMES = ["1", "2", "3", "4"];
 const oneRandomImg = (dir: string) => {
   return `/assets/models/products/${dir}/1.avif`;
 };
-const fallbackSeq = (dir: string) => IMG_NAMES.map(n => `/assets/models/products/${dir}/${n}.jpg`);
+const fallbackSeq = (dir: string) => IMG_NAMES.map(n => `/assets/models/products/${dir}/${n}.avif`);
 
 const hrefFor = (p: Product) =>`/product/${p.slug}`;
 
@@ -166,7 +166,7 @@ export default function YouMayAlsoLike({
               href={hrefFor(p)}
               title={title}
               slug={`${p.slug}`}
-              image={dir ? `/assets/models/products/${dir}/1.avif` : "/assets/placeholder.png"}
+              image={dir ? `/assets/models/products/${dir}/${Math.floor(Math.random() * 5) + 1}.avif` : "/assets/placeholder.png"}
               price={price}
               rating={5}
               showAdd

@@ -69,7 +69,7 @@ export default function ProductCategorySection() {
       id="productCategory"
       className="relative bg-white text-black pt-10 sm:pt-12 pb-10 sm:pb-12"
     >
-      <h2 className="text-2xl md:text-2xl font-bold px-6 sm:px-8 text-center">
+      <h2 className="text-2xl md:text-2xl font-bold px-6 sm:px-8 md:text-center text-left">
         PRODUCT CATEGORIES
       </h2>
 
