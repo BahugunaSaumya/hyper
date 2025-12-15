@@ -32,15 +32,8 @@ export default function CartItemTile({
   const router = useRouter();
   const imageUrl = slug ?? encodeURIComponent(title); 
   const open = () => router.push(`/product/${imageUrl}`);
-  const today = new Date();
-  const newLaunchCutoff = new Date("2025-12-11T00:00:00"); // Dec 11, 2025
   return (
     <div className="py-6 border-b border-black/10 last:border-b-0">
-      {newLaunch && today < newLaunchCutoff &&  (
-          <div className="mb-4 flex text-pink-700 font-bold">
-            ✨ New Launch products available from Dec 11, 2025! 🎉
-          </div>
-      )}
       <div className="flex items-start gap-6 sm:gap-8">
         {/* LEFT: Product Image */}
         <button

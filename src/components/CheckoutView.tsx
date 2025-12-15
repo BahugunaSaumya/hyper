@@ -36,20 +36,15 @@ type Address = {
 export default function CheckoutView() {
   const router = useRouter();
   const { items, clear, isLoaded } = useCart();
-  const newLaunchCutoff = new Date("2025-12-11T00:00:00"); // Dec 11, 2025
-  const today = new Date();
   useEffect(() => {
     if (isLoaded) {
       const itemKeys = Object.keys(items);
       const isCartEmpty = itemKeys.length === 0;
-      const allNewLaunch = itemKeys.length > 0 && itemKeys.every(key => items[key].newLaunch);
-      const isBeforeLaunch = today < newLaunchCutoff;
-      const disableDueToNewLaunch = allNewLaunch && isBeforeLaunch;
-      if (isCartEmpty || disableDueToNewLaunch) {
+      if (isCartEmpty) {
         router.replace("/");
       }
     }
-  }, [items, isLoaded, router, today, newLaunchCutoff]);
+  }, [items, isLoaded, router]);
 
   const { user, profile } = useAuth() as any;
   const [express, setExpress] = useState(false);
@@ -204,10 +199,9 @@ export default function CheckoutView() {
   // Cart math
   const list = useMemo(() => Object.values(items), [items]);
   const subtotal = useMemo(() => list.reduce((s, it) => {
-      if (it.newLaunch && today < newLaunchCutoff) return s;
         return s + parseINR(it.price) * it.quantity;
       }, 0),
-    [list, today]
+    [list]
   );
   const shipping = express ? 80 : 0;
   const total = subtotal + shipping;
@@ -374,7 +368,7 @@ export default function CheckoutView() {
       const ship = shippingFromState();
       const listArr: any[] = Object.values(items);
       const itemsForOrder = listArr
-        .filter(it => !(it.newLaunch && today < newLaunchCutoff))
+        // .filter(it => !(it.newLaunch && today < newLaunchCutoff))
         .map(it => ({
           id: it.id,
           title: it.name,

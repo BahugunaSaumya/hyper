@@ -73,10 +73,10 @@ export default async function CategoryProduct({ params}: { params: Promise<{ slu
                 slug={`${p.slug}`}
                 image={
                   dir
-                    ? `/assets/models/products/${dir}/${Math.floor(Math.random() * 3) + 1}.avif`
+                    ? `/assets/models/products/${dir}/1.avif`
                     : "/assets/placeholder.png"
                 }
-                price={fmtINR(price)}
+                price={price}
                 rating={5}
                 showAdd
                 className="p-3 sm:p-4"

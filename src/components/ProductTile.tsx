@@ -9,11 +9,11 @@ type Props = {
   title: string;
   slug: string;
   image: string;
-  price?: string | number;
+  price: number;
   rating?: number;             // 0..5
-  showAdd?: boolean; 
-  newLaunch:boolean;          // show "+ ADD TO CART" pill
+  showAdd?: boolean;        // show "+ ADD TO CART" pill
   className?: string;
+  newLaunch: boolean;
 };
 
 function Stars({ value = 4.8 }: { value?: number }) {
@@ -77,8 +77,8 @@ export default function ProductTile({
   price,
   rating = 5,
   showAdd = true,
-  newLaunch,
   className = "",
+  newLaunch,
 }: Props) {
   const { add } = useCart();
   const [flash, setFlash] = useState(false);
@@ -95,9 +95,9 @@ export default function ProductTile({
         <div className="text-base sm:text-lg font-semibold leading-tight line-clamp-2">{title}</div>
 
         <div className="mt-2 flex items-center gap-3">
-          {price !== undefined && price !== "" && (
+          {price !== undefined && (
             <div className="text-sm sm:text-base font-bold">
-              {String(price).startsWith("₹") ? price : `₹ ${price}`}
+              {`₹ ${price}`}
             </div>
           )}
           <Stars value={rating} />
@@ -110,8 +110,8 @@ export default function ProductTile({
               add({
                 id: `${title}__tile`,
                 name: title,
-                size: "",
                 slug: slug,
+                size: "",
                 price: String(price ?? ""),
                 image,
                 quantity: 1,

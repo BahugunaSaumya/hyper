@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
 
   const cacheKey = `admin:qry:products?limit=${limitParam || "default"}`;
   let products: any[] = [];
-
+  
   // --- 1️⃣ Try Firestore with cache ---
   try {
     products = await cache.remember<any[]>(

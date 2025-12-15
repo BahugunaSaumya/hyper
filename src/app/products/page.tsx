@@ -6,7 +6,7 @@ export default async function AllProductsPage() {
 
   // Fetch all products instead of a specific category
   const res = await fetch(`${baseUrl}/api/products`, {
-    next: { revalidate: 7200 },
+    next: { revalidate: 10800 },
   });
 
   if (!res.ok) return notFound();
@@ -14,19 +14,16 @@ export default async function AllProductsPage() {
   const products = data.products || [];
   type Product = {
     id: string;
-    slug?: string;
+    slug: string;
     title?: string;
     name?: string;
-    price?: number | string;
+    price: number;
     discountedPrice?: number | string;
     presalePrice?: number | string;
     salePrice?: number | string;
     mrp?: number | string;
     new_launch: boolean;
   };
-
-  const fmtINR = (n: number | string | undefined) =>
-    "₹ " + Number(n || 0).toLocaleString("en-IN");
 
   const toNumber = (v: any) =>
     Number.isFinite(+v)
@@ -73,7 +70,7 @@ export default async function AllProductsPage() {
                     ? `/assets/models/products/${dir}/1.avif`
                     : "/assets/placeholder.png"
                 }
-                price={fmtINR(price)}
+                price={price}
                 rating={5}
                 showAdd
                 className="p-3 sm:p-4"

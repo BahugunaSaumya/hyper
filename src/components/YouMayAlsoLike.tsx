@@ -10,7 +10,7 @@ type Product = {
   slug?: string;
   title?: string;
   name?: string;
-  price?: number | string;
+  price: number;
   discountedPrice?: number | string;
   presalePrice?: number | string;
   salePrice?: number | string;
@@ -18,19 +18,15 @@ type Product = {
   new_launch: boolean;
 };
 
-const fmtINR = (n: number | string | undefined) =>
-  "₹ " + Number(n || 0).toLocaleString("en-IN");
-
 const toNumber = (v: any) =>
   Number.isFinite(+v) ? +v : (typeof v === "string" ? parseFloat(v.replace(/[^0-9.]/g, "")) : 0);
 
 const dirFrom = (p: Product) => (p.slug || p.title || p.name || p.id || "").trim();
 const IMG_NAMES = ["1", "2", "3", "4"];
 const oneRandomImg = (dir: string) => {
-  const idx = Math.floor(Math.random() * IMG_NAMES.length);
-  return `/assets/models/products/${dir}/${IMG_NAMES[idx]}.avif`;
+  return `/assets/models/products/${dir}/1.avif`;
 };
-const fallbackSeq = (dir: string) => IMG_NAMES.map(n => `/assets/models/products/${dir}/${n}.jpg`);
+const fallbackSeq = (dir: string) => IMG_NAMES.map(n => `/assets/models/products/${dir}/${n}.avif`);
 
 const hrefFor = (p: Product) =>`/product/${p.slug}`;
 
@@ -170,8 +166,8 @@ export default function YouMayAlsoLike({
               href={hrefFor(p)}
               title={title}
               slug={`${p.slug}`}
-              image={dir ? `/assets/models/products/${dir}/1.avif` : "/assets/placeholder.png"}
-              price={fmtINR(price)}
+              image={dir ? `/assets/models/products/${dir}/${Math.floor(Math.random() * 5) + 1}.avif` : "/assets/placeholder.png"}
+              price={price}
               rating={5}
               showAdd
               // Optional: if your ProductTile supports className, keep the tighter padding:
