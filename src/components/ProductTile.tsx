@@ -11,8 +11,7 @@ type Props = {
   image: string;
   price: number;
   rating?: number;             // 0..5
-  showAdd?: boolean; 
-  newLaunch:boolean;          // show "+ ADD TO CART" pill
+  showAdd?: boolean;        // show "+ ADD TO CART" pill
   className?: string;
   newLaunch: boolean;
 };
@@ -113,7 +112,6 @@ export default function ProductTile({
                 name: title,
                 slug: slug,
                 size: "",
-                slug: slug,
                 price: String(price ?? ""),
                 image,
                 quantity: 1,
