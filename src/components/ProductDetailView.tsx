@@ -5,6 +5,7 @@ import { useCart } from "@/context/CartContext";
 import FaqSection from "@/components/FaqSection";
 import FooterSection from "@/components/FooterSection";
 import YouMayAlsoLike from "./YouMayAlsoLike";
+import BadgeRow from "./pdp/BadgeRow";
 
 /* ===========================
    GLOBAL LAYOUT VARIABLES
@@ -22,9 +23,6 @@ const HERO_ASPECT_RATIO = "aspect-[12/14] sm:aspect-square lg:aspect-[4/5]";
 const HERO_MIN_H_MOBILE = "min-h-[300px]";
 const HERO_MIN_H_TABLET = "sm:min-h-[400px]";
 const HERO_MIN_H_DESKTOP = "lg:min-h-[500px]";
-
-const TITLE_SIZE = "text-3xl sm:text-4xl md:text-5xl";
-const PRICE_SIZE = "text-2xl sm:text-3xl md:text-4xl";
 
 const STACK_QTY_AND_BUTTON = true;
 const STACK_SPACING = "gap-3";
@@ -52,12 +50,14 @@ type ProductModel = {
   mrp?: any;
   discountedPrice?: any;
   presalePrice?: any;
+  MRP: number;
   price: number;
   discountPct?: string | number;
   presalePct?: string | number;
   sizes: string[];
   new_launch?: boolean;
   categories?: string[] | string;
+  discountPercentage: number;
 };
 
 /* ---------- helpers ---------- */
@@ -81,12 +81,8 @@ function coverFor(p: ProductModel) {
   const norm = normalizeCsvImage(p.image as any, dir);
   return norm || galleryCandidates(dir)[0] || "";
 }
-const pickPrice = (p: ProductModel) =>
-  p.price || p.mrp || "";
-
 const coerceSizes = (sizes: ProductModel["sizes"]) => {
   if (Array.isArray(sizes)) return sizes.filter(Boolean);
-  console.log(sizes);
   return String(sizes || "XS,S,M,L,XL").split(/[\s,\/|]+/).filter(Boolean);
 };
 
@@ -123,6 +119,7 @@ function mapDoc(doc: any): ProductModel {
     description: doc?.description ?? doc?.desc ?? "",
     gender: doc?.gender,
     rating: typeof doc?.rating === "number" ? doc.rating : undefined,
+    MRP: doc?.MRP,
     mrp: numToStr(doc?.mrp ?? doc?.MRP),
     discountedPrice: numToStr(doc?.discountedPrice ?? doc?.["discounted price"]),
     presalePrice: numToStr(doc?.presalePrice ?? doc?.["presale price"]),
@@ -131,7 +128,8 @@ function mapDoc(doc: any): ProductModel {
     presalePct: doc?.presalePct ?? doc?.["presale price percentage"],
     new_launch: ["1", 1, true, "true"].includes(doc?.new_launch),
     categories: doc?.categories ?? [],
-    sizes,
+    sizes: doc?.sizes ?? [],
+    discountPercentage: doc?.discountPercentage,
   };
 }
 
@@ -206,7 +204,7 @@ export default function ProductDetailView({ product }: { product: ProductModel }
           list.find((d) => d?.id === key);
         if (!found) return;
         const mapped = mapDoc(found);
-        setFull((prev) => ({ ...prev, ...mapped }));
+        setFull((prev) => ({ ...prev, ...Object.fromEntries(Object.entries(mapped).filter(([, v]) => v !== undefined))}));
       } catch { }
     })();
   }, [product]);
@@ -215,7 +213,9 @@ export default function ProductDetailView({ product }: { product: ProductModel }
   const subtitle = full.subtitle || product.subtitle || "";
   const rating = full.rating ?? 4.6;
   const sizes = useMemo(() => coerceSizes(full.sizes), [full.sizes]);
-  const displayPrice = pickPrice(full);
+  const price = full.price;
+  const MRP = full.MRP;
+  const discountPercentage = full.discountPercentage;
 
   /* gallery */
   const dir = useMemo(() => dirFrom(full), [full.slug, full.title]);
@@ -257,7 +257,7 @@ export default function ProductDetailView({ product }: { product: ProductModel }
       name: title,
       slug : full.slug ?? title,
       size: selectedSize,
-      price: String(displayPrice),
+      price: String(full.price),
       image: hero,
       quantity: qty,
       newLaunch: full.new_launch ?? false
@@ -387,27 +387,22 @@ export default function ProductDetailView({ product }: { product: ProductModel }
         <div className={`${PAGE_SIDE_PADDING}`}>
           {/* ========= INFO ========= */}
           <div className="w-full md:ml-2 min-w-0">
-            <div className="text-[11px] sm:text-xs uppercase tracking-widest text-gray-500">Shop / product</div>
-            <h1 className={`mt-2 ${TITLE_SIZE} font-extrabold tracking-tight`}>{title}</h1>
+            {/* <div className="text-[11px] sm:text-xs uppercase tracking-widest text-gray-500">Shop / product</div> */}
+            <h1 className={`text-2xl sm:text-3xl md:text-4xl uppercase tracking-tight`}>{title}</h1>
             {subtitle && <div className="mt-1 text-xs sm:text-sm text-gray-500">{subtitle}</div>}
-
-            <div className="mt-3 flex items-center md:ml-1 gap-4 sm:gap-4">
-              <span className={`${PRICE_SIZE} font-extrabold leading-tight`}>{"₹" + String(displayPrice)}</span>
-              <Stars rating={rating} />
-            </div>
-
+            <BadgeRow />
             {/* Sizes */}
             {sizes.length > 0 && (
               <div className="mt-5 sm:mt-6">
-                <div className="mb-2 text-[11px] sm:text-xs font-semibold uppercase tracking-widest text-gray-600">
-                  Select Size
+                <div className="mb-2 font-bold">
+                  Available Sizes
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {sizes.map((s) => (
                     <button
                       key={s}
                       onClick={() => setSelectedSize(s)}
-                      className={`rounded-md border px-3 py-2 text-sm font-medium transition ${selectedSize === s ? "border-pink-500 bg-pink-50 text-pink-600" : "border-gray-300"}`}
+                      className={`rounded-md border px-3 py-2 text-sm font-bold transition ${selectedSize === s ? "border-pink-500 bg-pink-50 text-pink-600" : "border-black"}`}
                     >
                       {s}
                     </button>
@@ -415,7 +410,26 @@ export default function ProductDetailView({ product }: { product: ProductModel }
                 </div>
               </div>
             )}
-
+            <div className="mt-3 flex items-start md:ml-1 flex-col">
+              <div className="flex items-center gap-4 sm:gap-4">
+                {price < MRP && (
+                  <div className="text-grey text-xl sm:text-2xl line-through opacity-60">
+                    ₹{MRP}
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center gap-3 sm:gap-4">
+                <span className="text-2xl sm:text-3xl md:text-4xl font-extrabold">
+                  ₹{price}
+                </span>
+                {discountPercentage && (
+                  <span className="ml-2 text-[14px] px-2 py-0.5 rounded-full bg-[#00AF35] text-white">
+                    {discountPercentage} % Off
+                  </span>
+                )}
+                <Stars rating={rating} />
+              </div>
+            </div>
             {/* Qty + Add to Cart */}
             <div className={`mt-5 sm:mt-6 ${STACK_QTY_AND_BUTTON ? `flex flex-col ${STACK_SPACING}` : "flex items-center gap-3"}`}>
               <div

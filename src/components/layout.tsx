@@ -12,6 +12,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <link href="https://fonts.cdnfonts.com/css/palanquin" rel="stylesheet" />
         <link href="https://fonts.cdnfonts.com/css/palanquin-dark" rel="stylesheet" />
+        {/* Google tag (gtag.js) */}
+        <script async src={`https://www.googletagmanager.com/gtag/js?${process.env.NEXT_PUBLIC_GA_ID}`}></script>
+        <script>
+          {`
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+
+          gtag('config', '${process.env.NEXT_PUBLIC_GA_ID}', {
+              page_path: window.location.pathname,
+            });
+          `}
+        </script>
       </head>
       
       <body className="overflow-x-hidden bg-white text-black">
