@@ -78,7 +78,6 @@ export default function ProductTile({
   price,
   rating = 5,
   showAdd = true,
-  newLaunch,
   className = "",
   newLaunch,
 }: Props) {
