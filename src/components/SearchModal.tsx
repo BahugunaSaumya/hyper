@@ -27,7 +27,7 @@ export default function SearchModal({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch("/api/products?limit=1000", {next: { revalidate: 10800 }});
+        const res = await fetch("/api/products?limit=1000", {next: { revalidate: 36000 }});
         const body = await res.json().catch(() => null);
         const items: Product[] = Array.isArray(body?.products)
           ? body.products.map((p: any) => ({

@@ -119,7 +119,7 @@ export default function NewLaunchSection() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch(`/api/products/new-launch?limit=12`, { next: { revalidate: 10800 }});
+        const res = await fetch(`/api/products/new-launch?limit=12`, { next: { revalidate: 36000 }});
         const body = await res.json().catch(() => null);
         if (res.ok && Array.isArray(body?.products)) {
           const mapped = body.products.map(mapDocToModel);

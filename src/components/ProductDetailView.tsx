@@ -194,7 +194,7 @@ export default function ProductDetailView({ product }: { product: ProductModel }
     if (!key) return;
     (async () => {
       try {
-        const res = await fetch("/api/products?limit=200", {next: { revalidate: 10800 }});
+        const res = await fetch("/api/products?limit=200", {next: { revalidate: 36000 }});
         const body = await res.json().catch(() => null);
         if (!res.ok || !Array.isArray(body?.products)) return;
         const list = body.products as any[];

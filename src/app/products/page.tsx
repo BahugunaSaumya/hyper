@@ -5,9 +5,7 @@ export default async function AllProductsPage() {
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://gethypergear.in/";
 
   // Fetch all products instead of a specific category
-  const res = await fetch(`${baseUrl}/api/products`, {
-    next: { revalidate: 10800 },
-  });
+  const res = await fetch(`${baseUrl}/api/products`, { next: { revalidate: 36000 }});
 
   if (!res.ok) return notFound();
   const data = await res.json();

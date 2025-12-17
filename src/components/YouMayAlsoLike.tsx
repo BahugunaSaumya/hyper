@@ -102,7 +102,7 @@ export default function YouMayAlsoLike({
       try {
         setErr(null);
         setLoading(true);
-        const res = await fetch("/api/products?limit=50", { cache: "no-store" });
+        const res = await fetch("/api/products?limit=16", { next: { revalidate: 36000 }});
         const body = await res.json().catch(() => null);
         if (!res.ok) throw new Error(body?.error || "Failed to load products");
         const list: Product[] = Array.isArray(body?.products) ? body.products : [];
@@ -117,8 +117,6 @@ export default function YouMayAlsoLike({
     })();
     return () => { mounted = false; };
   }, []);
-
-  // PICK visible items (we can shuffle products; images themselves are NOT rotated)
   const visible = useMemo(() => {
     const ex = excludeTitle.toLowerCase();
     const pool = products.filter(p => (p.title || p.name || "").toLowerCase() !== ex);
@@ -130,20 +128,15 @@ export default function YouMayAlsoLike({
     return (
       <div className="mt-14" data-ymal>
         <div className="text-center mb-6">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={headingImg} alt="You may also like" className="mx-auto w-64 sm:w-80" />
         </div>
          <div className="text-sm text-gray-500 text-center"><LoadingScreen /></div>
         </div>
     );
   }
-
-
   return (
     <div className="mt-14" data-ymal>
       <div className="text-center mb-6">
-        {/* header image to match product detail page */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={headingImg} alt="You may also like" className="mx-auto w-64 sm:w-80" />
       </div>
 
@@ -151,22 +144,14 @@ export default function YouMayAlsoLike({
         {visible.map((p) => {
           const title = p.title || p.name || "Product";
           const dir = dirFrom(p);
-
-          // price selection (no CSV): prefer price → sale/discounted → presale → mrp
-          const price =
-            toNumber((p as any).price) ||
-            toNumber((p as any).salePrice) ||
-            toNumber((p as any).discountedPrice) ||
-            toNumber((p as any).presalePrice) ||
-            toNumber((p as any).mrp);
-
+          const price = toNumber((p as any).price) || toNumber((p as any).mrp);
           return (
             <ProductTile
               key={p.id}
               href={hrefFor(p)}
               title={title}
               slug={`${p.slug}`}
-              image={dir ? `/assets/models/products/${dir}/${Math.floor(Math.random() * 5) + 1}.avif` : "/assets/placeholder.png"}
+              image={dir ? `/assets/models/products/${dir}/1.avif` : "/assets/placeholder.png"}
               price={price}
               rating={5}
               showAdd
