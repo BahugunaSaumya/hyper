@@ -16,6 +16,7 @@ type Product = {
   salePrice?: number | string;
   mrp?: number | string;
   new_launch: boolean;
+  bestseller: boolean;
 };
 
 const toNumber = (v: any) =>
@@ -67,7 +68,7 @@ function OneShotImage({ dir, alt }: { dir: string; alt: string }) {
       src={src}
       alt={alt}
       onError={onError}
-      className="h-full w-full object-cover"
+      className="h-full w-full object-cover object-bottom"
       loading="lazy"
       decoding="async"
     />
@@ -158,6 +159,7 @@ export default function YouMayAlsoLike({
               // Optional: if your ProductTile supports className, keep the tighter padding:
               className="p-3 sm:p-4"
               newLaunch={!!p.new_launch}
+              bestseller={p.bestseller ?? false}
             // If ProductTile doesn't accept className, you can remove ^ safely.
             />
           );

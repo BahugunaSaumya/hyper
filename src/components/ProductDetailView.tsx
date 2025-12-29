@@ -58,6 +58,7 @@ type ProductModel = {
   new_launch?: boolean;
   categories?: string[] | string;
   discountPercentage: number;
+  bestseller: boolean;
 };
 
 /* ---------- helpers ---------- */
@@ -130,6 +131,7 @@ function mapDoc(doc: any): ProductModel {
     categories: doc?.categories ?? [],
     sizes: doc?.sizes ?? [],
     discountPercentage: doc?.discountPercentage,
+    bestseller: doc?.destseller
   };
 }
 
@@ -208,7 +210,6 @@ export default function ProductDetailView({ product }: { product: ProductModel }
       } catch { }
     })();
   }, [product]);
-
   const title = full.title || product.title || "";
   const subtitle = full.subtitle || product.subtitle || "";
   const rating = full.rating ?? 4.6;
@@ -216,6 +217,7 @@ export default function ProductDetailView({ product }: { product: ProductModel }
   const price = full.price;
   const MRP = full.MRP;
   const discountPercentage = full.discountPercentage;
+  const bestseller = product.bestseller ?? false;
 
   /* gallery */
   const dir = useMemo(() => dirFrom(full), [full.slug, full.title]);
@@ -331,7 +333,7 @@ export default function ProductDetailView({ product }: { product: ProductModel }
                     ref={heroImgRef}
                     src={hero}
                     alt={title}
-                    className="block h-full w-full max-w-full object-contain transition-all duration-300"
+                    className="block h-full w-full max-w-full object-cover object-bottom transition-all duration-300"
                     loading="eager"
                     draggable={false} />
                 ) : (
@@ -388,7 +390,15 @@ export default function ProductDetailView({ product }: { product: ProductModel }
           {/* ========= INFO ========= */}
           <div className="w-full md:ml-2 min-w-0">
             {/* <div className="text-[11px] sm:text-xs uppercase tracking-widest text-gray-500">Shop / product</div> */}
-            <h1 className={`text-2xl sm:text-3xl md:text-4xl uppercase tracking-tight`}>{title}</h1>
+            <div className="w-full">
+              <span className="text-2xl sm:text-3xl md:text-4xl uppercase tracking-tight heading">{title} </span>
+              {bestseller && (
+                <span className="inline-block bg-[#FFF3D1] text-[#DEA509] px-3.5 py-0.5 rounded-lg text-[12px] sm:text-[12px] whitespace-nowrap">
+                  Best Seller
+                </span>
+              )}
+            </div>
+
             {subtitle && <div className="mt-1 text-xs sm:text-sm text-gray-500">{subtitle}</div>}
             <BadgeRow />
             {/* Sizes */}

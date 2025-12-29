@@ -28,6 +28,7 @@ export default async function CategoryProduct({ params}: { params: Promise<{ slu
     salePrice?: number | string;
     mrp?: number | string;
     new_launch:boolean;
+    bestseller: boolean;
   };
 
   const fmtINR = (n: number | string | undefined) =>
@@ -81,6 +82,7 @@ export default async function CategoryProduct({ params}: { params: Promise<{ slu
                 showAdd
                 className="p-3 sm:p-4"
                 newLaunch={!!p.new_launch}
+                bestseller={p.bestseller ?? false}
               />
             );
           })}

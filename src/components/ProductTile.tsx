@@ -14,6 +14,7 @@ type Props = {
   showAdd?: boolean;        // show "+ ADD TO CART" pill
   className?: string;
   newLaunch: boolean;
+  bestseller: boolean;
 };
 
 function Stars({ value = 4.8 }: { value?: number }) {
@@ -79,6 +80,7 @@ export default function ProductTile({
   showAdd = true,
   className = "",
   newLaunch,
+  bestseller
 }: Props) {
   const { add } = useCart();
   const [flash, setFlash] = useState(false);
@@ -86,9 +88,18 @@ export default function ProductTile({
 
   const content = (
     <div className={`rounded-2xl bg-white hover:shadow-md transition`}>
-      <div className="bg-neutral-100 overflow-hidden flex items-center justify-center aspect-square">
+      <div className="bg-neutral-100 overflow-hidden flex items-center justify-center aspect-square relative">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img ref={imgRef} src={image} alt={title} className="w-full h-full object-contain" />
+        <img ref={imgRef} src={image} alt={title} className="w-full h-full object-cover object-bottom" />
+        {bestseller ? (
+          <span className="inline-block bg-[#FFF3D1] text-[#DEA509] px-2.5 py-0 rounded-lg text-[9px] sm:text-[12px] whitespace-nowrap absolute bottom-1 left-1">
+            Best Seller
+          </span>
+        ) : newLaunch ? (
+          <span className="inline-block bg-[#FF5CE9] text-[#FFFFFF] px-2.5 py-0 rounded-lg text-[9px] sm:text-[12px] whitespace-nowrap absolute bottom-1 left-1">
+            New Arrival
+          </span>
+        ) : null}
       </div>
 
       <div className="mt-4">
@@ -102,7 +113,6 @@ export default function ProductTile({
           )}
           <Stars value={rating} />
         </div>
-
         {showAdd && (
           <button
             onClick={(e) => {

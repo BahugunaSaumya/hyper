@@ -21,6 +21,7 @@ export default async function AllProductsPage() {
     salePrice?: number | string;
     mrp?: number | string;
     new_launch: boolean;
+    bestseller: boolean;
   };
 
   const toNumber = (v: any) =>
@@ -73,6 +74,7 @@ export default async function AllProductsPage() {
                 showAdd
                 className="p-3 sm:p-4"
                 newLaunch={!!p.new_launch}
+                bestseller={p.bestseller?? false}
               />
             );
           })}

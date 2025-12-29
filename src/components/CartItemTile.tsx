@@ -47,7 +47,7 @@ export default function CartItemTile({
           <img
             src={image}
             alt={title}
-            className="max-h-full max-w-full object-contain"
+            className="max-h-full max-w-full object-cover object-bottom"
           />
         </button>
 

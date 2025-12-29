@@ -30,7 +30,7 @@ export default function CartView() {
   return (
     <section className="max-w-[1240px] mx-auto px-4 sm:px-6 md:px-8 py-8 sm:py-10 md:py-12 bg-white text-black">
       <div className="flex justify-center mb-10 mt-3">
-        <img src="/assets/cart-header.png" alt="Cart" className="h-16 sm:h-20 object-contain" />
+        <img src="/assets/cart-header.png" alt="Cart" className="h-16 sm:h-20 object-cover object-bottom" />
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
         <div className={list.length > 0 ? "lg:col-span-2" : "lg:col-span-3"}>
