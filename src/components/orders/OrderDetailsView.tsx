@@ -23,6 +23,12 @@ type SelectedItem = {
 export default function OrderDetailsView({ order, back }: OrderDetailsViewProps) {
   const isAdminView = back?.href == "/admin";
   const [selectedItems, setSelectedItems] = useState<SelectedItem[]>([]);
+  const canEditShipment =
+  isAdminView &&
+  selectedItems?.length > 0 &&
+  !["shipped", "complete"].includes(order.status) &&
+  ["paid", "confirmed", "partially_shipped"].includes(order.status);
+
   useEffect(() => {
     if (order?.items?.length) {
       // Get a flat list of all item IDs that are already in shipments
@@ -64,7 +70,7 @@ export default function OrderDetailsView({ order, back }: OrderDetailsViewProps)
 
         <OrderItems items={order.items} shipments={order.shipments} admin={isAdminView} selectedItems={selectedItems} onSelectionChange={setSelectedItems} orderComplete={order.status=='complete'} />
       </section>
-      {isAdminView && selectedItems?.length > 0 && (order.status !== 'shipped' && order.status !== 'complete') && ( <OrderShipmentEditor orderId={order.id} selectedItems={selectedItems} status={order.status}/>)}
+      {canEditShipment && ( <OrderShipmentEditor orderId={order.id} selectedItems={selectedItems} status={order.status}/>)}
 
       {isAdminView && order.status === "shipped" && (
           <OrderComplete orderId={order.id}/>
