@@ -314,7 +314,7 @@ function renderAdminEmail(order: any, orderId: string) {
   const ship = order?.shipping || order?.shippingAddress || {};
   const items = normalizeItems(order);
   const { subtotal, shipping, total, currency } = getTotals(order);
-  const pay = order?.paymentInfo || order?.payment || {};
+  const pay = order?.payment || {};
   const status = order?.status || "created";
 
   const itemRows = items

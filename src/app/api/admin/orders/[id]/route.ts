@@ -1,50 +1,101 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { getDb } from "@/lib/firebaseAdmin";
-import * as cache from "@/lib/cache";
+import { getServerUser } from "@/lib/serverAuth";
+import { Timestamp } from "firebase-admin/firestore";
 
-export const runtime = "nodejs";
+type OrderItem = {
+  id: string;
+  qty: number;
+  title: string;
+  [key: string]: any;
+};
 
-const TTL_MS = 60_000;
-const SWR_MS = 5 * 60_000;
-const docKey = (id: string) => `admin:doc:orders/${id}`;
+type ShipmentItem = {
+  itemId: string;
+  qty: number;
+};
 
-export async function GET(
-  _req: NextRequest,
-  ctx: { params: Promise<{ id: string }> }   // 👈 promise
-) {
-  const { id } = await ctx.params;           // 👈 await it
-  if (!id) {
-    return NextResponse.json({ error: "Missing order id" }, { status: 400 });
+type Shipment = {
+  id: string;
+  courier: string;
+  trackingId: string;
+  items: ShipmentItem[];
+  shippedAt: Timestamp;
+  createdBy: string;
+};
+
+export async function POST(req: Request, { params }: any) {
+  const user = await getServerUser();
+  if (!user || !user.isAdmin) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const k = docKey(id);
-  const peek = cache.peek(k);
-  let xcache = "MISS";
+  const { courier, trackingId, items } = await req.json() as { courier: string; trackingId: string; items: ShipmentItem[] };
 
-  try {
-    const order = await cache.remember<Record<string, any> | null>(
-      k,
-      TTL_MS,
-      SWR_MS,
-      async () => {
-        const db = getDb();
-        const snap = await db.collection("orders").doc(id).get();
-        return snap.exists ? { id: snap.id, ...snap.data() } : null;
-      }
-    );
-
-    if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
-    if (peek.has && (peek.fresh || peek.stale)) xcache = peek.fresh ? "HIT" : "STALE";
-
-    return NextResponse.json(order, {
-      status: 200,
-      headers: {
-        "Cache-Control": "private, max-age=60, stale-while-revalidate=300",
-        "X-Cache": xcache,
-      },
-    });
-  } catch (e: any) {
-    console.error("[/api/admin/orders/:id GET] error:", e?.stack || e?.message || e);
-    return NextResponse.json({ error: "Failed to load order" }, { status: 500 });
+  if (!courier || !trackingId || !items?.length) {
+    return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
   }
+
+  const db = getDb();
+  const ref = db.collection("orders").doc(params.id);
+  const snap = await ref.get();
+
+  if (!snap.exists) {
+    return NextResponse.json({ error: "Order not found" }, { status: 404 });
+  }
+
+  const order = snap.data()!;
+  const prevShipments: Shipment[] = order.shipments || [];
+
+  // ---- calculate total shipped quantities so far ----
+  const shippedQty: Record<string, number> = {};
+  prevShipments.forEach((s: Shipment) =>
+    s.items.forEach((i: ShipmentItem) => {
+      shippedQty[i.itemId] = (shippedQty[i.itemId] || 0) + i.qty;
+    })
+  );
+
+  // ---- validate new shipment quantities ----
+  for (const i of items) {
+    const orderItem = (order.items as OrderItem[]).find(x => x.id === i.itemId);
+    if (!orderItem) {
+      return NextResponse.json({ error: `Invalid item: ${i.itemId}` }, { status: 400 });
+    }
+    const remaining = orderItem.qty - (shippedQty[i.itemId] || 0);
+    if (i.qty > remaining) {
+      return NextResponse.json(
+        { error: `Qty exceeds remaining for ${orderItem.title}` },
+        { status: 400 }
+      );
+    }
+  }
+
+  // ---- create shipment object ----
+  const shipment: Shipment = {
+    id: `shp_${Date.now()}`,
+    courier,
+    trackingId,
+    items,
+    shippedAt: Timestamp.now(),
+    createdBy: user.uid
+  };
+
+  // ---- update shipped quantities to include new shipment ----
+  const finalQty = { ...shippedQty };
+  items.forEach((i: ShipmentItem) => {
+    finalQty[i.itemId] = (finalQty[i.itemId] || 0) + i.qty;
+  });
+
+  // ---- determine new order status ----
+  const fullyShipped = (order.items as OrderItem[]).every(i => finalQty[i.id] >= i.qty);
+  const status = fullyShipped ? "shipped" : "partially_shipped";
+
+  // ---- update order in Firestore ----
+  await ref.update({
+    shipments: [...prevShipments, shipment],
+    status,
+    updatedAt: Timestamp.now()
+  });
+
+  return NextResponse.json({ ok: true, status, shipment });
 }

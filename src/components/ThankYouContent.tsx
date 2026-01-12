@@ -13,7 +13,7 @@ type OrderSnapshot = {
   shipping?: { country: string; state: string; city: string; postal: string; addr1: string; addr2?: string };
   items: OrderItemView[];
   amounts: { subtotal: number; shipping: number; discount?: number; tax?: number; total: number; currency: string };
-  paymentInfo?: { razorpay_order_id?: string; razorpay_payment_id?: string; razorpay_signature?: string; brand?: string; last4?: string };
+  payment?: { razorpay_order_id?: string; razorpay_payment_id?: string; razorpay_signature?: string; brand?: string; last4?: string };
   status?: string;
 };
 
@@ -132,12 +132,11 @@ export default function ThankYouPage() {
 
           <div className="px-5 py-4 border-t">
             <dl className="space-y-2 text-sm">
-              <Row label="Subtotal" value={INR(snap?.amounts?.subtotal || 0)} />
+              <Row label="Subtotal (Inclusive of tax)" value={INR(snap?.amounts?.subtotal || 0)} />
               <Row label="Shipping" value={INR(snap?.amounts?.shipping || 0)} />
               {typeof snap?.amounts?.discount === "number" && (
                 <Row label="Discount" value={`- ${INR(Math.abs(snap.amounts.discount))}`} />
               )}
-              <Row label="Taxes" value={INR(snap?.amounts?.tax || 0)} />
               <Row label={<span className="font-semibold">Total</span>} value={<span className="font-semibold">{INR(snap?.amounts?.total || 0)}</span>} />
             </dl>
           </div>
@@ -153,16 +152,16 @@ export default function ThankYouPage() {
             </div>
           </Card>
 
-          <Card title="Delivery">
+          {/* <Card title="Delivery">
             <dl className="text-sm space-y-2">
               <Row label="Ship by" value="DHL" />
               <Row label="Speedy" value="Standard" />
               <Row
                 label="Tracking No."
-                value={<span className="text-pink-600">{(snap?.paymentInfo?.razorpay_order_id || "").slice(0, 12) || "—"}</span>}
+                value={<span className="text-pink-600">{(snap?.payment?.razorpay_order_id || "").slice(0, 12) || "—"}</span>}
               />
             </dl>
-          </Card>
+          </Card> */}
 
           <Card title="Shipping">
             <div className="text-sm text-gray-700 leading-relaxed">
@@ -179,9 +178,9 @@ export default function ThankYouPage() {
 
           <Card title="Payment">
             <div className="text-sm">
-              <div className="text-gray-700">Razorpay{snap?.paymentInfo?.last4 ? ` • •••• ${snap.paymentInfo.last4}` : ""}</div>
-              {snap?.paymentInfo?.razorpay_payment_id && (
-                <div className="text-xs text-gray-500 mt-1 break-all">{snap.paymentInfo.razorpay_payment_id}</div>
+              <div className="text-gray-700">Razorpay{snap?.payment?.last4 ? ` • •••• ${snap.payment.last4}` : ""}</div>
+              {snap?.payment?.razorpay_payment_id && (
+                <div className="text-xs text-gray-500 mt-1 break-all">{snap.payment.razorpay_payment_id}</div>
               )}
             </div>
           </Card>

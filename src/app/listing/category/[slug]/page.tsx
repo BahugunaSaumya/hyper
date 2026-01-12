@@ -29,10 +29,8 @@ export default async function CategoryProduct({ params}: { params: Promise<{ slu
     mrp?: number | string;
     new_launch:boolean;
     bestseller: boolean;
+    color: string;
   };
-
-  const fmtINR = (n: number | string | undefined) =>
-    "₹ " + Number(n || 0).toLocaleString("en-IN");
 
   const toNumber = (v: any) =>
     Number.isFinite(+v)
@@ -48,7 +46,7 @@ export default async function CategoryProduct({ params}: { params: Promise<{ slu
     `/product/${p.slug}`;
 
   return (
-    <div className="max-w-6xl mx-auto p-6">
+    <div className="max-w-6xl mx-auto p-6 px-2">
       {products.length === 0 ? (
          <div className="flex justify-center items-center h-64 px-4 text-center">
           <h2 className="text-2xl md:text-3xl lg:text-4xl font-extrabold text-gray-700 animate-pulse">
@@ -56,7 +54,7 @@ export default async function CategoryProduct({ params}: { params: Promise<{ slu
           </h2>
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-2">
           {products.map((p: Product, index: number) => {
             const title = p.title || p.name || "Product";
             const dir = dirFrom(p);
@@ -78,11 +76,9 @@ export default async function CategoryProduct({ params}: { params: Promise<{ slu
                     : "/assets/placeholder.png"
                 }
                 price={price}
-                rating={5}
-                showAdd
-                className="p-3 sm:p-4"
                 newLaunch={!!p.new_launch}
                 bestseller={p.bestseller ?? false}
+                color= {p.color ?? ''}
               />
             );
           })}

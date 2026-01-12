@@ -29,7 +29,7 @@ export function formatINR(n: number) {
 }
 
 export function shippingAmount(express: boolean) {
-  return express ? 80 : 0; // same as legacy
+  return express ? 250 : 0; // same as legacy
 }
 
 export function subtotalOf(cart: Record<string, CartItem>) {

@@ -131,33 +131,65 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    const orderItems = body.items.map(it =>
+      Math.max(1, Number(it.qty || 0))
+    );
+
+    const orderItemstotalQty = orderItems.reduce((s, q) => s + q, 0);
+
+    // Clamp shipping to {0|250}
+    const clientShip = Number(body.clientTotals?.shipping || 0);
+    const shippingRupees = clientShip === 250 ? 250 : 0;
+    // Avoid divide-by-zero
+    const shippingPerUnit = orderItemstotalQty > 0 ? shippingRupees / orderItemstotalQty : 0;
+
     const serverItems = resolved.map((doc, idx) => {
-      const p = doc!.data;
-      const unit = pickServerPrice(p); // RUPEES
-      const qty = Math.max(1, Number(body!.items[idx].qty || 0));
+    const p = doc!.data;
+    const unitInclusive = pickServerPrice(p); // GST-INCLUSIVE
+    const qty = Math.max(1, Number(body!.items[idx].qty || 0));
+    const GST_RATE = 0.05;
+    function round2(n: number) {
+      return Math.round(n * 100) / 100;
+    }
+
+    function extractGSTInclusive(total: number) {
+      const base = total / (1 + GST_RATE);
+      const tax = total - base;
+      return {
+        base: round2(base),
+        tax: round2(tax),
+        total: round2(total),
+      };
+    }
+
+    const lineTotal = unitInclusive * qty;
+    const taxSplit = extractGSTInclusive(lineTotal);
+    const itemShipping = round2(shippingPerUnit * qty);
       return {
         id: doc!.id,
         title: p.title || body!.items[idx].title || `Item ${idx + 1}`,
         size: body!.items[idx].size || "M",
         qty,
-        unitPrice: unit,                                        // RUPEES
+        unitPrice: unitInclusive,
+        baseAmount: taxSplit.base,
+        taxAmount: taxSplit.tax,
+        totalAmount: taxSplit.total + itemShipping,
+        shippingAmount: itemShipping,
         image: p.image || body!.items[idx].image || "",
         slug: p.slug || body!.items[idx].slug || slugify(p.title || body!.items[idx].title || doc!.id),
-        _raw: p,
       };
     });
 
-    
+    const orderTotal = serverItems.reduce((s, it) => s + it.totalAmount, 0);
+    const orderBase = serverItems.reduce((s, it) => s + it.baseAmount, 0);
+    const orderTax = serverItems.reduce((s, it) => s + it.taxAmount, 0);
 
-    const subtotalRupees = serverItems.reduce((sum, it) => sum + it.unitPrice * it.qty, 0);
-
-    // Clamp shipping to {0|80}
-    const clientShip = Number(body.clientTotals?.shipping || 0);
-    const shippingRupees = clientShip === 80 ? 80 : 0;
+    const totalItemQty = serverItems.reduce((s, it) => s + it.qty, 0);
 
     const currency = (body.clientTotals?.currency || "INR").toUpperCase();
-    const totalRupees = subtotalRupees + shippingRupees;
+    const totalRupees = orderTotal + shippingRupees;
 
+    const subtotalRupees = serverItems.reduce((sum, it) => sum + it.unitPrice * it.qty, 0);
     if (totalRupees <= 0) {
       console.warn("[razorpay-order] Invalid total computed", { subtotalRupees, shippingRupees });
       return NextResponse.json({ error: "Invalid total" }, { status: 400 });
@@ -188,17 +220,13 @@ export async function POST(req: NextRequest) {
     const draft = {
       status: "created",
       customer: body.customer || {},
-      items: serverItems.map(({ _raw, ...x }) => x),
+      items: serverItems,
       totals: {
         subtotal: subtotalRupees,
         shipping: shippingRupees,
         total: totalRupees,
-        currency,
-      },
-      hintTotals: {
-        subtotal: subtotalRupees,
-        shipping: shippingRupees,
-        total: totalRupees,
+        base: orderBase,
+        tax: orderTax,
         currency,
       },
       shippingAddress: body.shippingAddress || null,
@@ -223,7 +251,7 @@ export async function POST(req: NextRequest) {
     });
 
     const rzpOrder = await razorpay.orders.create({
-      amount: amountPaise,          // PAISE
+      amount: amountPaise,
       currency,
       receipt: `order_rcptid_${orderId}`,
       notes: { ...(body.notes || {}), orderId },
@@ -234,7 +262,7 @@ export async function POST(req: NextRequest) {
       {
         ...rzpOrder,
         orderId,
-        computed: { subtotal: subtotalRupees, shipping: shippingRupees, total: totalRupees, currency },
+        computed: { subtotal: subtotalRupees, shipping: shippingRupees, total: totalRupees, base: orderBase, tax: orderTax, currency },
       },
       { status: 200 }
     );

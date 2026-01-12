@@ -22,6 +22,7 @@ export default async function AllProductsPage() {
     mrp?: number | string;
     new_launch: boolean;
     bestseller: boolean;
+    color: string;
   };
 
   const toNumber = (v: any) =>
@@ -37,7 +38,7 @@ export default async function AllProductsPage() {
   const hrefFor = (p: Product) =>`/product/${p.slug}`;
 
   return (
-    <div className="max-w-6xl mx-auto p-6">
+    <div className="max-w-6xl mx-auto p-6 px-2">
       <h1 className="text-2xl font-bold text-center mb-8 mt-8">
         All Products
       </h1>
@@ -47,7 +48,7 @@ export default async function AllProductsPage() {
           No products available at the moment.
         </p>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-2">
           {products.map((p: Product, index: number) => {
             const title = p.title || p.name || "Product";
             const dir = dirFrom(p);
@@ -70,11 +71,9 @@ export default async function AllProductsPage() {
                     : "/assets/placeholder.png"
                 }
                 price={price}
-                rating={5}
-                showAdd
-                className="p-3 sm:p-4"
                 newLaunch={!!p.new_launch}
                 bestseller={p.bestseller?? false}
+                color= {p.color ?? ''}
               />
             );
           })}

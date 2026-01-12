@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
 
       let revenue = 0;
       for (const d of ordersSnap.docs) {
-        const a = d.data()?.amounts?.total;
+        const a = d.data()?.totals?.total;
         if (typeof a === "number") revenue += a;
       }
 

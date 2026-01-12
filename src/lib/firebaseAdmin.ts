@@ -1,10 +1,14 @@
-// src/lib/firebase/admin.ts
 import * as admin from "firebase-admin";
 import * as cache from "./cache";
+import { cookies, headers } from "next/headers";
 
 export const runtime = "nodejs";
 
 let app: admin.app.App;
+
+/* ============================================================================
+   Firebase Admin Init (UNCHANGED)
+============================================================================ */
 
 if (!admin.apps.length) {
   const projectId = process.env.FIREBASE_PROJECT_ID;
@@ -27,7 +31,91 @@ if (!admin.apps.length) {
 export function getDb() { return admin.firestore(app); }
 export function getAuth() { return admin.auth(app); }
 
-// --------------- Server-side cache helpers (optional but handy) ---------------
+/* ============================================================================
+   🔐 SERVER-SIDE AUTH HELPERS (ADDED – SAME FILE)
+============================================================================ */
+
+/**
+ * Extract Firebase ID token from cookie or Authorization header
+ */
+async function getIdToken(): Promise<string | null> {
+  const cookieStore = await cookies();
+  const headerStore = await headers();
+  const cookieToken =
+    cookieStore.get("__session")?.value ||
+    cookieStore.get("firebaseToken")?.value ||
+    null;
+
+  const headerToken =
+    headerStore
+      .get("authorization")
+      ?.replace(/^Bearer\s+/i, "") ||
+    null;
+
+  return cookieToken || headerToken;
+}
+
+/**
+ * Verify logged-in Firebase user
+ */
+export async function getServerUser() {
+  const token = await getIdToken();
+
+  if (!token) {
+    throw new Error("Unauthorized: No token provided");
+  }
+
+  const decoded = await getAuth().verifyIdToken(token);
+
+}
+
+/**
+ * Require authentication
+ */
+export async function assertAuthenticated() {
+  const user = await getServerUser();
+  return user;
+}
+
+/**
+ * Ensure logged-in user owns the order
+ */
+export function assertOrderOwner(
+  order: any,
+  user: admin.auth.DecodedIdToken
+) {
+  const ownerEmail =
+    order?.customer?.email ||
+    order?.customerEmail ||
+    order?.ownerEmail ||
+    null;
+
+  if (
+    !ownerEmail ||
+    ownerEmail.toLowerCase() !== user.email?.toLowerCase()
+  ) {
+    throw new Error("FORBIDDEN");
+  }
+}
+
+/**
+ * Simple admin check (email based)
+ * 👉 Can be upgraded later to custom claims
+ */
+export function assertAdmin(user: admin.auth.DecodedIdToken) {
+  const ADMIN_EMAILS = [
+    "hyperfitness.in@gmail.com",
+  ];
+
+  if (!ADMIN_EMAILS.includes(user.email || "")) {
+    throw new Error("FORBIDDEN");
+  }
+}
+
+/* ============================================================================
+   🧠 SERVER-SIDE CACHE HELPERS (UNCHANGED)
+============================================================================ */
+
 const DEFAULT_TTL = 60_000;      // 60s
 const DEFAULT_SWR = 5 * 60_000;  // 5m
 
@@ -36,10 +124,10 @@ const key = {
   qry: (name: string, params?: Record<string, any>) => {
     const qs = params
       ? Object.entries(params)
-        .filter(([, v]) => v !== undefined && v !== null)
-        .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`)
-        .sort()
-        .join("&")
+          .filter(([, v]) => v !== undefined && v !== null)
+          .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`)
+          .sort()
+          .join("&")
       : "";
     return `admin:qry:${name}${qs ? "?" + qs : ""}`;
   },

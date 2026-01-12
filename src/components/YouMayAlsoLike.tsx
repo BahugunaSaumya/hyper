@@ -17,17 +17,13 @@ type Product = {
   mrp?: number | string;
   new_launch: boolean;
   bestseller: boolean;
+  color: string;
 };
 
 const toNumber = (v: any) =>
   Number.isFinite(+v) ? +v : (typeof v === "string" ? parseFloat(v.replace(/[^0-9.]/g, "")) : 0);
 
 const dirFrom = (p: Product) => (p.slug || p.title || p.name || p.id || "").trim();
-const IMG_NAMES = ["1", "2", "3", "4"];
-const oneRandomImg = (dir: string) => {
-  return `/assets/models/products/${dir}/1.avif`;
-};
-const fallbackSeq = (dir: string) => IMG_NAMES.map(n => `/assets/models/products/${dir}/${n}.avif`);
 
 const hrefFor = (p: Product) =>`/product/${p.slug}`;
 
@@ -38,41 +34,6 @@ function shuffle<T>(xs: T[]) {
     [a[i], a[j]] = [a[j], a[i]];
   }
   return a;
-}
-
-/** Picks ONE image; no rotation. If it 404s, tries the remaining candidates once. */
-function OneShotImage({ dir, alt }: { dir: string; alt: string }) {
-  const tried = useRef<Set<string>>(new Set());
-  const [src, setSrc] = useState(() => oneRandomImg(dir));
-  const fallbacks = useMemo(() => fallbackSeq(dir), [dir]);
-
-  useEffect(() => {
-    tried.current.clear();
-    setSrc(oneRandomImg(dir));
-  }, [dir]);
-
-  const onError = () => {
-    tried.current.add(src);
-    const next = fallbacks.find(u => !tried.current.has(u));
-    if (next) {
-    
-      setSrc(next);
-    } else {
-      setSrc("/assets/placeholder.png");
-    }
-  };
-
-  return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={src}
-      alt={alt}
-      onError={onError}
-      className="h-full w-full object-cover object-bottom"
-      loading="lazy"
-      decoding="async"
-    />
-  );
 }
 
 export default function YouMayAlsoLike({
@@ -136,12 +97,12 @@ export default function YouMayAlsoLike({
     );
   }
   return (
-    <div className="mt-14" data-ymal>
+    <div className="mt-14 px-2" data-ymal>
       <div className="text-center mb-6">
         <img src={headingImg} alt="You may also like" className="mx-auto w-64 sm:w-80" />
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
         {visible.map((p) => {
           const title = p.title || p.name || "Product";
           const dir = dirFrom(p);
@@ -154,13 +115,9 @@ export default function YouMayAlsoLike({
               slug={`${p.slug}`}
               image={dir ? `/assets/models/products/${dir}/1.avif` : "/assets/placeholder.png"}
               price={price}
-              rating={5}
-              showAdd
-              // Optional: if your ProductTile supports className, keep the tighter padding:
-              className="p-3 sm:p-4"
               newLaunch={!!p.new_launch}
               bestseller={p.bestseller ?? false}
-            // If ProductTile doesn't accept className, you can remove ^ safely.
+              color= {p.color ?? ''}
             />
           );
         })}

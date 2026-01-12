@@ -36,15 +36,16 @@ type Address = {
 export default function CheckoutView() {
   const router = useRouter();
   const { items, clear, isLoaded } = useCart();
+  const [isPurchaseSuccess, setIsPurchaseSuccess] = useState(false);
   useEffect(() => {
-    if (isLoaded) {
+    if (isLoaded && !isPurchaseSuccess) {
       const itemKeys = Object.keys(items);
       const isCartEmpty = itemKeys.length === 0;
       if (isCartEmpty) {
         router.replace("/");
       }
     }
-  }, [items, isLoaded, router]);
+  }, [items, isLoaded, router, isPurchaseSuccess]);
 
   const { user, profile } = useAuth() as any;
   const [express, setExpress] = useState(false);
@@ -203,8 +204,10 @@ export default function CheckoutView() {
       }, 0),
     [list]
   );
-  const shipping = express ? 80 : 0;
+  const shipping = express ? 250 : 0;
   const total = subtotal + shipping;
+
+  const GST_RATE = 0.05;
 
   // Helpers
   function shippingFromState(): { country: string; state: string; city: string; postal: string; addr1: string; addr2: string } {
@@ -367,16 +370,24 @@ export default function CheckoutView() {
 
       const ship = shippingFromState();
       const listArr: any[] = Object.values(items);
-      const itemsForOrder = listArr
-        // .filter(it => !(it.newLaunch && today < newLaunchCutoff))
-        .map(it => ({
-          id: it.id,
+      const itemsForOrder = listArr.map((it: any) => {
+      const itemPrice = parseINR(it.price);
+      const pricing = extractGSTInclusive(itemPrice, it.quantity);
+        return {
+          id: it.id ?? it.slug,
           title: it.name,
           size: it.size,
           qty: it.quantity,
-          unitPrice: parseINR(it.price),
+          unitPrice: itemPrice,
+          baseAmount: pricing.base,
+          taxAmount: pricing.tax,        // ✅ CGST+SGST combined
+          totalAmount: pricing.total,
           image: it.image,
-        }));
+        };
+      });
+
+      const orderBase = itemsForOrder.reduce((s, it) => s + it.baseAmount, 0);
+      const orderTax = itemsForOrder.reduce((s, it) => s + it.taxAmount, 0);
 
       const orderInitPayload = {
         customer: { name: nameFromState(), email, phone },
@@ -385,7 +396,7 @@ export default function CheckoutView() {
           postal: ship.postal, addr1: ship.addr1, addr2: ship.addr2
         },
         items: itemsForOrder,
-        clientTotals: { subtotal, shipping, total, currency: "INR" }, // hint only
+        clientTotals: { subtotal, shipping, total, base: orderBase, tax: orderTax, currency: "INR" },
         notes: { source: "checkout-page" },
       };
 
@@ -464,7 +475,7 @@ export default function CheckoutView() {
                   shipping: orderInitPayload.shippingAddress,
                   items: itemsForOrder,
                   amounts: { subtotal, shipping, total, currency: "INR" },
-                  paymentInfo: {
+                  payment: {
                     razorpay_order_id: response.razorpay_order_id,
                     razorpay_payment_id: response.razorpay_payment_id,
                     razorpay_signature: response.razorpay_signature,
@@ -478,7 +489,7 @@ export default function CheckoutView() {
               // Fallback: client-side create
               await saveOrderToFirestore(response);
             }
-
+            setIsPurchaseSuccess(true);
             clear();
             endWait();
             router.push(`/thank-you?payment_id=${response.razorpay_payment_id}`);
@@ -516,27 +527,49 @@ export default function CheckoutView() {
     }
   }
 
+  function extractGSTInclusive(unitPriceInclusive: number, qty: number) {
+    const total = unitPriceInclusive * qty;
+    const base = total / (1 + GST_RATE);
+    const tax = total - base; // CGST + SGST combined
+
+    return {
+      base: Math.round(base * 100) / 100,
+      tax: Math.round(tax * 100) / 100,
+      total: Math.round(total * 100) / 100,
+    };
+  }
+
   async function saveOrderToFirestore(paymentResponse: any) {
     const listArr: any[] = Object.values(items);
-    const itemsForOrder = listArr.map((it: any) => ({
-      id: it.id ?? it.slug,
-      title: it.name,
-      size: it.size,
-      qty: it.quantity,
-      unitPrice: parseINR(it.price),
-      image: it.image,
-    }));
+    const itemsForOrder = listArr.map((it: any) => {
+    const itemPrice = parseINR(it.price);
+    const pricing = extractGSTInclusive(itemPrice, it.quantity);
+      return {
+        id: it.id ?? it.slug,
+        title: it.name,
+        size: it.size,
+        qty: it.quantity,
+        unitPrice: itemPrice,
+        baseAmount: pricing.base,
+        taxAmount: pricing.tax,
+        totalAmount: pricing.total,
+        image: it.image,
+      };
+    });
 
     const ship = shippingFromState();
+
+    const orderBase = itemsForOrder.reduce((s, it) => s + it.baseAmount, 0);
+    const orderTax = itemsForOrder.reduce((s, it) => s + it.taxAmount, 0);
 
     const payload = {
       userId: user?.uid || null,
       customer: { name: nameFromState(), email, phone },
       shipping: { country: ship.country, state: ship.state, city: ship.city, postal: ship.postal, addr1: ship.addr1, addr2: ship.addr2 },
       items: itemsForOrder,
-      amounts: { subtotal, shipping, total, currency: "INR" },
+      amounts: { subtotal, shipping, total, base: orderBase, tax: orderTax, currency: "INR" },
       status: "paid",
-      paymentInfo: {
+      payment: {
         razorpay_order_id: paymentResponse.razorpay_order_id,
         razorpay_payment_id: paymentResponse.razorpay_payment_id,
         razorpay_signature: paymentResponse.razorpay_signature,
@@ -578,7 +611,7 @@ export default function CheckoutView() {
             total: payload.amounts.total,
             currency: payload.amounts.currency,
           },
-          paymentInfo: {
+          payment: {
             razorpay_order_id: paymentResponse.razorpay_order_id,
             razorpay_payment_id: paymentResponse.razorpay_payment_id,
             razorpay_signature: paymentResponse.razorpay_signature,
@@ -750,7 +783,7 @@ export default function CheckoutView() {
       <section className="mb-10 max-w-md pb-3 pt-6">
         <div className="border rounded-xl p-4">
           <div className="flex justify-between text-sm mb-2">
-            <span>Subtotal</span><span>{formatINR(subtotal)}</span>
+            <span>Subtotal (Inclusive of tax)</span><span>{formatINR(subtotal)}</span>
           </div>
           <div className="flex justify-between text-sm mb-2">
             <span>Shipping</span>
@@ -759,7 +792,7 @@ export default function CheckoutView() {
                 <input type="radio" name="ship" checked={!express} onChange={() => setExpress(false)} className="accent-pink-600 mr-1" /> Free
               </label>
               <label>
-                <input type="radio" name="ship" checked={express} onChange={() => setExpress(true)} className="accent-pink-600 mr-1" /> Express (+ ₹ 80)
+                <input type="radio" name="ship" checked={express} onChange={() => setExpress(true)} className="accent-pink-600 mr-1" /> Express (+ ₹ 250)
               </label>
             </span>
           </div>

@@ -24,7 +24,7 @@ export default function CartView() {
       }, 0),
     [list]
   );
-  const shipping = express ? 80 : 0;
+  const shipping = express ? 250 : 0;
   const total = subtotal + shipping;
   const itemCount = list.reduce((s, it) => s + (it.quantity || 0), 0);
   return (
@@ -101,11 +101,11 @@ export default function CartView() {
                     />
                     Express Shipping
                   </span>
-                  <span>+ {formatINR(80)}</span>
+                  <span>+ {formatINR(250)}</span>
                 </label>
               </div>
               <div className="flex justify-between text-base mb-2">
-                <span>Subtotal</span>
+                <span>Subtotal (Inclusive of tax)</span>
                 <span>{formatINR(subtotal)}</span>
               </div>
               <div className="flex justify-between text-lg font-semibold mb-5">

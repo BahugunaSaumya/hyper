@@ -437,7 +437,7 @@ export default function ProductDetailView({ product }: { product: ProductModel }
                     {discountPercentage} % Off
                   </span>
                 )}
-                <Stars rating={rating} />
+                <span className="text-[#757575] text-[12px] sm:text-[12px]">* Inclusive of all taxes</span>
               </div>
             </div>
             {/* Qty + Add to Cart */}

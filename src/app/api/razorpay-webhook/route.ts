@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
       if (data.status !== "paid") {
         await doc.set(
           {
-            status: "paid",
+            status: "confirmed",
             updatedAt: new Date(),
             payment: {
               ...(data.payment || {}),

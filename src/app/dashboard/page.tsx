@@ -305,7 +305,16 @@ export default function DashboardPage() {
         </Card>
         <Card title="Last Order">
           <div className="text-sm">
-            {kpis.latestWhen ? new Date(kpis.latestWhen).toLocaleString() : "—"}
+            {kpis.latestWhen ? new Date(kpis.latestWhen).toLocaleString("en-IN", {
+                                timeZone: "Asia/Kolkata",
+                                day: "2-digit",
+                                month: "short",
+                                year: "numeric",
+                                hour: "numeric",
+                                minute: "2-digit",
+                                hour12: true,
+                              })
+                              .replace(",", "") : "—"}
           </div>
         </Card>
       </section>
@@ -358,11 +367,11 @@ export default function DashboardPage() {
             <table className="min-w-full text-sm">
               <thead className="bg-gray-50">
                 <tr>
-                  <Th>Order ID</Th>
+                  {/* <Th>Order ID</Th> */}
+                  <Th>Placed</Th>
                   <Th>Status</Th>
                   <Th>Total</Th>
-                  <Th>Placed</Th>
-                  <Th></Th>
+                  <Th>Details</Th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -372,10 +381,20 @@ export default function DashboardPage() {
                     const when = toISO(o.createdAt) || o.placedAt || null;
                     return (
                       <tr key={o.id} className="hover:bg-gray-50">
-                        <Td className="font-mono">{o.id}</Td>
+                        {/* <Td className="font-mono">{o.id}</Td> */}
+                        <Td>{when ? new Date(when)
+                              .toLocaleString("en-IN", {
+                                day: "2-digit",
+                                month: "short",
+                                year: "numeric",
+                                hour: "numeric",
+                                minute: "2-digit",
+                                hour12: true,
+                              })
+                              .replace(",", "")
+                          : "—"}</Td>
                         <Td className="capitalize">{o.status || "created"}</Td>
                         <Td>₹ {fmtINR(total)}</Td>
-                        <Td>{when ? new Date(when).toLocaleString() : "—"}</Td>
                         <Td>
                           <Link
                             href={`/order/${o.id}`}
@@ -430,7 +449,7 @@ export default function DashboardPage() {
           {!editingAddr ? (
             <div className="space-y-3 mt-3">
               <Labeled value={user.email || user.uid} label="Email" />
-              <Labeled value={addr.name} label="Full Name" />
+              <Labeled value={user.name || addr.name} label="Full Name" />
               <Labeled value={addr.phone} label="Phone" />
               <Labeled
                 value={[addr.street, addr.city, addr.state, addr.postal].filter(Boolean).join(", ")}
@@ -511,7 +530,7 @@ function Td({
   className?: string;
   colSpan?: number;
 }) {
-  return <td className={`px-4 py-2 align-top ${className}`} colSpan={colSpan}>{children}</td>;
+  return <td className={`px-4 py-3 align-top ${className}`} colSpan={colSpan}>{children}</td>;
 }
 function Input({
   label,

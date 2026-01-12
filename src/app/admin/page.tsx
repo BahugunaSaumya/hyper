@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense } from "react";
-import AdminDashboard from "@/components/AdminDashboard";
+import AdminDashboard from "./AdminDashboard";
 import { PageLoaderOverlay } from "@/components/LoadingScreen";
 
 export const dynamic = "force-dynamic";

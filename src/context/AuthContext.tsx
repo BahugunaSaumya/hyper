@@ -47,21 +47,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    return onAuthStateChanged(auth, async (u) => {
-      setUser(u);
-      if (u) {
+  return onAuthStateChanged(auth, async (u) => {
+    setLoading(true); // Ensure loading state is active
+    setUser(u);
+
+    if (u) {
+      try {
         const ref = doc(db, "users", u.uid);
         const snap = await getDoc(ref);
-        setProfile((snap.exists() ? (snap.data() as Profile) : {
-          name: u.displayName || "",
-          email: u.email || "",
-        }));
-      } else {
-        setProfile(null);
+        
+        if (snap.exists()) {
+          setProfile(snap.data() as Profile);
+        } else {
+          // Fallback if document doesn't exist yet
+          setProfile({
+            name: u.displayName || "",
+            email: u.email || "",
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching profile:", error);
+        // Handle error state or set default profile
       }
-      setLoading(false);
-    });
-  }, []);
+    } else {
+      setProfile(null);
+    }
+    setLoading(false);
+  });
+}, []);
 
   const api = useMemo<AuthCtx>(() => ({
     user,

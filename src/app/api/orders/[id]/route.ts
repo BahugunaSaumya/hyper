@@ -40,8 +40,11 @@ export async function GET(
           total: o.total ?? 0,
           currency: o.currency ?? "INR",
         },
-      paymentInfo: o.paymentInfo || o.payment || null,
-      status: o.status || "paid",
+      payment: o.payment || null,
+      status: (o?.payment?.status == "paid" ) ? 'Confirmed' : 'Awaiting Approval',
+      shippingAddress: o?.shippingAddress ?? {},
+      totals: o?.totals ?? {},
+      createdAt: o.createdAt
     };
 
     return NextResponse.json({ ok: true, order: payload }, { status: 200 });
