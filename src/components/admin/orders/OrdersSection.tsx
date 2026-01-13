@@ -6,12 +6,12 @@ import OrderFilters from "./OrderFilters";
 import OrderCsvActions from "./OrderCsvActions";
 
 export default function OrdersSection({ orders }: { orders: any[] }) {
-  const { status, setStatus, filteredOrders } = useOrders(orders);
+  const { status, setStatus, dateRange, handleDateChange, filteredOrders } = useOrders(orders);
 
   return (
     <section>
       <div className="flex justify-between mb-3">
-        <OrderFilters value={status} onChange={setStatus} />
+        <OrderFilters status={status} setStatus={setStatus} dateRange={dateRange} handleDateChange={handleDateChange} />
         <OrderCsvActions orders={filteredOrders} />
       </div>
       <OrdersTable orders={filteredOrders} />

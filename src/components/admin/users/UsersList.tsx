@@ -21,9 +21,9 @@ export default function UsersList({ users, openUser }: Props) {
       <tbody>
         {users.map(u => (
           <tr key={u.id}>
-            <Td>{u.name || u.address.name || "—"}</Td>
-            <Td>{u.email}</Td>
-            <Td>{u.phone || u.address.phone || "—"}</Td>
+            <Td>{u?.name || u?.address?.name || "—"}</Td>
+            <Td>{u?.email || ''}</Td>
+            <Td>{u?.phone || u?.address?.phone || "—"}</Td>
             <Td>{formatIST(u.createdAt)}</Td>
             <Td>
               <button

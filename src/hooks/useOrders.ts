@@ -11,11 +11,45 @@ export const ORDER_STATUSES = [
 
 export function useOrders(orders: any[]) {
   const [status, setStatus] = useState("all");
+  
+  const [dateRange, setDateRange] = useState({
+    start: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    end: new Date().toISOString().split('T')[0]
+  });
+
+  const handleDateChange = (type: 'start' | 'end', value: string) => {
+    const newRange = { ...dateRange, [type]: value };
+    const startDate = new Date(newRange.start);
+    const endDate = new Date(newRange.end);
+    if (startDate > endDate) {
+      alert("Start date cannot be after the end date.");
+      return;
+    }
+    const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays > 183) {
+      alert("Maximum date range allowed is 6 months.");
+      return;
+    }
+
+    setDateRange(newRange);
+  };
 
   const filteredOrders = useMemo(() => {
-    if (status === "all") return orders;
-    return orders.filter(o => o.status === status);
-  }, [orders, status]);
+    return orders.filter(o => {
+      const matchesStatus = status === "all" || o.status === status;
+      const orderSeconds = o.createdAt?._seconds || o.placedAt?._seconds;
+      if (!orderSeconds) return matchesStatus;
 
-  return { status, setStatus, filteredOrders };
+      const orderDate = new Date(orderSeconds * 1000);
+      const start = new Date(dateRange.start);
+      const end = new Date(dateRange.end);
+      end.setHours(23, 59, 59);
+
+      return matchesStatus && orderDate >= start && orderDate <= end;
+    });
+  }, [orders, status, dateRange]);
+
+  return { status, setStatus, dateRange, handleDateChange, filteredOrders };
 }

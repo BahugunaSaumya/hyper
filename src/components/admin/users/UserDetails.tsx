@@ -11,10 +11,10 @@ export default function UserDetails({ user }: { user: any }) {
 
   return (
     <div className="border rounded-xl p-4 text-sm w-1/2">
-      <div><b>Name:</b> {user.user.name}</div>
-      <div><b>Email:</b> {user.user.email}</div>
-      <div><b>Phone:</b> {user.user.phone || "—"}</div>
-      <div><b>ID:</b> {user.user.uid}</div>
+      <div><b>Name:</b> {user?.user?.name || ''}</div>
+      <div><b>Email:</b> {user?.user?.email || ''}</div>
+      <div><b>Phone:</b> {user?.user?.phone || "—"}</div>
+      <div><b>ID:</b> {user?.user?.uid}</div>
       <ul className="divide-y max-h-80 overflow-auto">
         {user.orders.map((o: any) => (
             <li key={o.id} className="py-2">
