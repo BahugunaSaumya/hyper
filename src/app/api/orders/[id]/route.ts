@@ -9,7 +9,6 @@ export async function GET(
   context: { params: Promise<{ id: string }> } // 1. Define params as a Promise
 ) {
   const connection = await db.getConnection();
-  console.log('in here');
   
   try {
     // 2. Await the params to unwrap them (Next.js 15 requirement)

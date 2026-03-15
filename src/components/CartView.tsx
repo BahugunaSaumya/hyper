@@ -48,7 +48,6 @@ export default function CartView() {
     });
     setAppliedCoupon(data?.summary?.coupon_id ?? null);
   };
-    console.log(cartSummary);
 
   useEffect(() => {
     list.forEach(async (item) => {

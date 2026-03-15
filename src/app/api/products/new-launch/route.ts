@@ -29,9 +29,6 @@ export async function GET(_req: NextRequest) {
   const cacheKey = "api:products:new-launch?limit=12";
 
   try {
-    console.log("HOST:", process.env.MYSQL_HOST);
-    console.log("PORT:", process.env.MYSQL_PORT);
-    cache.clear();
     const products = await cache.remember<any[]>(
       cacheKey,
       TTL_MS,

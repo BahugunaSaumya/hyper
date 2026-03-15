@@ -8,7 +8,8 @@ export const SUPER_ADMIN_EMAILS: string[] = [
 /** Default admin allow-lists (file-based). */
 export const ADMIN_EMAILS: string[] = [
   "shanubahuguna@gmail.com",
-  "hyperfitness.in@gmail.com"
+  "hyperfitness.in@gmail.com",
+  "test@gmail.com"
 ];
 
 /** Optional: admins by UID. They have admin access, but are NOT super admins. */
