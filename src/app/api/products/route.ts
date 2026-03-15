@@ -31,6 +31,7 @@ export async function GET(req: NextRequest) {
   const cacheKey = `api:products:list?limit=${limit}`;
 
   try {
+    cache.clear();
     const products = await cache.remember<any[]>(
       cacheKey,
       TTL_MS,
