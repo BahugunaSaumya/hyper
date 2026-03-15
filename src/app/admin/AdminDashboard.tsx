@@ -14,7 +14,8 @@ import { useUsers } from "@/hooks/useUsers";
 
 export default function AdminDashboard() {
   const { user, allowed, isSuper } = useAdminAuth();
-  const { loading, kpi, orders } = useAdminData(user, allowed);
+  const [range, setRange] = useState("today");
+  const { loading, kpi, orders } = useAdminData(user, allowed, range);
 
   const [tab, setTab] = useState<AdminTab>("overview");
 
@@ -42,7 +43,7 @@ export default function AdminDashboard() {
 
       <AdminTabs tab={tab} setTab={setTab} isSuper={isSuper} />
 
-      {tab === "overview" && <OverviewSection kpi={kpi} />}
+      {tab === "overview" && <OverviewSection kpi={kpi} range={range} setRange={setRange}/>}
 
       {tab === "orders" && <OrdersSection orders={orders} />}
 

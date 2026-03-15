@@ -1,28 +1,37 @@
 import { notFound } from "next/navigation";
+import { headers } from "next/headers";
 import ProductTile from "@/components/ProductTile";
 
 export default async function AllProductsPage() {
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://gethypergear.in/";
+  const headersList = await headers(); // ✅ await
+  const host = headersList.get("host");
 
-  // Fetch all products instead of a specific category
-  const res = await fetch(`${baseUrl}/api/products`, { next: { revalidate: 36000 }});
+  const protocol = process.env.NODE_ENV !== "production" ? "http" : "https";
+
+  const res = await fetch(
+    `${protocol}://${host}/api/products?limit=24`,
+    { next: { revalidate: 3600 } }
+  );
 
   if (!res.ok) return notFound();
+
   const data = await res.json();
   const products = data.products || [];
   type Product = {
-    id: string;
+    id: number;
     slug: string;
-    title?: string;
-    name?: string;
+    title: string;
+    name: string;
     price: number;
     discountedPrice?: number | string;
     presalePrice?: number | string;
     salePrice?: number | string;
-    mrp?: number | string;
+    mrp: number;
     new_launch: boolean;
     bestseller: boolean;
     color: string;
+    sizes: [];
+    size: string;
   };
 
   const toNumber = (v: any) =>
@@ -33,7 +42,7 @@ export default async function AllProductsPage() {
       : 0;
 
   const dirFrom = (p: Product) =>
-    (p.slug || p.title || p.name || p.id || "").trim();
+    (p.slug || p.title || p.name || "").trim();
 
   const hrefFor = (p: Product) =>`/product/${p.slug}`;
 
@@ -58,10 +67,14 @@ export default async function AllProductsPage() {
               toNumber((p as any).discountedPrice) ||
               toNumber((p as any).presalePrice) ||
               toNumber((p as any).mrp);
+            const variantKeys = p.sizes ? Object.keys(p.sizes) : [];
+            const firstVariantId = variantKeys.length > 0 ? Number(variantKeys[0]) : 0;
+            const firstVariant = p.sizes ? Object.values(p.sizes)[0] : '';
 
             return (
               <ProductTile
                 key={`${p.id || p.slug || p.name || "item"}-${index}`}
+                productId={p.id}
                 href={hrefFor(p)}
                 title={title}
                 slug={`${p.slug}`}
@@ -71,9 +84,12 @@ export default async function AllProductsPage() {
                     : "/assets/placeholder.png"
                 }
                 price={price}
+                mrp={p.mrp}
                 newLaunch={!!p.new_launch}
                 bestseller={p.bestseller?? false}
                 color= {p.color ?? ''}
+                variantId={firstVariantId}
+                size={firstVariant}
               />
             );
           })}

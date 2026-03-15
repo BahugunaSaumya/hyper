@@ -1,28 +1,18 @@
 "use client";
-
+import { CartItem, AddToCartInput } from "@/lib/cart";
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-
-export type CartItem = {
-  id: string;
-  name: string;
-  slug: string;
-  size: string;
-  price: string;   // keep the "₹..." string like legacy
-  image: string;
-  quantity: number;
-  newLaunch: boolean;
-};
 
 type CartMap = Record<string, CartItem>;
 
 type CartCtx = {
   items: CartMap;
   list: CartItem[];
-  add: (item: Omit<CartItem, "quantity"> & { quantity?: number }) => void;
-  increase: (id: string) => void;
-  decrease: (id: string) => void;
-  remove: (id: string) => void;
-  clear: () => void;
+  add: (item: AddToCartInput) => Promise<void>;
+  increase: (cartItemId: number) => Promise<any>;
+  decrease: (cartItemId: number) => Promise<any>;
+  remove: (cartItemId: number) => Promise<any>;
+  hydrateFromApi: (rows: any[]) => void;
+  refreshCart: () => Promise<any>;
   totalItems: number;
   isLoaded: boolean;
 };
@@ -33,91 +23,141 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartMap>({});
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // hydrate from localStorage
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem("cart");
-      if (raw) setItems(JSON.parse(raw));
-    } catch {}
-    finally{
-      setIsLoaded(true);
-    }
+    const raw = localStorage.getItem("cart");
+    if (raw) setItems(JSON.parse(raw));
+    setIsLoaded(true);
   }, []);
 
-  // persist
   useEffect(() => {
-    if (isLoaded) { 
-      try {
-        localStorage.setItem("cart", JSON.stringify(items));
-      } catch {}
-    }
+    if (isLoaded) localStorage.setItem("cart", JSON.stringify(items));
   }, [items, isLoaded]);
 
-  const add: CartCtx["add"] = (it) => {
-    setItems((prev) => {
-      const id = it.id;
-      const existing = prev[id];
-      const qty = existing?.quantity || 0;
+  // ADD: Uses product_id + variant_id as temporary key
+  const add = async (item: AddToCartInput) => {
+    setItems((prev): CartMap => { 
+      const key = `temp_${item.id}_${item.size}`;
+      const existing = prev[key];
+      const newItem: CartItem = {
+        id: existing?.id || 0,
+        productId: item.id,
+        size: item.sizeLabel, 
+        name: item.name,
+        slug: item.slug,
+        mrp: item.mrp,
+        price: item.price,
+        quantity: (existing?.quantity || 0) + item.quantity,
+        newLaunch: item.newLaunch,
+      };
+
       return {
         ...prev,
-        [id]: {
-          id,
-          name: it.name,
-          slug: it.slug,
-          size: it.size || "M",
-          price: it.price,
-          image: it.image,
-          quantity: qty + (it.quantity ?? 1),
-          newLaunch: existing?.newLaunch ?? it.newLaunch ?? false,
-        },
+        [key]: newItem,
       };
     });
+    await refreshCart();
   };
 
-  const increase = (id: string) =>
-    setItems((prev) =>
-      prev[id]
-        ? { ...prev, [id]: { ...prev[id], quantity: (prev[id].quantity || 1) + 1 } }
-        : prev
-    );
+  const increase = async (cartItemId: number) => {
+    const key = String(cartItemId);
+    setItems(prev => prev[key] ? {
+      ...prev,
+      [key]: { ...prev[key], quantity: prev[key].quantity + 1 }
+    } : prev);
 
-  const decrease = (id: string) =>
-    setItems((prev) => {
-      if (!prev[id]) return prev;
-      const next = (prev[id].quantity || 1) - 1;
-      if (next <= 0) {
-        const copy = { ...prev };
-        delete copy[id];
-        return copy;
-      }
-      return { ...prev, [id]: { ...prev[id], quantity: next } };
-    });
+    try {
+      await fetch("/api/cart/item/update", {
+        method: "PATCH",
+        body: JSON.stringify({ cartItemId, action: "inc" }),
+      });
+      return await refreshCart();
+    } catch (err) {
+      return await refreshCart();
+    }
+  };
 
-  const remove = (id: string) =>
-    setItems((prev) => {
-      if (!prev[id]) return prev;
+  const decrease = async (cartItemId: number) => {
+    const key = String(cartItemId);
+    if (!items[key] || items[key].quantity <= 1) return;
+    setItems(prev => ({
+      ...prev,
+      [key]: { ...prev[key], quantity: prev[key].quantity - 1 }
+    }));
+    try {
+      await fetch("/api/cart/item/update", {
+        method: "PATCH",
+        body: JSON.stringify({ cartItemId, action: "dec" }),
+      }); 
+      return await refreshCart();
+    } catch {
+      return await refreshCart();
+    }
+  };
+
+  const remove = async (cartItemId: number) => {
+    const key = String(cartItemId);
+    setItems(prev => {
       const copy = { ...prev };
-      delete copy[id];
+      delete copy[key];
       return copy;
     });
+    try {
+      await fetch("/api/cart/item/delete", {
+        method: "DELETE",
+        body: JSON.stringify({ cartItemId }),
+      }); 
+      return await refreshCart();
+    } catch {
+      return await refreshCart();
+    }
+  };
 
-  const clear = () => setItems({});
+  const hydrateFromApi = (rows: any[]) => {
+    const map: CartMap = {};
+    rows.forEach((row) => {
+      map[String(row.id)] = {
+        id: Number(row.id),
+        productId: Number(row.productId),
+        size: row.size,
+        name: row.name,
+        slug: row.slug,
+        mrp: Number(row.mrp),
+        price: Number(row.price),
+        quantity: Number(row.quantity),
+        newLaunch: Boolean(row.newLaunch),
+      };
+    });
+    setItems(map);
+  };
 
-  const list = useMemo(() => Object.values(items || {}), [items]);
-  const totalItems = useMemo(
-    () => list.reduce((sum, it) => sum + (it.quantity || 0), 0),
-    [list]
-  );
+  const refreshCart = async () => {
+    try {
+      const res = await fetch("/api/cart");
+      const data = await res.json();
+
+      if (data?.items) {
+        hydrateFromApi(data.items);
+      }
+
+      return data;
+    } catch (err) {
+      console.error("Cart refresh failed", err);
+      return null;
+    }
+  };
+
+  const list = useMemo(() => Object.values(items), [items]);
+  const totalItems = useMemo(() => list.reduce((s, i) => s + i.quantity, 0), [list]);
 
   return (
-    <Ctx.Provider value={{ items, list, add, increase, decrease, remove, clear, totalItems, isLoaded }}>
+    <Ctx.Provider value={{ items, list, add, increase, decrease, remove, hydrateFromApi, refreshCart, totalItems, isLoaded }}>
       {children}
     </Ctx.Provider>
   );
 }
 
-export function useCart() {
-  const ctx = useContext(Ctx);
-  if (!ctx) throw new Error("useCart must be used within CartProvider");
-  return ctx;
-}
+export const useCart = () => {
+  const c = useContext(Ctx);
+  if (!c) throw new Error("useCart context missing");
+  return c;
+};

@@ -6,7 +6,7 @@ import ProductTile from "@/components/ProductTile";
 import LoadingScreen from "./LoadingScreen";
 
 type Product = {
-  id: string;
+  id: number;
   slug?: string;
   title?: string;
   name?: string;
@@ -14,17 +14,15 @@ type Product = {
   discountedPrice?: number | string;
   presalePrice?: number | string;
   salePrice?: number | string;
-  mrp?: number | string;
+  mrp: number;
   new_launch: boolean;
   bestseller: boolean;
   color: string;
+  sizes: []
 };
 
 const toNumber = (v: any) =>
   Number.isFinite(+v) ? +v : (typeof v === "string" ? parseFloat(v.replace(/[^0-9.]/g, "")) : 0);
-
-const dirFrom = (p: Product) => (p.slug || p.title || p.name || p.id || "").trim();
-
 const hrefFor = (p: Product) =>`/product/${p.slug}`;
 
 function shuffle<T>(xs: T[]) {
@@ -39,13 +37,11 @@ function shuffle<T>(xs: T[]) {
 export default function YouMayAlsoLike({
   excludeTitle = "",
   limit = 4,
-  headingImg = "/assets/ymal-header.png",
-  debug = true,
+  headingImg = "/assets/ymal-header.png"
 }: {
   excludeTitle?: string;
   limit?: number;
   headingImg?: string;
-  debug?: boolean;
 }) {
   const [products, setProducts] = useState<Product[]>([]);
   const [err, setErr] = useState<string | null>(null);
@@ -56,8 +52,6 @@ export default function YouMayAlsoLike({
     window.dispatchEvent(new CustomEvent("ymal:mounted", { detail: { excludeTitle } }));
     return;
   }, [excludeTitle]);
-
-  // FETCH from Firestore-backed API (no CSV)
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -105,19 +99,25 @@ export default function YouMayAlsoLike({
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
         {visible.map((p) => {
           const title = p.title || p.name || "Product";
-          const dir = dirFrom(p);
           const price = toNumber((p as any).price) || toNumber((p as any).mrp);
+          const variantKeys = p.sizes ? Object.keys(p.sizes) : [];
+          const firstVariantId = variantKeys.length > 0 ? Number(variantKeys[0]) : 0;
+          const firstVariant = p.sizes ? Object.values(p.sizes)[0] : '';
           return (
             <ProductTile
               key={p.id}
+              productId={p.id}
               href={hrefFor(p)}
               title={title}
               slug={`${p.slug}`}
-              image={dir ? `/assets/models/products/${dir}/1.avif` : "/assets/placeholder.png"}
+              image={ `${p.slug}` ? `/assets/models/products/${p.slug}/1.avif` : "/assets/placeholder.png"}
+              mrp={p.mrp}
               price={price}
               newLaunch={!!p.new_launch}
               bestseller={p.bestseller ?? false}
               color= {p.color ?? ''}
+              variantId={firstVariantId}
+              size={firstVariant}
             />
           );
         })}

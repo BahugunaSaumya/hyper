@@ -6,851 +6,395 @@ import Link from "next/link";
 import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
 import { INDIA_STATES_AND_UT } from "@/lib/india";
-import { createOrder } from "@/lib/orders";
 import { loadRazorpayScript } from "@/lib/razorpay";
 import { LOGIN_PATH } from "@/config/paths";
+import BadgeRow from "./pdp/BadgeRow";
 
-const parseINR = (v: string) => {
+/* -------- Utilities -------- */
+const parseINR = (v: any) => {
   const n = parseFloat(String(v || "").replace(/[^0-9.]/g, ""));
   return isNaN(n) ? 0 : n;
 };
 const formatINR = (n: number) => "₹ " + Number(n || 0).toLocaleString("en-IN");
-const DEV = process.env.NODE_ENV !== "production";
 
-/* -------- Validators -------- */
 const isValidPhone = (s: string) => /^[6-9]\d{9}$/.test(s.trim());
 const isValidPinFormat = (s: string) => /^\d{6}$/.test(s.trim());
-const isValidEmail = (s: string) =>
-  /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(s || "").trim());
+const isValidEmail = (s: string) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(s.trim());
 
-type Address = {
-  name?: string;
-  phone?: string;
-  street?: string;
-  city?: string;
-  state?: string;
-  postal?: string;
-  country?: string;
+type CustomerAddress = {
+  first_name: string;
+  last_name: string;
+  mobile: string;
+  address1: string;
+  address2: string;
+  city: string;
+  state: string;
+  pincode: string;
+  country: string;
 };
 
 export default function CheckoutView() {
   const router = useRouter();
-  const { items, clear, isLoaded } = useCart();
-  const [isPurchaseSuccess, setIsPurchaseSuccess] = useState(false);
-  useEffect(() => {
-    if (isLoaded && !isPurchaseSuccess) {
-      const itemKeys = Object.keys(items);
-      const isCartEmpty = itemKeys.length === 0;
-      if (isCartEmpty) {
-        router.replace("/");
-      }
-    }
-  }, [items, isLoaded, router, isPurchaseSuccess]);
+  const { items, isLoaded } = useCart();
+  const { user } = useAuth() as any;
 
-  const { user, profile } = useAuth() as any;
-  const [express, setExpress] = useState(false);
+  const [isPurchaseSuccess, setIsPurchaseSuccess] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [loadingMsg, setLoadingMsg] = useState("");
   const [guest, setGuest] = useState(false);
 
-  // loading overlay
-  const [loading, setLoading] = useState(false);
-  const [loadingMsg, setLoadingMsg] = useState<string>("");
-  const startWait = (msg: string) => { setLoading(true); setLoadingMsg(msg); };
-  const stepWait = (msg: string) => setLoadingMsg(msg);
-  const stopWait = () => { setLoading(false); setLoadingMsg(""); };
-
-  // WHO (contact) form
+  // Form State
   const [firstName, setFirst] = useState("");
   const [lastName, setLast] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
-
-  // Track whether user has typed this session (prevents server overwrites)
-  const [dirtyContact, setDirtyContact] = useState(false);
-
-  // Editable address form
   const [pin, setPin] = useState("");
-  const [pinHelp, setPinHelp] = useState("Enter a valid 6-digit PIN (e.g., 560001).");
   const [stateVal, setStateVal] = useState("");
   const [city, setCity] = useState("");
   const [addr1, setAddr1] = useState("");
   const [addr2, setAddr2] = useState("");
 
-  // Validation UI flags
-  const phoneValid = useMemo(() => isValidPhone(phone), [phone]);
-  const emailValid = useMemo(() => isValidEmail(email), [email]);
-  const pinFormatValid = useMemo(() => isValidPinFormat(pin), [pin]);
+  const [express, setExpress] = useState(false);
+  const [saveAsDefault, setSaveAsDefault] = useState(true);
+  const [usingSaved, setUsingSaved] = useState(false);
+  const [savedAddr, setSavedAddr] = useState<CustomerAddress | null>(null);
+  const [editingShipping, setEditingShipping] = useState(true);
+  const [showSummary, setShowSummary] = useState(false);
+  const [cartSummary, setCartSummary] = useState({
+    id: null,
+    subtotal: 0,
+    tax: 0,
+    discount: null as number | null,
+    total: 0,
+    coupon_id: null,
+    shipping_charges: 0
+  });
 
-  // PIN verification state (API-backed when editing)
-  const [pinStatus, setPinStatus] = useState<"idle" | "checking" | "valid" | "invalid">("idle");
+  const loadCart = async () => {
+    const res = await fetch("/api/cart");
+    const data = await res.json();
 
-  // Saved address from Firestore
-  const [savedAddr, setSavedAddr] = useState<Address | null>(null);
-  const [usingSaved, setUsingSaved] = useState<boolean>(false);
-  const [editingShipping, setEditingShipping] = useState<boolean>(false);
-  const [saveAsDefault, setSaveAsDefault] = useState<boolean>(true); // default checked when editing
-
-  // explicit save state for the button
-  const [savingProfile, setSavingProfile] = useState<boolean>(false);
-
-  // Prefill WHO from profile context (best-effort) — do not mark dirty
-  useEffect(() => {
-    if (!profile) return;
-    const baseName = (profile.name || "").trim();
-    if (baseName && !firstName && !lastName) {
-      const [fn, ...rest] = baseName.split(" ").filter(Boolean);
-      setFirst(fn || "");
-      setLast(rest.join(" ") || "");
+    if (data?.items) {
+      setCartSummary({
+        id: data?.summary?.id,
+        subtotal: Number(data?.summary?.subtotal || 0),
+        tax: Number(data?.summary?.tax || 0),
+        discount: data?.summary?.discount != null ? Number(data.summary.discount) : null,
+        total: Number(data?.summary?.total || 0),
+        coupon_id: data?.summary?.coupon_id,
+        shipping_charges: data?.summary?.shipping || 0
+      });
     }
-    if (!email) setEmail(profile.email || user?.email || "");
-    if (!phone) setPhone(profile.phone || "");
-  }, [profile, user?.email]); // eslint-disable-line
+  };
 
-  // Fetch authoritative profile from Firestore to get saved address **and** contact
+  useEffect(() => {
+    loadCart();
+  }, []);
+
+  // Redirect if cart empty
+  useEffect(() => {
+    if (isLoaded && !isPurchaseSuccess && Object.keys(items).length === 0) {
+      router.replace("/");
+    }
+  }, [items, isLoaded, router, isPurchaseSuccess]);
+
+  // Fetch MySQL Profile/Address on load
   useEffect(() => {
     if (!user) return;
-    let cancelled = false;
     (async () => {
       try {
-        const tok = await user.getIdToken?.();
+        const tok = await user.getIdToken();
         const res = await fetch("/api/me/profile", {
           headers: { authorization: `Bearer ${tok}` },
-          cache: "no-store",
         });
-        const body = await res.json().catch(() => null);
-        if (!res.ok || !body || cancelled) return;
-
-        // Always trust server unless user has typed (dirtyContact = true)
-        const serverName: string = body?.user?.name || profile?.name || "";
-        const serverEmail: string = body?.user?.email || user?.email || "";
-        const serverPhone: string = body?.user?.phone || "";
-
-        if (!dirtyContact) {
-          if (serverName) {
-            const [fn, ...rest] = serverName.split(" ").filter(Boolean);
-            setFirst(fn || "");
-            setLast(rest.join(" ") || "");
-          }
-          setEmail(serverEmail || "");
-          setPhone(serverPhone || "");
-        }
-
-        if (body.address) {
-          const a: Address = body.address || {};
+        const data = await res.json();
+        
+        if (res.ok && data.address) {
+          const a = data.address;
           setSavedAddr(a);
           setUsingSaved(true);
           setEditingShipping(false);
-
-          // Keep form fields in sync (so validation works even if hidden)
-          setStateVal(a.state || "");
-          setCity(a.city || "");
-          setAddr1(a.street || "");
-          setAddr2("");
-          setPin(a.postal || "");
-          setPinStatus("valid"); // saved address assumed valid
-        } else {
-          setSavedAddr(null);
-          setUsingSaved(false);
-          setEditingShipping(true); // no saved address => show form
+          // Sync state for validation
+          setFirst(a.first_name); setLast(a.last_name); setPhone(a.mobile);
+          setAddr1(a.address1); setAddr2(a.address2); setCity(a.city);
+          setStateVal(a.state); setPin(a.pincode); setEmail(user.email);
         }
-      } catch {
-        // ignore network errors
+      } catch (err) {
+        console.error("Failed to load profile", err);
       }
     })();
-    return () => { cancelled = true; };
-  }, [user, profile?.name, dirtyContact]); // eslint-disable-line
+  }, [user]);
 
-  // PIN → format + API verification (only when editing the address form)
+  // PIN Validation API
   useEffect(() => {
-    if (!editingShipping) return; // don’t verify when using saved
-    if (!pinFormatValid) {
-      setPinStatus(pin ? "invalid" : "idle");
-      setPinHelp("Enter a valid 6-digit PIN (e.g., 560001).");
-      return;
-    }
-
-    let abort = new AbortController();
-    (async () => {
-      try {
-        setPinStatus("checking");
-        setPinHelp("Validating PIN…");
-        const r = await fetch(`https://api.postalpincode.in/pincode/${pin}`, { signal: abort.signal });
-        const j = await r.json().catch(() => null);
-        if (!j || !Array.isArray(j) || j[0]?.Status !== "Success") {
-          setPinStatus("invalid");
-          setPinHelp("Could not validate this PIN.");
-          return;
+    if (!isValidPinFormat(pin) || !editingShipping) return;
+    const controller = new AbortController();
+    fetch(`https://api.postalpincode.in/pincode/${pin}`, { signal: controller.signal })
+      .then(r => r.json())
+      .then(j => {
+        if (j[0]?.Status === "Success") {
+          const post = j[0].PostOffice[0];
+          if (!stateVal) setStateVal(post.State);
+          if (!city) setCity(post.District);
         }
-        const o = j[0].PostOffice?.[0];
-        if (o) {
-          setStateVal((s) => s || o.State || "");
-          setCity((c) => c || o.District || "");
-          setPinHelp(`Detected: ${o.District}, ${o.State}`);
-        }
-        setPinStatus("valid");
-      } catch {
-        // If API fails, still require correct format; let user proceed
-        setPinStatus("idle");
-        setPinHelp("PIN looks OK. (Network issue while verifying)");
-      }
-    })();
+      }).catch(() => {});
+    return () => controller.abort();
+  }, [pin, editingShipping]);
+  console.log(cartSummary);
 
-    return () => abort.abort();
-  }, [pin, pinFormatValid, editingShipping]);
-
-  // Cart math
-  const list = useMemo(() => Object.values(items), [items]);
-  const subtotal = useMemo(() => list.reduce((s, it) => {
-        return s + parseINR(it.price) * it.quantity;
-      }, 0),
-    [list]
-  );
-  const shipping = express ? 250 : 0;
-  const total = subtotal + shipping;
-
-  const GST_RATE = 0.05;
-
-  // Helpers
-  function shippingFromState(): { country: string; state: string; city: string; postal: string; addr1: string; addr2: string } {
-    if (usingSaved && savedAddr && !editingShipping) {
-      return {
-        country: savedAddr.country || "India",
-        state: savedAddr.state || "",
-        city: savedAddr.city || "",
-        postal: savedAddr.postal || "",
-        addr1: savedAddr.street || "",
-        addr2: "",
-      };
-    }
-    return {
-      country: "India",
-      state: stateVal,
-      city,
-      postal: pin,
-      addr1,
-      addr2,
-    };
-  }
-
-  function nameFromState() {
-    const nm = (firstName + " " + lastName).trim() || savedAddr?.name || profile?.name || "";
-    return nm.trim();
-  }
-
-  function need(): string | null {
-    const ship = shippingFromState();
-    const req: [string, string][] = [
-      [nameFromState(), "Full name"],
-      [phone, "Mobile"],
-      [email, "Email"],
-      [ship.state, "State / UT"],
-      [ship.city, "City / District"],
-      [ship.addr1, "Address line 1"],
-      [ship.postal, "PIN"],
-    ];
-    for (const [v, label] of req) if (!String(v || "").trim()) return label;
-
-    if (!isValidPhone(phone)) return "Valid mobile (10 digits starting 6–9)";
-    if (!isValidEmail(email)) return "Valid email address";
-
-    // PIN: format must be valid; if editing, also require either verified or “idle” (network), not “invalid”
-    const pinOk = isValidPinFormat(ship.postal || "");
-    if (!pinOk) return "Valid 6-digit PIN code";
-
-    if (editingShipping && pinStatus === "invalid") return "A serviceable PIN code";
-
+  function validate(): string | null {
+    if (!firstName || !lastName) return "Full Name";
+    if (!isValidPhone(phone)) return "Valid 10-digit Mobile";
+    if (!isValidEmail(email)) return "Valid Email";
+    if (!addr1) return "Address Line 1";
+    if (!city) return "City";
+    if (!stateVal) return "State";
+    if (!isValidPinFormat(pin)) return "6-digit PIN Code";
     return null;
   }
 
-  function makeOrderNo() {
-    const d = new Date(),
-      y = ("" + d.getFullYear()).slice(-2),
-      m = ("0" + (d.getMonth() + 1)).slice(-2),
-      day = ("0" + d.getDate()).slice(-2);
-    return `HYP-${y}${m}${day}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
-  }
-
-  async function maybePersistAddress() {
-    if (!user) return;
-    if (!(editingShipping && saveAsDefault)) return;
-
-    try {
-      const tok = await user.getIdToken?.();
-      const body = {
-        user: { name: nameFromState(), email, phone },
-        address: {
-          name: nameFromState(),
-          phone,
-          street: addr1,
-          city,
-          state: stateVal,
-          postal: pin,
-          country: "IN",
-        } as Address,
-      };
-      // fire-and-forget is fine; the next visit will pull from server
-      fetch("/api/me/profile", {
-        method: "PUT",
-        headers: { "content-type": "application/json", authorization: `Bearer ${tok}` },
-        body: JSON.stringify(body),
-      }).catch(() => { });
-    } catch { /* ignore */ }
-  }
-
-  // Explicit “Save address & contact” button action
-  async function saveAddressAndContactNow() {
-    if (!user) {
-      alert("Please log in to save your address.");
-      return;
-    }
-    const missing = need();
-    if (missing) { alert(`Please fill: ${missing}`); return; }
-
-    const ship = shippingFromState();
-    const payload = {
-      user: { name: nameFromState(), email, phone },
-      address: {
-        name: nameFromState(),
-        phone,
-        street: ship.addr1,
-        city: ship.city,
-        state: ship.state,
-        postal: ship.postal,
-        country: "IN",
-      },
-    };
-
-    try {
-      setSavingProfile(true);
-      const tok = await user.getIdToken?.();
-      const res = await fetch("/api/me/profile", {
-        method: "PUT",
-        headers: {
-          "content-type": "application/json",
-          authorization: `Bearer ${tok}`,
-        },
-        body: JSON.stringify(payload),
-      });
-      const body = await res.json().catch(() => null);
-      if (!res.ok) throw new Error(body?.error || "Failed to save profile");
-
-      // reflect in UI
-      setSavedAddr(payload.address);
-      setUsingSaved(true);
-      setEditingShipping(false);
-      setSaveAsDefault(true);
-      setDirtyContact(false); // we now trust server copy again
-      alert("Saved to your profile.");
-    } catch (e: any) {
-      console.error("[checkout] save profile failed:", e);
-      alert(e?.message || "Could not save address. Try again.");
-    } finally {
-      setSavingProfile(false);
-    }
-  }
-
   async function onCheckout() {
-    const missing = need();
-    if (missing) { alert(`Please fill: ${missing}`); return; }
-    if (!list.length) { alert("Your cart is empty."); return; }
+    const errorField = validate();
+    if (errorField) return alert(`Please provide a valid ${errorField}`);
 
     try {
-      startWait("preparing secure checkout…");
+      setLoading(true);
+      setLoadingMsg("Initializing secure payment...");
 
-      void maybePersistAddress();
+      const rzpLoaded = await loadRazorpayScript();
+      if (!rzpLoaded) throw new Error("Razorpay SDK failed to load");
 
-      const loaded = await loadRazorpayScript();
-      if (!loaded) {
-        stopWait();
-        alert("Failed to load Razorpay. Please check your network.");
-        return;
-      }
+      const tok = user ? await user.getIdToken() : null;
 
-      // --- server-authoritative order creation (secure recompute) ---
-      stepWait("creating your order…");
-
-      const ship = shippingFromState();
-      const listArr: any[] = Object.values(items);
-      const itemsForOrder = listArr.map((it: any) => {
-      const itemPrice = parseINR(it.price);
-      const pricing = extractGSTInclusive(itemPrice, it.quantity);
-        return {
-          id: it.id ?? it.slug,
-          title: it.name,
-          size: it.size,
-          qty: it.quantity,
-          unitPrice: itemPrice,
-          baseAmount: pricing.base,
-          taxAmount: pricing.tax,        // ✅ CGST+SGST combined
-          totalAmount: pricing.total,
-          image: it.image,
-        };
-      });
-
-      const orderBase = itemsForOrder.reduce((s, it) => s + it.baseAmount, 0);
-      const orderTax = itemsForOrder.reduce((s, it) => s + it.taxAmount, 0);
-
-      const orderInitPayload = {
-        customer: { name: nameFromState(), email, phone },
-        shippingAddress: {
-          country: ship.country, state: ship.state, city: ship.city,
-          postal: ship.postal, addr1: ship.addr1, addr2: ship.addr2
-        },
-        items: itemsForOrder,
-        clientTotals: { subtotal, shipping, total, base: orderBase, tax: orderTax, currency: "INR" },
-        notes: { source: "checkout-page" },
-      };
-
+      // 1. Create Order in MySQL & Razorpay
+      setLoadingMsg("Creating your order record...");
       const res = await fetch("/api/razorpay-order", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(orderInitPayload),
+        headers: { 
+          "Content-Type": "application/json",
+          ...(tok && { "Authorization": `Bearer ${tok}` })
+        },
+        body: JSON.stringify({
+          customer: { name: `${firstName} ${lastName}`, email, phone },
+          shippingAddress: {
+            first_name: firstName,
+            last_name: lastName,
+            mobile: phone,
+            address1: addr1,
+            address2: addr2,
+            city,
+            state: stateVal,
+            pincode: pin,
+            country: "India",
+            saveAsDefault: saveAsDefault && !!user
+          },
+          items: Object.values(items).map((it: any) => ({
+            id: it.productId,
+            qty: it.quantity,
+            size: it.size,
+            variant_id: it.variant_id
+          })),
+          cartId: cartSummary.id, 
+          clientTotals: { shipping: express ? 250 : 0 }
+        }),
       });
-      const data = await res.json();
 
-      if (!data?.id) {
-        stopWait();
-        alert("Unable to create Razorpay order.");
-        return;
-      }
+      const orderData = await res.json();
+      if (!res.ok) throw new Error(orderData.error || "Order creation failed");
 
-      // If server created a draft order in Firestore, capture it for verify
-      const draftOrderId: string | undefined = data.orderId;
-
-      // ---------- ROBUST NON-HANGING RZP FLOW ----------
-      let closed = false;
-      const endWait = (msg?: string) => {
-        if (closed) return;
-        closed = true;
-        stopWait();
-        if (msg) alert(msg);
-      };
-
+      // 2. Open Razorpay Gateway
       const options = {
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID as string,
-        amount: data.amount ?? total * 100, // prefer server amount
-        currency: data.currency ?? "INR",
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+        amount: orderData.amount,
+        currency: orderData.currency,
         name: "HYPER MMA",
-        description: "Order Payment",
-        order_id: data.id,
-
-        // Always called when modal is dismissed for ANY reason
-        modal: {
-          ondismiss: () => endWait(),
-          escape: true,
-          confirm_close: false,
-        },
-
+        description: `Payment for Order ${orderData.order_number}`,
+        order_id: orderData.id,
         handler: async (response: any) => {
-          try {
-            stepWait("verifying payment…");
-            const verifyRes = await fetch("/api/razorpay-verify", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                ...response,
-                orderId: draftOrderId,
-                customer: { name: nameFromState(), email, phone },
-                items: itemsForOrder,
-                total: Math.round(total * 100), // paise (hint only)
-                currency: "INR",
-                shippingAddress: orderInitPayload.shippingAddress,
-                note: "client-verified",
-              }),
-            });
-            const verifyData = await verifyRes.json();
+          setLoading(true);
+          setLoadingMsg("Verifying payment...");
+          
+          const verifyRes = await fetch("/api/razorpay-verify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              ...response,
+              dbOrderId: orderData.dbOrderId
+            }),
+          });
 
-            if (!verifyData?.success) {
-              return endWait("Payment verification failed. Order not saved.");
-            }
-
-            stepWait("finalizing your order…");
-
-            // If server already created & finalized the order, only store snapshot
-            if (verifyData.orderId) {
-              try {
-                const snapshot = {
-                  orderId: verifyData.orderId,
-                  placedAt: new Date().toISOString(),
-                  customer: orderInitPayload.customer,
-                  shipping: orderInitPayload.shippingAddress,
-                  items: itemsForOrder,
-                  amounts: { subtotal, shipping, total, currency: "INR" },
-                  payment: {
-                    razorpay_order_id: response.razorpay_order_id,
-                    razorpay_payment_id: response.razorpay_payment_id,
-                    razorpay_signature: response.razorpay_signature,
-                  },
-                };
-                sessionStorage.setItem("lastOrderSnapshot", JSON.stringify(snapshot));
-              } catch (e) {
-                console.warn("[checkout] failed to write lastOrderSnapshot:", e);
-              }
-            } else {
-              // Fallback: client-side create
-              await saveOrderToFirestore(response);
-            }
+          if (verifyRes.ok) {
             setIsPurchaseSuccess(true);
-            clear();
-            endWait();
-            router.push(`/thank-you?payment_id=${response.razorpay_payment_id}`);
-          } catch (err) {
-            console.error(err);
-            endWait("Payment verification failed. Order not saved.");
+            router.push(`/thank-you?order=${orderData.order_number}`);
+          } else {
+            alert("Payment verification failed. Please contact support.");
           }
+          setLoading(false);
         },
-
-        prefill: {
-          name: nameFromState(),
-          email,
-          contact: phone,
-        },
-        theme: { color: "#f472b6" },
-      } as any;
+        prefill: { name: `${firstName} ${lastName}`, email, contact: phone },
+        theme: { color: "#000000" },
+        modal: { ondismiss: () => setLoading(false) }
+      };
 
       const rzp = new (window as any).Razorpay(options);
-
-      // Payment failure callback (card decline, auth fail, etc.)
-      rzp.on?.("payment.failed", () => {
-        endWait("Payment failed or cancelled. Please try again.");
-      });
-
       rzp.open();
-      stepWait("waiting for payment… complete in the Razorpay window");
 
-      // Watchdog: if nothing fires (edge cases), clear overlay after 3 minutes
-      setTimeout(() => endWait(), 180000);
-      // ---------- /ROBUST FLOW ----------
-    } catch (e) {
-      console.error(e);
-      stopWait();
-      alert("Checkout failed. Please try again.");
+    } catch (err: any) {
+      alert(err.message || "Checkout failed");
+      setLoading(false);
     }
   }
 
-  function extractGSTInclusive(unitPriceInclusive: number, qty: number) {
-    const total = unitPriceInclusive * qty;
-    const base = total / (1 + GST_RATE);
-    const tax = total - base; // CGST + SGST combined
-
-    return {
-      base: Math.round(base * 100) / 100,
-      tax: Math.round(tax * 100) / 100,
-      total: Math.round(total * 100) / 100,
-    };
-  }
-
-  async function saveOrderToFirestore(paymentResponse: any) {
-    const listArr: any[] = Object.values(items);
-    const itemsForOrder = listArr.map((it: any) => {
-    const itemPrice = parseINR(it.price);
-    const pricing = extractGSTInclusive(itemPrice, it.quantity);
-      return {
-        id: it.id ?? it.slug,
-        title: it.name,
-        size: it.size,
-        qty: it.quantity,
-        unitPrice: itemPrice,
-        baseAmount: pricing.base,
-        taxAmount: pricing.tax,
-        totalAmount: pricing.total,
-        image: it.image,
-      };
-    });
-
-    const ship = shippingFromState();
-
-    const orderBase = itemsForOrder.reduce((s, it) => s + it.baseAmount, 0);
-    const orderTax = itemsForOrder.reduce((s, it) => s + it.taxAmount, 0);
-
-    const payload = {
-      userId: user?.uid || null,
-      customer: { name: nameFromState(), email, phone },
-      shipping: { country: ship.country, state: ship.state, city: ship.city, postal: ship.postal, addr1: ship.addr1, addr2: ship.addr2 },
-      items: itemsForOrder,
-      amounts: { subtotal, shipping, total, base: orderBase, tax: orderTax, currency: "INR" },
-      status: "paid",
-      payment: {
-        razorpay_order_id: paymentResponse.razorpay_order_id,
-        razorpay_payment_id: paymentResponse.razorpay_payment_id,
-        razorpay_signature: paymentResponse.razorpay_signature,
-      },
-    } as const;
-
-    // Optional micro-guard to avoid duplicate writes if server already created the order
-    try {
-      const existing = sessionStorage.getItem("lastOrderSnapshot");
-      if (existing) {
-        const snap = JSON.parse(existing || "{}");
-        if (snap?.orderId) return snap.orderId;
-      }
-    } catch { }
-
-    try {
-      stepWait("saving your order…");
-      const orderId = await createOrder(payload);
-
-      try {
-        const snapshot = {
-          orderId,
-          placedAt: new Date().toISOString(),
-          customer: payload.customer,
-          shipping: payload.shipping,
-          items: payload.items.map((it) => ({
-            id: it.id,
-            title: it.title,
-            size: it.size,
-            qty: it.qty,
-            unitPrice: it.unitPrice,
-            image: it.image,
-          })),
-          amounts: {
-            subtotal: payload.amounts.subtotal,
-            shipping: payload.amounts.shipping,
-            discount: (payload as any).amounts?.discount ?? undefined,
-            tax: (payload as any).amounts?.tax ?? 0,
-            total: payload.amounts.total,
-            currency: payload.amounts.currency,
-          },
-          payment: {
-            razorpay_order_id: paymentResponse.razorpay_order_id,
-            razorpay_payment_id: paymentResponse.razorpay_payment_id,
-            razorpay_signature: paymentResponse.razorpay_signature,
-          },
-        };
-        sessionStorage.setItem("lastOrderSnapshot", JSON.stringify(snapshot));
-      } catch (e) {
-        console.warn("[checkout] failed to write lastOrderSnapshot:", e);
-      }
-
-      void fetch("/api/email-order", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ order: payload, orderId }),
-      }).catch((e) => console.error("[email] failed to queue:", e));
-
-      return orderId;
-    } catch (e) {
-      console.error("[checkout] Failed to save order:", e);
-      throw e;
-    }
-  }
-
-  // ---- UI
   return (
-    <section className="px-6 py-12 max-w-6xl mx-auto bg-white text-black">
-      <h1 className="text-3xl font-bold mb-1 text-center">CHECK OUT</h1>
-      <p className="text-sm text-center mb-6">
-        {user ? (
-          <>Logged in as <b>{user.email}</b></>
-        ) : (
-          <>Already have an account? <Link href={LOGIN_PATH} className="underline">Log In</Link></>
-        )}
-      </p>
+    <main className="px-6 py-12 max-w-6xl mx-auto bg-white text-black min-h-screen">
+        <section>
+          <img src="/assets/checkout.avif" alt="Cart" className="h-16 sm:h-20 object-cover object-bottom m-auto" />
+          <p className="text-sm text-center mb-6">
+            {user ? (
+              <>Logged in as <b>{user.email}</b></>
+            ) : (
+              <>Already have an account? <Link href={LOGIN_PATH} className="underline text-pink-500">Log In</Link></>
+            )}
+          </p>
 
-      {!user && (
-        <div className="mb-6 flex items-center justify-center gap-2 text-sm">
-          <input id="guest" type="checkbox" checked={guest} onChange={(e) => setGuest(e.target.checked)} />
-          <label htmlFor="guest">Continue as guest</label>
-        </div>
-      )}
-
-      {/* WHO */}
-      <section className="mb-10">
-        <h2 className="text-lg font-bold mb-4 uppercase">Who is placing the order?</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <input
-            value={firstName}
-            onChange={(e) => { setFirst(e.target.value); setDirtyContact(true); }}
-            placeholder="First name"
-            className="border-b py-2 outline-none"
-          />
-          <input
-            value={lastName}
-            onChange={(e) => { setLast(e.target.value); setDirtyContact(true); }}
-            placeholder="Last name"
-            className="border-b py-2 outline-none"
-          />
-          <input
-            value={phone}
-            onChange={(e) => { setPhone(e.target.value.replace(/\D/g, "").slice(0, 10)); setDirtyContact(true); }}
-            inputMode="tel"
-            placeholder="10 digit mobile number"
-            className={`border-b py-2 outline-none ${phone && !phoneValid ? "border-red-500" : ""}`}
-          />
-          <input
-            value={email}
-            onChange={(e) => { setEmail(e.target.value); setDirtyContact(true); }}
-            type="email"
-            placeholder="Email address"
-            className={`border-b py-2 outline-none ${email && !emailValid ? "border-red-500" : ""}`}
-          />
-        </div>
-        {!phoneValid && phone ? <p className="text-xs text-red-600 mt-1">Enter a valid 10-digit Indian mobile starting with 6–9.</p> : null}
-        {!emailValid && email ? <p className="text-xs text-red-600 mt-1">Please enter a valid email address.</p> : null}
-
-        {/* Save address & contact button */}
-        {user && (
-          <div className="mt-4">
-            <button
-              onClick={saveAddressAndContactNow}
-              disabled={savingProfile}
-              className="text-xs px-3 py-1.5 rounded-full border hover:bg-black hover:text-white transition disabled:opacity-60"
-            >
-              {savingProfile ? "Saving…" : "Save address & contact to my profile"}
-            </button>
+          {!user && (
+            <div className="mb-6 flex items-center justify-center gap-2 text-sm">
+              <input id="guest" type="checkbox" checked={guest} onChange={(e) => setGuest(e.target.checked)} />
+              <label htmlFor="guest">Continue as guest</label>
+            </div>
+          )}
+          <div className="md:max-w-[500px] m-auto">
+            <BadgeRow />
           </div>
-        )}
-      </section>
+        </section>
 
-      {/* ADDRESS */}
-      <section className="mb-10">
-        <h2 className="text-lg font-bold mb-4 uppercase">Shipping Address</h2>
+        <div className="grid lg:grid-cols-2 gap-12 mt-8">
+          <section>
+          {/* Contact Section */}
+          <div className="mb-10">
+            <h2 className="text-sm font-bold uppercase mb-4">Who is placing the order?</h2>
+            <div className="grid grid-cols-1">
+              <label className="py-2">First Name</label>
+              <input placeholder="Enter First Name" value={firstName} onChange={e => setFirst(e.target.value)} className="border-b py-2 outline-none focus:border-grey" />
+              <label className="pb-2 pt-4">Last Name</label>
+              <input placeholder="Enter Last Name" value={lastName} onChange={e => setLast(e.target.value)} className="border-b py-2 outline-none focus:border-grey" />
+              <label className="pb-2 pt-4">Phone Number</label>
+              <input placeholder="Enter your 10 digit mobile number" value={phone} onChange={e => setPhone(e.target.value)} className="border-b py-2 outline-none focus:border-black" />
+              <label className="pb-2 pt-4">Email</label>
+              <input placeholder="Enter your email ID" value={email} onChange={e => setEmail(e.target.value)} className="border-b py-2 outline-none focus:border-black" />
+            </div>
+          </div>
 
-        {/* Read-only saved address (if available & not editing) */}
-        {user && savedAddr && usingSaved && !editingShipping ? (
-          <div className="rounded-2xl border p-4 flex items-start justify-between gap-4">
-            <div className="text-sm">
-              <div className="font-semibold">{savedAddr.name || nameFromState() || "—"}</div>
-              <div className="text-gray-600">{phone || savedAddr.phone || "—"}</div>
-              <div className="mt-2">
-                <div>{savedAddr.street}</div>
-                <div>{[savedAddr.city, savedAddr.state].filter(Boolean).join(", ")} {savedAddr.postal}</div>
-                <div>{savedAddr.country || "India"}</div>
+          {/* Shipping Section */}
+          <div className="mb-10">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-sm font-bold uppercase">Shipping Address</h2>
+              {savedAddr && (
+                <button onClick={() => setEditingShipping(!editingShipping)} className="text-xs font-bold text-pink-600 underline">
+                  {editingShipping ? "Use Saved" : "Edit Address"}
+                </button>
+              )}
+            </div>
+
+            {!editingShipping && savedAddr ? (
+              <div className="p-4 border rounded-xl bg-gray-50 text-sm">
+                <p className="font-bold">{savedAddr.first_name} {savedAddr.last_name}</p>
+                <p>{savedAddr.address1}</p>
+                <p>{savedAddr.city}, {savedAddr.state} - {savedAddr.pincode}</p>
+                <p>Mobile: {savedAddr.mobile}</p>
               </div>
-            </div>
-            <button
-              onClick={() => {
-                setEditingShipping(true);
-                setUsingSaved(false);
-                setSaveAsDefault(true);
-              }}
-              className="text-xs px-3 py-1.5 rounded-full border hover:bg-black hover:text-white"
-            >
-              Change
-            </button>
-          </div>
-        ) : (
-          // Editable address form
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <select value="India" className="border-b py-2 outline-none" onChange={() => { }}>
-              <option value="India">India</option>
-            </select>
-
-            <input
-              value={pin}
-              onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
-              inputMode="numeric"
-              maxLength={6}
-              placeholder="PIN code (6 digits)"
-              className={`border-b py-2 outline-none ${pin && !pinFormatValid ? "border-red-500" : ""}`}
-            />
-            <div className="md:col-span-2 text-xs">
-              <span className={
-                pinStatus === "invalid" ? "text-red-600" :
-                  pinStatus === "valid" ? "text-green-600" :
-                    "text-gray-500"
-              }>
-                {pinHelp}
-              </span>
-            </div>
-
-            <select value={stateVal} onChange={(e) => setStateVal(e.target.value)} className="border-b py-2 outline-none">
-              <option value="">Select state / union territory</option>
-              {INDIA_STATES_AND_UT.map((s) => (
-                <option key={s} value={s}>{s}</option>
-              ))}
-            </select>
-
-            <input value={city} onChange={(e) => setCity(e.target.value)} placeholder="City / District" className="border-b py-2 outline-none" />
-            <input value={addr1} onChange={(e) => setAddr1(e.target.value)} placeholder="House / Street / Area" className="border-b py-2 outline-none md:col-span-2" />
-            <input value={addr2} onChange={(e) => setAddr2(e.target.value)} placeholder="Address line 2 (apt, suite, etc.)" className="border-b py-2 outline-none md:col-span-2" />
-
-            {user && (
-              <label className="md:col-span-2 flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={saveAsDefault}
-                  onChange={(e) => setSaveAsDefault(e.target.checked)}
-                />
-                <span>Save this as my default address</span>
-              </label>
+            ) : (
+              <div className="grid grid-cols-1">
+                <label className="py-2">Address</label>
+                <input placeholder="Enter any address, street etc" value={addr1} onChange={e => setAddr1(e.target.value)} className="border-b py-2 outline-none focus:border-black" />
+                <label className="pb-2 pt-4">Apartment, suite, etc. (optional)</label>
+                <input placeholder="Enter apartment, suite, etc." value={addr2} onChange={e => setAddr2(e.target.value)} className="border-b py-2 outline-none focus:border-black" />
+                <label className="pb-2 pt-4">City</label>
+                <input placeholder="Select a city" value={city} onChange={e => setCity(e.target.value)} className="border-b py-2 outline-none focus:border-black" />
+                <label className="pb-2 pt-4">Postal Code</label>
+                <input placeholder="Enter the zip code of your area" value={pin} onChange={e => setPin(e.target.value)} className="border-b py-2 outline-none focus:border-black" />
+                <label className="pb-2 pt-4">State</label>
+                <select value={stateVal} onChange={e => setStateVal(e.target.value)} className="border-b py-2 outline-none focus:border-black bg-transparent">
+                  <option value="">Select State</option>
+                  {INDIA_STATES_AND_UT.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+                {/* {user && (
+                  <label className="col-span-2 flex items-center gap-2 text-xs font-medium pt-2">
+                    <input type="checkbox" checked={saveAsDefault} onChange={e => setSaveAsDefault(e.target.checked)} />
+                    Save as default address
+                  </label>
+                )} */}
+              </div>
             )}
           </div>
-        )}
-      </section>
-
-      {/* SUMMARY */}
-      <section className="mb-10 max-w-md pb-3 pt-6">
-        <div className="border rounded-xl p-4">
-          <div className="flex justify-between text-sm mb-2">
-            <span>Subtotal (Inclusive of tax)</span><span>{formatINR(subtotal)}</span>
+        </section>
+        <aside className="lg:sticky lg:top-10 h-fit">
+          <div className="pt-4">
+            <div className="flex justify-between items-end text-lg font-semibold mb-2 cursor-pointer"
+              onClick={() => setShowSummary((s) => !s)}
+            >
+              <span className="flex items-end whitespace-nowrap">
+                <img src="/assets/receipt-icon.png" alt="estimate" className="h-5 w-4 mr-1" />
+                Estimate Total
+              </span>
+              <span className="flex items-center gap-2">
+                {formatINR(cartSummary.total)}
+                <span className="text-sm">
+                    {showSummary ? "▲" : 
+                    <img
+                      src="/assets/down-arrow.png"
+                      className="w-2.5 h-2 mr-1 mt-1.5"
+                      alt="down arrow"
+                    />}
+                </span>
+              </span>
+            </div>
+            {showSummary && (
+              <div className="border rounded-lg p-4 mb-4 text-sm space-y-2 bg-gray-50">
+                <div className="flex justify-between">
+                  <span>Subtotal</span>
+                  <span>{formatINR(cartSummary.subtotal)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Tax</span>
+                  <span>{formatINR(cartSummary.tax)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Shipping</span>
+                  <span>{formatINR(cartSummary.shipping_charges)}</span>
+                </div>
+                {(cartSummary.discount != null) && (cartSummary.discount != 0) && (
+                  <div className="flex justify-between text-[#00AF35]">
+                    <span>Coupon</span>
+                    <span>-{formatINR(cartSummary.discount)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between font-semibold border-t pt-2">
+                  <span>Total</span>
+                  <span>{formatINR(cartSummary.total)}</span>
+                </div>
+              </div>
+            )}
+            <button
+              onClick={onCheckout}
+              disabled={loading}
+              className="w-full py-3.5 rounded-full font-semibold font-title transition bg-black text-white hover:bg-pink-600"
+            >{loading ? "Processing..." : "Proceed to Payment"}</button>
+            <div className="mt-2 text-[12px] text-black text-center">Proceeding here will not deduct any amount.</div>
           </div>
-          <div className="flex justify-between text-sm mb-2">
-            <span>Shipping</span>
-            <span>
-              <label className="mr-3">
-                <input type="radio" name="ship" checked={!express} onChange={() => setExpress(false)} className="accent-pink-600 mr-1" /> Free
-              </label>
-              <label>
-                <input type="radio" name="ship" checked={express} onChange={() => setExpress(true)} className="accent-pink-600 mr-1" /> Express (+ ₹ 250)
-              </label>
-            </span>
-          </div>
-          <div className="flex justify-between font-semibold">
-            <span>Total</span><span>{formatINR(total)}</span>
-          </div>
-        </div>
-      </section>
-
-      <div className="text-center flex items-center justify-center gap-3 pb-4 pt-4">
-        <button
-          onClick={onCheckout}
-          disabled={loading}
-          className={`px-8 py-3 rounded-full font-bold transition
-            ${loading ? "bg-gray-300 text-gray-500 cursor-not-allowed" : "bg-black text-white hover:bg-pink-500"}`}
-          aria-busy={loading}
-        >
-          {loading ? "Processing…" : "Proceed to Payment"}
-        </button>
-        {DEV && (
-          <button onClick={devPing}
-            className="px-4 py-3 rounded-full border text-sm hover:bg-black hover:text-white transition">
-            Run Firestore ping (dev)
-          </button>
-        )}
+        </aside>
       </div>
 
-      {/* overlay */}
+      {/* Loading Overlay */}
       {loading && (
-        <div className="fixed inset-0 z-[1000] bg-black/70 backdrop-blur-sm flex items-center justify-center p-6">
-          <div className="w-full max-w-sm rounded-2xl bg-white text-black p-6 text-center shadow-2xl">
-            <div className="mx-auto mb-4 h-12 w-12 rounded-full border-4 border-pink-500 border-t-transparent animate-spin" />
-            <h3 className="font-bold text-lg">Hang tight…</h3>
-            <p className="text-sm text-gray-600 mt-1">
-              {loadingMsg || "we’re finalizing the threads on your gear."}
-            </p>
-            <p className="text-xs text-gray-400 mt-3">don’t close this tab.</p>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center">
+          <div className="bg-white p-8 rounded-3xl text-center max-w-xs shadow-2xl">
+            <div className="w-12 h-12 border-4 border-black border-t-pink-500 rounded-full animate-spin mx-auto mb-4" />
+            <p className="font-bold">{loadingMsg}</p>
+            <p className="text-xs text-gray-500 mt-2">Please do not refresh or close this window.</p>
           </div>
         </div>
       )}
-    </section>
+    </main>
   );
-}
-
-// (dev ping kept same)
-async function devPing() {
-  try {
-    const pingId = await createOrder({
-      userId: null,
-      customer: { name: "Dev Ping", email: "dev@ping" },
-      shipping: { country: "India", state: "Karnataka", city: "Bengaluru", postal: "560001", addr1: "-", addr2: "" },
-      items: [],
-      amounts: { subtotal: 0, shipping: 0, total: 0, currency: "INR" },
-      status: "created",
-    } as any);
-    alert(`Firestore OK. Dev ping order id: ${pingId}`);
-  } catch (e) {
-    console.error("[checkout] dev ping failed:", e);
-    alert("Firestore write failed. Check console for details.");
-  }
 }

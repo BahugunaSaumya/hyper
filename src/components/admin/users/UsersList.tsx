@@ -21,10 +21,10 @@ export default function UsersList({ users, openUser }: Props) {
       <tbody>
         {users.map(u => (
           <tr key={u.id}>
-            <Td>{u?.name || u?.address?.name || "—"}</Td>
+            <Td>{u?.first_name + ' ' + u?.last_name || "—"}</Td>
             <Td>{u?.email || ''}</Td>
-            <Td>{u?.phone || u?.address?.phone || "—"}</Td>
-            <Td>{formatIST(u.createdAt)}</Td>
+            <Td>{u?.mobile || "—"}</Td>
+            <Td>{new Date(u?.created_at).toLocaleDateString()}</Td>
             <Td>
               <button
                 onClick={() => openUser(u.id)} 

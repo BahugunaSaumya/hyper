@@ -60,9 +60,9 @@ export default function OrderDetailsView({ order, back }: OrderDetailsViewProps)
       </div>
       <section className="md:col-span-2 space-y-4">
         <div className="border rounded-xl p-4 text-sm">
-          <div>Order ID : {order.id}</div>
-          <div>Status : <b>{order.status}</b></div>
-          <div>Date : {formatIST(order.createdAt)}</div>
+          <div>Order ID : {order.order_number}</div>
+          <div>Status : <b>{order.order_status}</b></div>
+          <div>Date : {new Date(order.created_at).toLocaleDateString()}</div>
           {order.shipment?.trackingId && (
             <div>Tracking : {order.shipment.trackingId}</div>
           )}

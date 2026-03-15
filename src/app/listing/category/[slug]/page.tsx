@@ -1,15 +1,14 @@
 import { notFound } from "next/navigation";
+import { headers } from "next/headers";
 import ProductTile from "@/components/ProductTile";
 
 export default async function CategoryProduct({ params}: { params: Promise<{ slug: string }>}) {
   const { slug } = await params;
-
-  // Ensure environment variable exists
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://gethypergear.in/";
-
-  // Fetch category products
-  const res = await fetch(`${baseUrl}/api/products/category?slug=${slug}`, {
-    next: { revalidate: 7200 },
+  const headersList = await headers();
+  const host = headersList.get("host");
+  const protocol = process.env.NODE_ENV !== "production" ? "http" : "https";
+  const res = await fetch(`${protocol}://${host}/api/products/category?slug=${slug}`, {
+    next: { revalidate: 36000 },
   });
 
   if (!res.ok) return notFound();
@@ -18,7 +17,7 @@ export default async function CategoryProduct({ params}: { params: Promise<{ slu
   const products = data.products || [];
   
   type Product = {
-    id: string;
+    id: number;
     slug?: string;
     title?: string;
     name?: string;
@@ -26,10 +25,11 @@ export default async function CategoryProduct({ params}: { params: Promise<{ slu
     discountedPrice?: number | string;
     presalePrice?: number | string;
     salePrice?: number | string;
-    mrp?: number | string;
+    mrp: number;
     new_launch:boolean;
     bestseller: boolean;
     color: string;
+    sizes: [];
   };
 
   const toNumber = (v: any) =>
@@ -40,7 +40,7 @@ export default async function CategoryProduct({ params}: { params: Promise<{ slu
       : 0;
 
   const dirFrom = (p: Product) =>
-    (p.slug || p.title || p.name || p.id || "").trim();
+    (p.slug || p.title || p.name || "").trim();
 
   const hrefFor = (p: Product) =>
     `/product/${p.slug}`;
@@ -64,9 +64,13 @@ export default async function CategoryProduct({ params}: { params: Promise<{ slu
               toNumber((p as any).discountedPrice) ||
               toNumber((p as any).presalePrice) ||
               toNumber((p as any).mrp);
+            const variantKeys = p.sizes ? Object.keys(p.sizes) : [];
+            const firstVariantId = variantKeys.length > 0 ? Number(variantKeys[0]) : 0;
+            const firstVariant = p.sizes ? Object.values(p.sizes)[0] : '';
             return (
               <ProductTile
                 key={`${p.id || p.slug || p.name || "item"}-${index}`}  
+                productId={p.id}
                 href={hrefFor(p)}
                 title={title}
                 slug={`${p.slug}`}
@@ -75,10 +79,13 @@ export default async function CategoryProduct({ params}: { params: Promise<{ slu
                     ? `/assets/models/products/${dir}/1.avif`
                     : "/assets/placeholder.png"
                 }
+                mrp={p.mrp}
                 price={price}
                 newLaunch={!!p.new_launch}
                 bestseller={p.bestseller ?? false}
                 color= {p.color ?? ''}
+                variantId={firstVariantId}
+                size={firstVariant}
               />
             );
           })}

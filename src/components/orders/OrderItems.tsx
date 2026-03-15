@@ -23,7 +23,6 @@ export default function OrderItems({
 }: Props) {
   const router = useRouter();
   const [selected, setSelected] = useState<Record<string, boolean>>({});
-
   const shippedItemIds = new Set(
     shipments?.flatMap((s: any) => s.items?.map((i: any) => i.itemId)) || []
   );
@@ -59,7 +58,6 @@ export default function OrderItems({
           {items.map(it => {
             const isChecked = !!selected[it.id];
             const isShipped = shippedItemIds.has(it.id);
-
             return (
               <tr key={it.id} className={`hover:bg-gray-50 ${isShipped ? 'bg-gray-50 opacity-80' : ''}`}>
                 {admin && (
@@ -68,7 +66,7 @@ export default function OrderItems({
                       type="checkbox"
                       checked={isChecked}
                       disabled={isShipped} // Disable if shipped
-                      onChange={() => toggle(it.id, it.qty)}
+                      onChange={() => toggle(it.id, it.quantity)}
                       className="h-4 w-4 accent-black disabled:cursor-not-allowed"
                     />
                   </td>
@@ -77,10 +75,16 @@ export default function OrderItems({
                   <img src={it.slug ? `/assets/models/products/${it.slug}/1.avif` : ""} className="max-h-[100px]" alt="" />
                 </td>
                 <td className="px-3 py-2">
-                  <div className="font-medium">{it.title}</div>
-                  <div>Qty : {it.qty}</div>
-                  <div>Unit : {formatINR(it.unitPrice)}</div>
-                  <div>Total : {formatINR(it.totalAmount)}</div>
+                  <div className="font-medium">{it.name}</div>
+                  <div>Qty : {it.quantity}</div>
+                  {it.discount > 0 && 
+                    <div>Discount : {formatINR(it.discount)}</div>
+                  }
+                  {it.shipping_total > 0 && 
+                    <div>Shipping : {formatINR(it.shipping_total)}</div>
+                  }
+                  <div>Unit : {formatINR(it.price)}</div>
+                  <div>Total : {formatINR(it.total)}</div>
                   
                   {/* Status Indicator */}
                   {isShipped && !orderComplete && (

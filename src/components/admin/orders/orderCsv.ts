@@ -27,6 +27,7 @@ const download = (filename: string, csv: string) => {
 export function downloadOrdersCsv(orders: any[]) {
   const headers = [
     "order_id",
+    "order_number",
     "order_date",
     "status",
 
@@ -50,35 +51,33 @@ export function downloadOrdersCsv(orders: any[]) {
     "payment_method",
     "payment_status",
   ];
-
   const rows = orders.map(o => {
-    const addr = o.shippingAddress || {};
-    const totals = o.totals || {};
-
+    const fullName = (o.first_name + " " + o.last_name) || '';
     return [
-      o.id,
-      formatIST(o.createdAt),
-      o.status,
+      o.order_id,
+      o.order_number,
+      new Date(o.created_at).toLocaleDateString(),
+      o.order_status,
 
-      o.customer?.name || "",
-      o.customer?.email || "",
-      o.customer?.phone || "",
+      fullName,
+      o.order_email || "",
+      o.shipping_phone || "",
 
-      addr.line1 || "",
-      addr.line2 || "",
-      addr.city || "",
-      addr.state || "",
-      addr.postalCode || "",
-      addr.country || "",
+      o.address1 || "",
+      o.address2 || "",
+      o.city || "",
+      o.state || "",
+      o.pincode || "",
+      o.country || "India",
 
-      parseNumber(totals.subtotal),
-      parseNumber(totals.discount),
-      parseNumber(totals.tax),
-      parseNumber(totals.shipping),
-      parseNumber(totals.total),
+      o.subtotal || "",
+      o.discount || "",
+      o.tax || "",
+      o.shipping_charges || "",
+      o.total || "",
 
-      o.payment?.method || "",
-      o.payment?.status || "",
+      "razorpay",
+      o.payment_status || "",
     ];
   });
 
@@ -94,6 +93,7 @@ export function downloadOrdersCsv(orders: any[]) {
 export function downloadOrderItemsCsv(orders: any[]) {
   const headers = [
     "order_id",
+    "order_number",
     "order_date",
     "status",
 
@@ -110,45 +110,45 @@ export function downloadOrderItemsCsv(orders: any[]) {
     "item_id",
     "item_name",
     "item_size",
+    "item_mrp",
     "item_qty",
     "item_unit_price",
-    "item_base",
-    "item_discount",
+    "item_subtotal",
     "item_tax",
+    "item_discount",
+    "item_shipping_total",
     "item_total",
   ];
 
   const rows: any[] = [];
 
   orders.forEach(order => {
-    const totals = order.totals || {};
     (order.items || []).forEach((item: any) => {
-      const qty = parseNumber(item.qty);
-      const price = parseNumber(item.unitPrice);
-      const tax = parseNumber(item.taxAmount);
-      const discount = parseNumber(item.discount);
-
+      const fullName = (order.first_name + " " + order.last_name) || '';
       rows.push([
-        order.id,
-        formatIST(order.createdAt),
-        order.status,
-        order.customer?.name || "",
-        order.customer?.email || "",
-        order.customer?.phone || "",
-        totals.subtotal,
-        totals.tax,
-        totals.discount || "",
-        totals.shipping || "",
-        totals.total,
+        order.order_id,
+        order.order_number,
+        new Date(order.created_at).toLocaleDateString(),
+        order.order_status,
+        fullName,
+        order.order_email || "",
+        order.shipping_phone || "",
+        order.subtotal || "",
+        order.tax || "",
+        order.discount || "",
+        order.shipping_charges || "",
+        order.total || "",
         item.id || "",
         item.title || "",
         item.size || "",
-        qty,
-        price,
-        item.baseAmount || "",
-        discount,
-        tax,
-        item.totalAmount,
+        item.mrp || "",
+        item.quantity || "",
+        item.price || "",
+        item.subtotal || "",
+        item.tax || "",
+        item.discount || "",
+        item.shipping_total || "",
+        item.item_total || "",
       ]);
     });
   });

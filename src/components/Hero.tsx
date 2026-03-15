@@ -21,12 +21,12 @@ export default function Hero() {
     >
       {/* Background image with mobile fallback */}
       <picture>
-        <source media="(max-width: 640px)" srcSet="/assets/hero-mobile.png" />
+        <source media="(max-width: 640px)" srcSet="/assets/landing-image.avif" />
         <img
-          src="/assets/hero.png"
+          src="/assets/landing-image.avif"
           alt="Athlete training — Hyper Gear"
           /* 👉 mobile uses object-cover to remove side gaps; desktop stays the same */
-          className="w-full h-[100svh] lg:h-[130vh] object-cover"
+          className="w-full h-[80svh] lg:h-[90vh] object-cover"
           style={{ objectPosition: "center" }}
           fetchPriority="high"
         />
@@ -42,15 +42,15 @@ export default function Hero() {
           style={{ width: "min(var(--w), 90vw)" }}
         >
           <div className="flex flex-col items-start gap-8">
-            <h1 className="font-extrabold tracking-wide text-[4.85rem] leading-[1.1] drop-shadow-[0_3px_12px_rgba(0,0,0,0.35)] whitespace-nowrap">
-              <div>FORGED BY PRECISION,</div>
-              <div>DRIVEN BY ENDURANCE</div>
+            <h1 className="font-extrabold tracking-wide text-[4.85rem] leading-[1.1] drop-shadow-[0_3px_12px_rgba(0,0,0,0.35)] whitespace-nowrap uppercase">
+              <div>Apex Protocol</div>
+              <div>Collection</div>
             </h1>
             <a
               href="/products"
-              className="inline-flex items-center justify-center rounded-full px-44 py-5 mt-20 text-2xl font-bold bg-pink-500 hover:bg-pink-400 active:scale-[.99] transition shadow-lg whitespace-nowrap"
+              className="inline-flex items-center justify-center rounded-full px-44 py-5 mt-20 text-2xl bg-pink-500 hover:bg-pink-400 active:scale-[.99] transition shadow-lg whitespace-nowrap font-title"
             >
-              View Products
+              Place your Order
             </a>
           </div>
         </div>
@@ -64,16 +64,16 @@ export default function Hero() {
           }}
         >
           {/* clamp keeps type proportional across 12 Pro (390w) and 15 Pro (393w) */}
-          <h1 className="font-extrabold tracking-wide drop-shadow-[0_3px_12px_rgba(0,0,0,0.45)] leading-[1.1] text-[clamp(1.08rem,4.2vw,1.55rem)]">
-            <span className="block">FORGED BY PRECISION,</span>
-            <span className="block">DRIVEN BY ENDURANCE</span>
+          <h1 className="font-extrabold tracking-wide drop-shadow-[0_3px_12px_rgba(0,0,0,0.45)] leading-[1.1] text-[clamp(1.08rem,4.2vw,1.55rem)] uppercase">
+            <span className="block text-center">FORGED BY PRECISION,</span>
+            <span className="block text-center">Collection</span>
           </h1>
 
           <a
             href="/products"
-            className="mt-[var(--mbtn)] inline-flex w-full items-center justify-center rounded-full px-6 py-3 text-[clamp(.95rem,3.5vw,1.05rem)] font-semibold bg-pink-500 hover:bg-pink-400 active:scale-[.99] transition shadow-lg"
+            className="mt-[var(--mbtn)] inline-flex w-full items-center justify-center rounded-full px-6 py-3 bg-pink-500 hover:bg-pink-400 active:scale-[.99] transition shadow-lg font-title"
           >
-            View Products
+            Place your Order
           </a>
         </div>
       </div>

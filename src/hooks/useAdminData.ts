@@ -7,7 +7,7 @@ async function safeJson<T>(res: Response): Promise<T | null> {
   try { return await res.json(); } catch { return null; }
 }
 
-export function useAdminData(user: any, allowed: boolean) {
+export function useAdminData(user: any, allowed: boolean, range:string) {
   const [loading, setLoading] = useState(true);
   const [token, setToken] = useState("");
   const [kpi, setKpi] = useState<KPI | null>(null);
@@ -26,8 +26,12 @@ export function useAdminData(user: any, allowed: boolean) {
         setToken(t);
 
         const [s, o] = await Promise.all([
-          fetch("/api/admin/summary", { headers: { authorization: `Bearer ${t}` } }),
-          fetch("/api/admin/orders?limit=50", { headers: { authorization: `Bearer ${t}` } }),
+          fetch(`/api/admin/summary?range=${range}`, { 
+            headers: { authorization: `Bearer ${t}` } 
+          }),
+          fetch(`/api/admin/orders?range=${range}&limit=50`, { 
+            headers: { authorization: `Bearer ${t}` } 
+          })
         ]);
 
         const sj = await safeJson<KPI>(s);
@@ -43,7 +47,7 @@ export function useAdminData(user: any, allowed: boolean) {
     })();
 
     return () => { mounted = false; };
-  }, [user, allowed]);
+  }, [user, allowed, range]);
 
   return { loading, token, kpi, orders, error };
 }

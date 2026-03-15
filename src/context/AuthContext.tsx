@@ -1,41 +1,27 @@
 "use client";
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { auth, db, googleProvider } from "@/lib/firebase";
-
+import { auth, googleProvider } from "@/lib/firebase";
 import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
-  signInWithPopup,
   updateProfile,
   User,
   signOut,
 } from "firebase/auth";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { signInWithRedirect, getRedirectResult } from "firebase/auth";
 
-type Profile = {
-  name?: string;
-  phone?: string;
-  email?: string;
-  address?: {
-    country?: string;
-    state?: string;
-    city?: string;
-    postal?: string;
-    addr1?: string;
-    addr2?: string;
-  };
-};
+type Profile = { first_name?: string; last_name?: string; email?: string; mobile?: string; };
+type SignupData = { first_name: string; last_name: string; mobile: string; password: string; };
 
 type AuthCtx = {
   user: User | null;
   profile: Profile | null;
   loading: boolean;
-  signupEmail: (name: string, email: string, password: string) => Promise<void>;
+  signupEmail: (email: string, password: string, data: SignupData) => Promise<void>;
   loginEmail: (email: string, password: string) => Promise<void>;
   loginGoogle: () => Promise<void>;
   logout: () => Promise<void>;
-  saveProfile: (p: Profile) => Promise<void>;
 };
 
 const Ctx = createContext<AuthCtx | null>(null);
@@ -47,65 +33,98 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-  return onAuthStateChanged(auth, async (u) => {
-    setLoading(true); // Ensure loading state is active
-    setUser(u);
+    return onAuthStateChanged(auth, async (u) => {
+      setUser(u);
+      if (u) {
+        // Fetch profile from Firestore or MySQL here if needed
+        setProfile({ email: u.email || "", first_name: u.displayName?.split(" ")[0] });
+      } else {
+        setProfile(null);
+      }
+      setLoading(false);
+    });
+  }, []);
 
-    if (u) {
+  useEffect(() => {
+    const handleRedirect = async () => {
       try {
-        const ref = doc(db, "users", u.uid);
-        const snap = await getDoc(ref);
-        
-        if (snap.exists()) {
-          setProfile(snap.data() as Profile);
-        } else {
-          // Fallback if document doesn't exist yet
-          setProfile({
-            name: u.displayName || "",
-            email: u.email || "",
+        const result = await getRedirectResult(auth);
+        if (result?.user) {
+          const u = result.user;
+          const names = u.displayName?.split(" ") || ["User", ""];
+          
+          // Sync to MySQL after returning from Google
+          await fetch("/api/auth/sync", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ 
+              email: u.email, 
+              first_name: names[0], 
+              last_name: names.slice(1).join(" "),
+            })
           });
         }
       } catch (error) {
-        console.error("Error fetching profile:", error);
-        // Handle error state or set default profile
+        console.error("Error handling redirect result:", error);
       }
-    } else {
-      setProfile(null);
-    }
-    setLoading(false);
-  });
-}, []);
+    };
+
+    handleRedirect();
+  }, []);
 
   const api = useMemo<AuthCtx>(() => ({
     user,
     profile,
     loading,
-    async signupEmail(name, email, password) {
-      const { user } = await createUserWithEmailAndPassword(auth, email, password);
-      if (name) await updateProfile(user, { displayName: name });
-      await setDoc(doc(db, "users", user.uid), { name, email }, { merge: true });
+
+    async signupEmail(email, password, data) {
+      // 1️⃣ Create Firebase user FIRST
+      const { user: fbUser } =
+        await createUserWithEmailAndPassword(auth, email, password);
+
+      await updateProfile(fbUser, {
+        displayName: `${data.first_name} ${data.last_name}`,
+      });
+
+      // 2️⃣ Now the token EXISTS
+      const token = await fbUser.getIdToken();
+
+      // 3️⃣ Sync to MySQL securely
+      const res = await fetch("/api/auth/sync", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          email,
+          first_name: data.first_name,
+          last_name: data.last_name,
+          mobile: data.mobile,
+          password: password,
+        }),
+      });
+
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || "MySQL sync failed");
     },
+
     async loginEmail(email, password) {
       await signInWithEmailAndPassword(auth, email, password);
     },
+
     async loginGoogle() {
-      const { user } = await signInWithPopup(auth, googleProvider);
-      // ensure doc exists
-      await setDoc(doc(db, "users", user.uid), {
-        name: user.displayName || "",
-        email: user.email || "",
-      }, { merge: true });
+      try {
+        // This will redirect the current page to Google
+        await signInWithRedirect(auth, googleProvider);
+      } catch (error) {
+        console.error("Google Redirect Error:", error);
+        throw error;
+      }
     },
-    async logout() { await signOut(auth); },
-    async saveProfile(p) {
-      if (!auth.currentUser) return;
-      await setDoc(doc(db, "users", auth.currentUser.uid), p, { merge: true });
-      setProfile(prev => ({ ...(prev || {}), ...p }));
-    }
+
+    async logout() { await signOut(auth); }
   }), [user, profile, loading]);
- if (typeof window !== "undefined") {
-    (window as any)._auth = auth;
-  }
 
   return <Ctx.Provider value={api}>{children}</Ctx.Provider>;
 }

@@ -66,7 +66,7 @@ export async function getServerUser() {
   }
 
   const decoded = await getAuth().verifyIdToken(token);
-
+  return decoded;
 }
 
 /**

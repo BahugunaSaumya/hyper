@@ -1,150 +1,94 @@
-// src/app/api/me/profile/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { getDb, getAuth } from "@/lib/firebaseAdmin";
-import * as cache from "@/lib/cache";
-
-export const runtime = "nodejs";
-
-const TTL_MS = 60_000;
-const SWR_MS = 5 * 60_000;
-const keyFor = (uid: string) => `me:doc:profile/${uid}`;
-
-function bearer(req: NextRequest) {
-  const h = req.headers.get("authorization") || "";
-  return h.startsWith("Bearer ") ? h.slice(7).trim() : "";
-}
-
-async function getUidFromReq(req: NextRequest) {
-  const token = bearer(req);
-  if (!token) return { error: NextResponse.json({ error: "Missing token" }, { status: 401 }) };
-  const auth = getAuth();
-  const decoded = await auth.verifyIdToken(token).catch(() => null);
-  if (!decoded?.uid) return { error: NextResponse.json({ error: "Invalid token" }, { status: 401 }) };
-  return { uid: decoded.uid, email: decoded.email || null };
-}
-
-function cleanStr(v: any) {
-  return typeof v === "string" ? v.trim() : "";
-}
-
-function normalizeAddress(raw: any = {}) {
-  // Accept multiple shapes coming from the client
-  const street = cleanStr(raw.street ?? raw.addr1);
-  const city = cleanStr(raw.city);
-  const state = cleanStr(raw.state);
-  const phone = cleanStr(raw.phone);
-  const name = cleanStr(raw.name);
-  const country = cleanStr(raw.country) || "IN";
-
-  // Accept pin/pincode/postal/postalCode and unify
-  const p =
-    cleanStr(raw.postal) ||
-    cleanStr(raw.postalCode) ||
-    cleanStr(raw.pin) ||
-    cleanStr(raw.pincode);
-
-  return {
-    name,
-    phone,
-    street,
-    city,
-    state,
-    postal: p,       // what the UI reads
-    postalCode: p,   // compatibility (old writes)
-    country,
-  };
-}
-
-function normalizeDocForResponse(doc: any) {
-  const user = doc?.user || {
-    name: cleanStr(doc?.name),
-    email: cleanStr(doc?.email),
-    phone: cleanStr(doc?.phone),
-  };
-
-  // ensure postal is present even if only postalCode exists in DB
-  const addr = doc?.address || {};
-  const addrNorm = {
-    name: cleanStr(addr.name),
-    phone: cleanStr(addr.phone),
-    street: cleanStr(addr.street),
-    city: cleanStr(addr.city),
-    state: cleanStr(addr.state),
-    postal: cleanStr(addr.postal) || cleanStr(addr.postalCode),
-    postalCode: cleanStr(addr.postalCode) || cleanStr(addr.postal),
-    country: cleanStr(addr.country) || "IN",
-  };
-
-  return { id: doc?.id, user, address: addrNorm, updatedAt: doc?.updatedAt || null, email: doc?.email || null };
-}
-
-export async function GET(req: NextRequest) {
-  const id = await getUidFromReq(req);
-  if ("error" in id) return id.error;
-
-  const k = keyFor(id.uid);
-  const peek = cache.peek(k);
-  let xcache = "MISS";
-
-  const payload = await cache.remember<Record<string, any> | null>(k, TTL_MS, SWR_MS, async () => {
-    const db = getDb();
-    const snap = await db.collection("users").doc(id.uid).get();
-    if (!snap.exists) return null;
-    const data = { id: snap.id, ...snap.data() };
-    return normalizeDocForResponse(data);
-  });
-
-  if (!payload) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  if (peek.has && (peek.fresh || peek.stale)) xcache = peek.fresh ? "HIT" : "STALE";
-
-  return NextResponse.json(payload, {
-    status: 200,
-    headers: {
-      "Cache-Control": "private, max-age=60, stale-while-revalidate=300",
-      "X-Cache": xcache,
-    },
-  });
-}
+import db from "@/lib/mysql";
+import { getServerUser } from "@/lib/firebaseAdmin";
 
 export async function PUT(req: NextRequest) {
-  const id = await getUidFromReq(req);
-  if ("error" in id) return id.error;
+  try {
+    // 1. Get and Verify Token
+    const authHeader = req.headers.get("authorization") || "";
+    const token = authHeader.split("Bearer ")[1];
+    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  // ✅ Read the body ONCE
-  const body = await req.json().catch(() => ({} as any));
+    const customer = await getCustomerId();
 
-  const incomingUser = body?.user || {};
-  const userPatch = {
-    name: cleanStr(incomingUser.name),
-    email: cleanStr(incomingUser.email) || cleanStr(id.email),
-    phone: cleanStr(incomingUser.phone),
-  };
+    const customerId = customer.id;
+    const body = await req.json();
 
-  // normalize & unify address keys
-  const address = normalizeAddress(body?.address || body);
+    // Remove ID if it exists in body to prevent primary key mutation errors
+    const { id, ...addressData } = body;
 
-  // also keep top-level email + emailLower for querying
-  const email = userPatch.email || id.email || null;
-  const emailLower = email ? email.toLowerCase() : null;
+    // 3. Check for existing default address
+    const [existing]: any = await db.query(
+      "SELECT id FROM customer_addresses WHERE customer_id = ? AND `default` = 1 LIMIT 1",
+      [customerId]
+    );
 
-  const db = getDb();
-  await db.collection("users").doc(id.uid).set(
-    {
-      user: userPatch,
-      email,
-      emailLower,
-      address,
-      updatedAt: new Date().toISOString(),
-    },
-    { merge: true }
+    if (existing.length > 0) {
+      // Update existing
+      await db.query(
+        "UPDATE customer_addresses SET ? WHERE id = ?",
+        [addressData, existing[0].id]
+      );
+    } else {
+      // Insert new with customer_id explicitly set
+      await db.query(
+        "INSERT INTO customer_addresses SET ?",
+        { ...addressData, customer_id: customerId, default: 1 }
+      );
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    console.error("PROFILE_UPDATE_ERROR:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+export async function GET() {
+  try {
+    const customer = await getCustomerId();
+
+    const [addrRows]: any = await db.query(
+      `SELECT *
+       FROM customer_addresses
+       WHERE customer_id = ? AND \`default\` = 1
+       LIMIT 1`,
+      [customer.id]
+    );
+
+    return NextResponse.json({
+      profile: {
+        first_name: customer.first_name,
+        last_name: customer.last_name,
+        email: customer.email,
+      },
+      address: addrRows.length ? addrRows[0] : null,
+    });
+
+  } catch (err: any) {
+    return NextResponse.json(
+      { error: err.message },
+      { status: 401 }
+    );
+  }
+}
+
+async function getCustomerId() {
+  const decoded = await getServerUser();
+  const firebaseUid = decoded.uid;
+  const email = decoded.email ?? null;
+
+  const [rows]: any = await db.query(
+    `SELECT id, first_name, last_name, email
+     FROM customers
+     WHERE firebase_uid = ? OR email = ?
+     LIMIT 1`,
+    [firebaseUid, email]
   );
 
-  // Bust cache so subsequent GET returns fresh data
-  cache.del(keyFor(id.uid));
+  if (!rows.length) {
+    throw new Error("Customer not found");
+  }
 
-  // Read back fresh doc to return normalized payload
-  const snap = await db.collection("users").doc(id.uid).get();
-  const fresh = snap.exists ? normalizeDocForResponse({ id: snap.id, ...snap.data() }) : null;
-
-  return NextResponse.json({ ok: true, ...fresh }, { status: 200 });
+  return rows[0];
 }

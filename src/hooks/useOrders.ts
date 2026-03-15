@@ -38,13 +38,15 @@ export function useOrders(orders: any[]) {
 
   const filteredOrders = useMemo(() => {
     return orders.filter(o => {
-      const matchesStatus = status === "all" || o.status === status;
-      const orderSeconds = o.createdAt?._seconds || o.placedAt?._seconds;
-      if (!orderSeconds) return matchesStatus;
+      const matchesStatus = status === "all" || o.order_status === status;
+      const orderDate = new Date(o.created_at);
+      if (isNaN(orderDate.getTime())) return matchesStatus;
 
-      const orderDate = new Date(orderSeconds * 1000);
       const start = new Date(dateRange.start);
+      start.setHours(0, 0, 0, 0);
+      
       const end = new Date(dateRange.end);
+      end.setHours(23, 59, 59, 999);
       end.setHours(23, 59, 59);
 
       return matchesStatus && orderDate >= start && orderDate <= end;
