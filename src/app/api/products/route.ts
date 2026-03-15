@@ -31,7 +31,8 @@ export async function GET(req: NextRequest) {
   const cacheKey = `api:products:list?limit=${limit}`;
 
   try {
-    cache.clear();
+    console.log("HOST:", process.env.MYSQL_HOST);
+    console.log("PORT:", process.env.MYSQL_PORT);
     const products = await cache.remember<any[]>(
       cacheKey,
       TTL_MS,
@@ -63,8 +64,7 @@ export async function GET(req: NextRequest) {
         return (rows as any[]).map(normalizeProduct);
       }
     );
-console.log('in here');
-console.log(products);
+
     return NextResponse.json({ products }, { 
       status: 200, 
       headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
