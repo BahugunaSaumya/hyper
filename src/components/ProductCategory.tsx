@@ -6,14 +6,14 @@ import useEmblaCarousel from "embla-carousel-react";
 
 const productCategories = [
   {
-    slug: "male-mma-shorts",
+    slug: "mma-shorts",
     image: "/assets/mma-shorts.avif",
     title: "MMA Shorts",
     description:
       "Built for performance and power — designed to handle intense training, sparring, and competition.",
   },
   {
-    slug: "male-compressions",
+    slug: "mma-compressions",
     image: "/assets/mma-compressions.avif",
     title: "MMA Compressions",
     description:
