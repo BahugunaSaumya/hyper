@@ -71,6 +71,7 @@ export async function GET(req: NextRequest) {
           JOIN product_categories pc ON pc.product_id = p.id
           JOIN categories cat ON cat.id = pc.category_id
           WHERE cat.slug = ?
+          AND p.active=1
           ORDER BY p.created_at DESC
           `,
           [slug]
