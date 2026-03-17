@@ -77,6 +77,7 @@ export default function OrderItems({
                 <td className="px-3 py-2">
                   <div className="font-medium">{it.name}</div>
                   <div>Qty : {it.quantity}</div>
+                  <div>Size : {it.size}</div>
                   {it.discount > 0 && 
                     <div>Discount : {formatINR(it.discount)}</div>
                   }
