@@ -39,9 +39,11 @@ export async function GET(
 
     // 4. Fetch Order Items and JOIN with products to get names/slugs
     const [itemRows] = await connection.query<RowDataPacket[]>(
-      `SELECT oi.*, p.title as product_name, p.slug as product_slug 
+      `SELECT oi.*, p.title as product_name, p.slug as product_slug, s.label as size
        FROM order_items oi
        LEFT JOIN products p ON oi.product_id = p.id
+       LEFT JOIN product_variants pv ON oi.variant_id = pv.id
+       LEFT JOIN sizes s ON pv.size_id = s.id
        WHERE oi.order_id = ?`,
       [o.id]
     );
@@ -74,7 +76,8 @@ export async function GET(
         quantity: item.quantity,
         total: Number(item.total),
         discount: Number(item.discount),
-        tax: Number(item.tax)
+        tax: Number(item.tax),
+        size: item.size
       })),
       amounts: {
         subtotal: Number(o.subtotal),

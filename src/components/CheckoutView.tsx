@@ -140,7 +140,6 @@ export default function CheckoutView() {
       }).catch(() => {});
     return () => controller.abort();
   }, [pin, editingShipping]);
-  console.log(cartSummary);
 
   function validate(): string | null {
     if (!firstName || !lastName) return "Full Name";

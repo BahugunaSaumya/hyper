@@ -91,7 +91,7 @@ function ThankYouContent() {
       });
     } catch { return ""; }
   }, [snap?.placedAt]);
-
+console.log(snap);
   if (loading && !snap) {
     return (
       <main className="max-w-5xl mx-auto px-6 py-16">
@@ -103,8 +103,6 @@ function ThankYouContent() {
 
   return (
     <main className="bg-white text-black min-h-screen">
-      <div className="h-[88px]" />
-
       <section className="max-w-5xl mx-auto px-6 pt-10 pb-6 text-center">
         <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-full bg-green-50">
           <svg width="24" height="24" viewBox="0 0 24 24" className="text-green-600">
@@ -126,8 +124,8 @@ function ThankYouContent() {
           <div className="divide-y">
             {snap?.items.map((it, i) => (
               <div key={i} className="flex items-center gap-4 px-5 py-4">
-                <div className="h-16 w-16 rounded bg-gray-100 flex-shrink-0">
-                  {it.slug ? <img src={`/assets/models/products/${it.slug}/1.avif`} className="h-full w-full object-cover" /> : <div className="h-full w-full grid place-items-center text-[10px] text-gray-400">NO IMG</div>}
+                <div className="h-22 w-16 rounded bg-gray-100 flex-shrink-0">
+                  {it.slug ? <img src={`/assets/models/products/${it.slug}/1.avif`} className="h-full w-full object-contain" /> : <div className="h-full w-full grid place-items-center text-[10px] text-gray-400">NO IMG</div>}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-bold truncate uppercase">{it.name}</div>
