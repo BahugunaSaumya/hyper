@@ -2,13 +2,13 @@
 
 /** Super admins: code-only list. Only these emails can modify admin settings. */
 export const SUPER_ADMIN_EMAILS: string[] = [
-  "shanubahuguna@gmail.com",
+  "tiwari.himanshi01@gmail.com",
 ];
 
 /** Default admin allow-lists (file-based). */
 export const ADMIN_EMAILS: string[] = [
-  "shanubahuguna@gmail.com",
-  "hyperfitness.in@gmail.com"
+  "hyperfitness.in@gmail.com",
+  "tiwari.himanshi01@gmail.com"
 ];
 
 /** Optional: admins by UID. They have admin access, but are NOT super admins. */
