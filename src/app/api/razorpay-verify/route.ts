@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import db from "@/lib/mysql";
-import { RowDataPacket } from "mysql2";
+import { sendOrderEmails } from "@/lib/email";
 
 export const runtime = "nodejs";
 
@@ -53,8 +53,16 @@ export async function POST(req: NextRequest) {
     // 3. Database Updates
     await connection.beginTransaction();
 
-    const [orders]: any = await connection.query(
-      "SELECT id, payment_status FROM orders WHERE id = ? FOR UPDATE",
+    const [orders]: any = await connection.query(`
+      SELECT 
+        o.*, 
+        c.first_name as customer_first, c.last_name as customer_last, c.email as customer_email, c.mobile as customer_mobile,
+        oa.address1, oa.address2, oa.city, oa.state, oa.pincode, oa.mobile as ship_mobile
+      FROM orders o
+      LEFT JOIN customers c ON o.customer_id = c.id
+      LEFT JOIN order_addresses oa ON o.shipping_address_id = oa.id
+      WHERE o.id = ?
+    `,
       [dbOrderId]
     );
 
@@ -85,6 +93,41 @@ export async function POST(req: NextRequest) {
     );
 
     await connection.commit();
+
+    const [itemsRows] = await db.query(`
+      SELECT oi.*, p.title, p.slug, p.image, s.label as size
+      FROM order_items oi
+      LEFT JOIN products p ON oi.product_id = p.id
+      LEFT JOIN product_variants pv ON oi.variant_id = pv.id
+      LEFT JOIN sizes s ON pv.size_id = s.id
+      WHERE oi.order_id = ?
+    `, [dbOrderId]);
+    const orderRow = orders[0];
+    const orderData = {
+      ...orderRow,
+      items: itemsRows,
+      shipping: {
+        name: `${orderRow.customer_first} ${orderRow.customer_last}`.trim(),
+        addr1: orderRow.address1,
+        addr2: orderRow.address2,
+        city: orderRow.city,
+        state: orderRow.state,
+        postal: orderRow.pincode,
+        phone: orderRow.ship_mobile
+      },
+      customer: {
+        name: `${orderRow.customer_first} ${orderRow.customer_last}`.trim(),
+        email: orderRow.customer_email,
+        phone: orderRow.customer_mobile
+      },
+      payment: {
+        provider: 'razorpay',
+        razorpay_order_id,
+        razorpay_payment_id,
+        razorpay_signature
+      }
+    };
+    await sendOrderEmails(String(dbOrderId), orderData);
 
     return NextResponse.json({
       success: true,

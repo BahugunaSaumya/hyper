@@ -91,7 +91,6 @@ function ThankYouContent() {
       });
     } catch { return ""; }
   }, [snap?.placedAt]);
-console.log(snap);
   if (loading && !snap) {
     return (
       <main className="max-w-5xl mx-auto px-6 py-16">
