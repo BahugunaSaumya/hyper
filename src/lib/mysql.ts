@@ -12,7 +12,7 @@ const db = mysql.createPool({
   },
 
   waitForConnections: true,
-  connectionLimit: 3,
+  connectionLimit: 10,
   enableKeepAlive: true,
   connectTimeout: 10000,
 });
