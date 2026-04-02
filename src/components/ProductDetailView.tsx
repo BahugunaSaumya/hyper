@@ -11,9 +11,6 @@ import BadgeRow from "./pdp/BadgeRow";
 import Coupons from "./pdp/Coupons";
 import ErrorMessage from "./ui/ErrorMessage";
 
-// List of restricted product slugs
-const RESTRICTED_SLUGS = ["thunder-fang-neon"];
-
 type ProductModel = {
   id: number;
   title: string;
@@ -52,21 +49,6 @@ export default function ProductDetailView({
   
   // Logic for specific date/time release
   const [isLocked, setIsLocked] = useState(false);
-
-  useEffect(() => {
-    const checkLockStatus = () => {
-      if (RESTRICTED_SLUGS.includes(product.slug)) {
-        setIsLocked(true);
-      } else {
-        setIsLocked(false);
-      }
-    };
-
-    checkLockStatus();
-    // Re-check every minute
-    const timer = setInterval(checkLockStatus, 60000);
-    return () => clearInterval(timer);
-  }, [product.slug]);
 
   useEffect(() => {
     setImages(product.images || []);
@@ -232,7 +214,7 @@ export default function ProductDetailView({
               <div className="mt-6">
                 <div className="font-bold mb-2">Available Sizes</div>
                 <div className="flex flex-wrap gap-2">
-                  {Object.entries(product.sizes).map(([variantId, size]) => (
+                  {Object.keys(product.sizes).length !== 0 && Object.entries(product.sizes).map(([variantId, size]) => (
                     <button
                       key={variantId}
                       onClick={() =>
@@ -257,7 +239,7 @@ export default function ProductDetailView({
 
             {/* Actions: Replaced with notice if locked */}
             <div className="mt-6 flex flex-col gap-3">
-              {isLocked ? (
+              {(Object.keys(product.sizes).length === 0) ? (
                 <div className="rounded-full py-4 text-center bg-gray-50 text-pink-600 font-bold border-2 border-dashed border-pink-200">
                   Product Out Of Stock
                 </div>

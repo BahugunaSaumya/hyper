@@ -73,6 +73,7 @@ async function loadProductBySlug(slug: string) {
           FROM product_variants pv
           JOIN sizes s ON s.id = pv.size_id
           WHERE pv.product_id = p.id
+          AND pv.quantity > 0
         ) AS sizes
 
       FROM products p

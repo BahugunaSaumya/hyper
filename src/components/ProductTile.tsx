@@ -200,12 +200,12 @@ export default function ProductTile({
             className="absolute top-3 left-3 z-10 rounded-full hover:bg-white transition-colors shadow-sm">
             <img
               src='/assets/trash.png'
-              alt='add to bag icon'
+              alt='trash icon'
               className="h-6 w-6 sm:h-8 sm:w-8 object-contain"
             />
           </button>
         }
-        {slug != 'thunder-fang-neon' && 
+        {size?.length &&
         <button 
           onClick={handleAddToCart}
           className="absolute top-3 right-3 z-10 rounded-full hover:bg-white transition-colors shadow-sm">

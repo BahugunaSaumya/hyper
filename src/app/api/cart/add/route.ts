@@ -39,6 +39,18 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    const [productVariant] = await connection.query<RowDataPacket[]>(
+      "SELECT * FROM product_variants WHERE id = ? AND quantity > 0 LIMIT 1",
+      [variant_id]
+    );
+
+    if(!productVariant.length) {
+      return NextResponse.json(
+        { success: false, error: 'Selected size is not available!' },
+        { status: 500 }
+      );
+    }
+
     /* -------------------------------------
        2️⃣ Guest → create session
     ------------------------------------- */

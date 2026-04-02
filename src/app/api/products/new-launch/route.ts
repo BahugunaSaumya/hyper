@@ -53,6 +53,7 @@ export async function GET(_req: NextRequest) {
               FROM product_variants pv
               JOIN sizes s ON s.id = pv.size_id
               WHERE pv.product_id = p.id
+              AND pv.quantity > 0
             ) AS sizes
 
           FROM products p
