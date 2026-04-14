@@ -61,26 +61,34 @@ function toNumber(v: unknown): number | null {
 
 /* ---- map product ---- */
 function mapDocToModel(doc: any): ProductModel & { _mrpNum: number | null; _discNum: number | null } {
+
   const title: string = (doc?.title || doc?.name || doc?.slug || doc?.id || "").toString();
   const slug: string = (doc?.slug || "").toString();
-  const image: string =
-    (Array.isArray(doc?.images) && doc.images[0]) || doc?.image || "/assets/placeholder.png";
-  const mrp = doc?.mrp ?? doc?.MRP;
-  const discounted = doc?.discountedPrice ?? doc?.["discounted price"];
-  const discountPct = doc?.discountPct ?? doc?.["discount percentage"];
+
+  const image: string =(Array.isArray(doc?.images) && doc.images[0]) || doc?.image ||"/assets/placeholder.png";
+
+  const mrp = doc?.mrp ?? null;
+  const price = doc?.price ?? null;
+
+  const discountPct = doc?.discount_percentage ?? doc?.["discount percentage"];
+
   const mrpNum = toNumber(mrp);
-  const discNum = toNumber(discounted);
+  const discNum = typeof discountPct === "number" ? discountPct : null;
 
   return {
     title,
     slug,
     image,
-    mrp: fmtINR(mrp),
-    discountedPrice: fmtINR(discounted),
-    discountPct: typeof discountPct === "number" ? `${discountPct}%` : (discountPct || ""),
+    mrp,
+    price,
+    discount_percentage: doc?.discount_percentage,
+    gender: doc?.gender ?? null,
+    sizes: doc?.sizes ?? [],
+    new_launch: doc?.new_launch ?? false,
+    categories: doc?.categories ?? [],
     _mrpNum: mrpNum,
     _discNum: discNum,
-  } as ProductModel & { _mrpNum: number | null; _discNum: number | null };
+  };
 }
 
 /* ---- relative positioning for carousel ---- */
@@ -119,7 +127,7 @@ export default function NewLaunchSection() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch(`/api/products/new-launch?limit=12`, { next: { revalidate: 7200 }});
+        const res = await fetch(`/api/products/new-launch?limit=12`, { next: { revalidate: 36000 }});
         const body = await res.json().catch(() => null);
         if (res.ok && Array.isArray(body?.products)) {
           const mapped = body.products.map(mapDocToModel);
@@ -177,19 +185,6 @@ export default function NewLaunchSection() {
   }, [isTouch, products.length]);
 
   const current = products[idx];
-
-  /* Calculate % off */
-  const percentOff = useMemo(() => {
-    if (!current) return "";
-    if (current.discountPct && String(current.discountPct).trim()) return String(current.discountPct);
-    if (current._mrpNum && current._discNum && current._mrpNum > 0) {
-      const pct = Math.round(((current._mrpNum - current._discNum) / current._mrpNum) * 100);
-      return pct > 0 ? `${pct}%` : "";
-    }
-    return "";
-  }, [current]);
-
-  const shownPrice = current?.discountedPrice || current?.mrp || "";
 
   /* Swipe / Drag — only ATTACHED on touch devices */
   const swipeStartX = useRef(0);
@@ -337,17 +332,17 @@ export default function NewLaunchSection() {
             </h2>
 
             <div className="mt-2 sm:mt-3 flex items-center justify-center gap-2">
-              {!!current?.mrp && current?.mrp !== shownPrice && (
+              {!!current?.mrp && current?.mrp !== current.price && (
                 <span className="text-white text-xl sm:text-2xl line-through opacity-60">
-                  {current.mrp}
+                  ₹ {current.mrp}
                 </span>
               )}
               <span className="text-white text-2xl sm:text-3xl md:text-4xl font-extrabold">
-                {shownPrice}
+                ₹ {current.price}
               </span>
-              {!!percentOff && (
+              {!!current.discount_percentage && (
                 <span className="ml-2 text-[9px] sm:text-[10px] px-2 py-0.5 rounded-full bg-pink-600 text-white uppercase">
-                  {percentOff} OFF
+                  {current.discount_percentage} % OFF
                 </span>
               )}
             </div>

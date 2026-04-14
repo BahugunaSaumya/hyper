@@ -12,8 +12,8 @@ export default function HomePage() {
   return (
     <main className="offset-header">
       <div style={{paddingTop: "10px" }}><Hero /></div>
-      <ProductCategorySection />
       <NewLaunchSection />
+      <ProductCategorySection />
       <ProFighterSection />
       <BlogsSection />
       <FaqSection />

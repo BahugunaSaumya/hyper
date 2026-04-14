@@ -1,188 +1,179 @@
-// src/app/thank-you/page.tsx  (or your ThankYouContent file)
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import ContactPage from "@/app/contact/page";
 
-type OrderItemView = { id: string; title: string; size?: string; qty: number; unitPrice: number; image?: string; };
+// 1. Updated types to match MySQL API response
 type OrderSnapshot = {
-  orderId?: string;
-  placedAt?: string;
-  customer?: { name: string; email: string; phone?: string };
-  shipping?: { country: string; state: string; city: string; postal: string; addr1: string; addr2?: string };
-  items: OrderItemView[];
-  amounts: { subtotal: number; shipping: number; discount?: number; tax?: number; total: number; currency: string };
-  paymentInfo?: { razorpay_order_id?: string; razorpay_payment_id?: string; razorpay_signature?: string; brand?: string; last4?: string };
-  status?: string;
+  id: number;
+  orderNumber: string;
+  placedAt: string;
+  email: string;
+  status: string;
+  shippingAddress: {
+    first_name: string;
+    last_name: string;
+    mobile: string;
+    address1: string;
+    address2?: string;
+    city: string;
+    state: string;
+    pincode: string;
+  };
+  items: Array<{
+    id: number;
+    name: string;
+    price: number;
+    quantity: number;
+    total: number;
+    discount: number;
+    slug: string;
+    size?: string;
+  }>;
+  amounts: {
+    subtotal: number;
+    shipping: number;
+    tax: number;
+    discount: number;
+    total: number;
+    currency: string;
+  };
+  payment?: {
+    razorpay_order_id?: string;
+    razorpay_payment_id?: string;
+    method?: string;
+  };
 };
 
 const INR = (n: number) => "₹ " + Number(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 });
 
 export default function ThankYouPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <ThankYouContent />
+    </Suspense>
+  );
+}
+
+function ThankYouContent() {
   const qs = useSearchParams();
-  const orderIdParam = qs.get("order_id") || "";
-  const paymentId = qs.get("payment_id") || "";
+  const orderNoParam = qs.get("order") || "";
 
   const [snap, setSnap] = useState<OrderSnapshot | null>(null);
-  const [loading, setLoading] = useState(!!orderIdParam);
+  const [loading, setLoading] = useState(!!orderNoParam);
 
   useEffect(() => {
-    let cancelled = false;
-
     async function load() {
-      // 1) If order_id present, fetch from API
-      if (orderIdParam) {
+      if (orderNoParam) {
         try {
           setLoading(true);
-          const r = await fetch(`/api/orders/${encodeURIComponent(orderIdParam)}`, { cache: "no-store" });
+          const r = await fetch(`/api/orders/${encodeURIComponent(orderNoParam)}`, { cache: "no-store" });
           if (r.ok) {
             const j = await r.json();
-            if (!cancelled && j?.order) setSnap(j.order);
-          } else {
-            console.warn("[thank-you] API returned", r.status);
+            if (j?.order) setSnap(j.order);
           }
         } catch (e) {
-          console.warn("[thank-you] fetch failed", e);
+          console.error("Fetch failed", e);
         } finally {
-          if (!cancelled) setLoading(false);
+          setLoading(false);
         }
       }
-
-      // 2) Fallback to session snapshot (works for immediate redirect flow)
-      if (!orderIdParam) {
-        try {
-          const raw = sessionStorage.getItem("lastOrderSnapshot");
-          if (raw && !cancelled) setSnap(JSON.parse(raw));
-        } catch {}
-      }
     }
-
     load();
-    return () => { cancelled = true; };
-  }, [orderIdParam]);
+  }, [orderNoParam]);
 
-  const orderNo = snap?.orderId || orderIdParam || paymentId || "—";
   const placedAtText = useMemo(() => {
-    const iso = snap?.placedAt;
-    if (!iso) return "";
+    if (!snap?.placedAt) return "";
     try {
-      const d = new Date(iso);
-      return d.toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+      return new Date(snap.placedAt).toLocaleString("en-IN", { 
+        day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" 
+      });
     } catch { return ""; }
   }, [snap?.placedAt]);
-
-  // tiny shimmer while loading via API
   if (loading && !snap) {
     return (
       <main className="max-w-5xl mx-auto px-6 py-16">
         <div className="h-6 w-48 bg-gray-200 animate-pulse rounded mb-4" />
-        <div className="h-4 w-72 bg-gray-200 animate-pulse rounded mb-10" />
         <div className="h-64 bg-gray-100 animate-pulse rounded-2xl" />
       </main>
     );
   }
 
   return (
-    <main className="bg-white text-black">
-      <div style={{ height: "calc(var(--nav-h, 88px))" }} />
-
+    <main className="bg-white text-black min-h-screen">
       <section className="max-w-5xl mx-auto px-6 pt-10 pb-6 text-center">
         <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-full bg-green-50">
           <svg width="24" height="24" viewBox="0 0 24 24" className="text-green-600">
             <path fill="currentColor" d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/>
           </svg>
         </div>
-
-        <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-wide">THANK YOU</h1>
-        <p className="mt-1 text-lg sm:text-xl tracking-wide font-extrabold">YOUR ORDER HAS BEEN PLACED</p>
-
+        <h1 className="text-2xl sm:text-3xl font-extrabold">THANK YOU</h1>
+        <p className="mt-1 text-lg font-bold">YOUR ORDER HAS BEEN PLACED</p>
         <div className="mt-4 text-sm text-gray-600">
-          <div>Order <span className="font-semibold">#{orderNo}</span></div>
+          <div>Order <span className="font-semibold">#{snap?.orderNumber || orderNoParam}</span></div>
           {placedAtText && <div className="mt-1">{placedAtText}</div>}
         </div>
       </section>
 
-      <section className="max-w-5xl mx-auto px-4 md:px-6 pb-16 grid grid-cols-1 md:grid-cols-[1.25fr_.85fr] gap-6">
-        {/* Left: Items + totals */}
+      <section className="max-w-5xl mx-auto px-4 md:px-6 pb-16 grid grid-cols-1 md:grid-cols-[1.2fr_.8fr] gap-6">
+        {/* Items & Totals */}
         <div className="rounded-2xl border border-gray-200 overflow-hidden">
-          <header className="px-5 py-3 border-b text-sm font-semibold">Details</header>
-
+          <header className="px-5 py-3 border-b text-sm font-semibold bg-gray-50">Order Details</header>
           <div className="divide-y">
-            {(snap?.items || []).map((it, i) => (
+            {snap?.items.map((it, i) => (
               <div key={i} className="flex items-center gap-4 px-5 py-4">
-                <div className="h-12 w-12 rounded-md overflow-hidden bg-gray-100 flex-shrink-0">
-                  {it.image ? (
-                    // absolute URLs already come from your email logic; relative still works in-app
-                    <img src={it.image} alt="" className="h-full w-full object-cover" />
-                  ) : (
-                    <div className="h-full w-full grid place-items-center text-xs text-gray-400">IMG</div>
-                  )}
+                <div className="h-22 w-16 rounded bg-gray-100 flex-shrink-0">
+                  {it.slug ? <img src={`/assets/models/products/${it.slug}/1.avif`} className="h-full w-full object-contain" /> : <div className="h-full w-full grid place-items-center text-[10px] text-gray-400">NO IMG</div>}
                 </div>
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-semibold">{it.title}</div>
-                  <div className="text-xs text-gray-500">{it.size ? `Size: ${it.size} · ` : ""}Qty: {it.qty}</div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-bold truncate uppercase">{it.name}</div>
+                  <div className="text-xs text-gray-500">Qty: {it.quantity} {it.size ? `· Size: ${it.size}` : ""}</div>
                 </div>
-                <div className="text-right text-sm text-gray-600">
-                  <div className="font-medium">{INR((it.unitPrice || 0) * (it.qty || 0))}</div>
-                </div>
+                <div className="text-sm font-bold">{INR(it.total)}</div>
               </div>
             ))}
           </div>
 
-          <div className="px-5 py-4 border-t">
+          <div className="px-5 py-4 border-t bg-gray-50/50">
             <dl className="space-y-2 text-sm">
-              <Row label="Subtotal" value={INR(snap?.amounts?.subtotal || 0)} />
-              <Row label="Shipping" value={INR(snap?.amounts?.shipping || 0)} />
-              {typeof snap?.amounts?.discount === "number" && (
-                <Row label="Discount" value={`- ${INR(Math.abs(snap.amounts.discount))}`} />
+              <Row label="Subtotal" value={INR(snap?.amounts.subtotal || 0)} />
+              <Row label="Tax" value={INR(snap?.amounts.tax || 0)} />
+              <Row label="Shipping" value={snap?.amounts.shipping === 0 ? "FREE" : INR(snap?.amounts.shipping || 0)} />
+              {snap?.amounts.discount! > 0 && (
+                <Row label="Discount" value={<span className="text-green-600">-{INR(snap?.amounts.discount || 0)}</span>} />
               )}
-              <Row label="Taxes" value={INR(snap?.amounts?.tax || 0)} />
-              <Row label={<span className="font-semibold">Total</span>} value={<span className="font-semibold">{INR(snap?.amounts?.total || 0)}</span>} />
+              <div className="border-t pt-2 mt-2">
+                <Row label={<span className="font-bold">Total</span>} value={<span className="font-bold text-lg">{INR(snap?.amounts.total || 0)}</span>} />
+              </div>
             </dl>
           </div>
         </div>
 
-        {/* Right: Cards */}
+        {/* Info Cards */}
         <div className="space-y-6">
-          <Card title="Customer info">
+          <Card title="Customer Info">
             <div className="text-sm">
-              <div className="font-semibold">{snap?.customer?.name || "—"}</div>
-              <div className="text-gray-600 break-all">{snap?.customer?.email || "—"}</div>
-              {snap?.customer?.phone && <div className="text-gray-600">{snap.customer.phone}</div>}
+              <div className="font-bold uppercase">{snap?.shippingAddress.first_name} {snap?.shippingAddress.last_name}</div>
+              <div className="text-gray-600">{snap?.email}</div>
+              <div className="text-gray-600">{snap?.shippingAddress.mobile}</div>
             </div>
           </Card>
 
-          <Card title="Delivery">
-            <dl className="text-sm space-y-2">
-              <Row label="Ship by" value="DHL" />
-              <Row label="Speedy" value="Standard" />
-              <Row
-                label="Tracking No."
-                value={<span className="text-pink-600">{(snap?.paymentInfo?.razorpay_order_id || "").slice(0, 12) || "—"}</span>}
-              />
-            </dl>
-          </Card>
-
-          <Card title="Shipping">
-            <div className="text-sm text-gray-700 leading-relaxed">
-              {snap?.shipping ? (
-                <>
-                  <div>{snap.shipping.addr1}</div>
-                  {snap.shipping.addr2 && <div>{snap.shipping.addr2}</div>}
-                  <div>{snap.shipping.city}, {snap.shipping.state} {snap.shipping.postal}</div>
-                  <div>{snap.shipping.country}</div>
-                </>
-              ) : "—"}
+          <Card title="Shipping Address">
+            <div className="text-sm leading-relaxed text-gray-600">
+              <div>{snap?.shippingAddress.address1}</div>
+              {snap?.shippingAddress.address2 && <div>{snap?.shippingAddress.address2}</div>}
+              <div>{snap?.shippingAddress.city}, {snap?.shippingAddress.state} - {snap?.shippingAddress.pincode}</div>
             </div>
           </Card>
 
-          <Card title="Payment">
-            <div className="text-sm">
-              <div className="text-gray-700">Razorpay{snap?.paymentInfo?.last4 ? ` • •••• ${snap.paymentInfo.last4}` : ""}</div>
-              {snap?.paymentInfo?.razorpay_payment_id && (
-                <div className="text-xs text-gray-500 mt-1 break-all">{snap.paymentInfo.razorpay_payment_id}</div>
-              )}
+          <Card title="Payment Status">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-gray-600 uppercase font-bold tracking-tight">{snap?.payment?.method || "Razorpay"}</span>
+              <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${snap?.status === 'Confirmed' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                {snap?.status}
+              </span>
             </div>
           </Card>
         </div>
@@ -193,19 +184,21 @@ export default function ThankYouPage() {
   );
 }
 
+// Helper Components
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-2xl border border-gray-200 overflow-hidden">
-      <header className="px-5 py-3 border-b text-sm font-semibold">{title}</header>
+    <div className="rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
+      <header className="px-5 py-3 border-b text-[11px] font-bold uppercase tracking-wider text-gray-400 bg-gray-50">{title}</header>
       <div className="px-5 py-4">{children}</div>
     </div>
   );
 }
+
 function Row({ label, value }: { label: React.ReactNode; value: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between">
-      <dt className="text-gray-600">{label}</dt>
-      <dd className="ml-3">{value}</dd>
+      <dt className="text-gray-500">{label}</dt>
+      <dd className="font-medium">{value}</dd>
     </div>
   );
 }

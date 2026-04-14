@@ -22,7 +22,8 @@ export default function TermsServicesPage() {
                 3. Products and Pricing
                 <ul className="list-disc pl-6 space-y-2 pt-2">
                     <li>
-                        All prices are listed in [Currency] and include applicable taxes unless stated otherwise.</li>
+                        All prices are listed in Indian Rupees (₹) and include applicable taxes unless stated otherwise.
+                    </li>
                     <li>
                         We reserve the right to change prices and product availability without prior notice.</li>
                     <li>

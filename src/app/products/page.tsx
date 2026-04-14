@@ -1,32 +1,38 @@
 import { notFound } from "next/navigation";
+import { headers } from "next/headers";
 import ProductTile from "@/components/ProductTile";
 
 export default async function AllProductsPage() {
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://gethypergear.in/";
+  const headersList = await headers(); // ✅ await
+  const host = headersList.get("host");
 
-  // Fetch all products instead of a specific category
-  const res = await fetch(`${baseUrl}/api/products`, {
-    next: { revalidate: 7200 },
-  });
+  const protocol = process.env.NODE_ENV !== "production" ? "http" : "https";
+
+  const res = await fetch(
+    `${protocol}://${host}/api/products?limit=24`,
+    { next: { revalidate: 3600 } }
+  );
 
   if (!res.ok) return notFound();
+
   const data = await res.json();
   const products = data.products || [];
   type Product = {
-    id: string;
-    slug?: string;
-    title?: string;
-    name?: string;
-    price?: number | string;
+    id: number;
+    slug: string;
+    title: string;
+    name: string;
+    price: number;
     discountedPrice?: number | string;
     presalePrice?: number | string;
     salePrice?: number | string;
-    mrp?: number | string;
+    mrp: number;
     new_launch: boolean;
+    bestseller: boolean;
+    color: string;
+    sizes: [];
+    size: string;
   };
-
-  const fmtINR = (n: number | string | undefined) =>
-    "₹ " + Number(n || 0).toLocaleString("en-IN");
 
   const toNumber = (v: any) =>
     Number.isFinite(+v)
@@ -36,12 +42,12 @@ export default async function AllProductsPage() {
       : 0;
 
   const dirFrom = (p: Product) =>
-    (p.slug || p.title || p.name || p.id || "").trim();
+    (p.slug || p.title || p.name || "").trim();
 
   const hrefFor = (p: Product) =>`/product/${p.slug}`;
 
   return (
-    <div className="max-w-6xl mx-auto p-6">
+    <div className="max-w-6xl mx-auto p-6 px-2">
       <h1 className="text-2xl font-bold text-center mb-8 mt-8">
         All Products
       </h1>
@@ -51,7 +57,7 @@ export default async function AllProductsPage() {
           No products available at the moment.
         </p>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-2">
           {products.map((p: Product, index: number) => {
             const title = p.title || p.name || "Product";
             const dir = dirFrom(p);
@@ -61,10 +67,14 @@ export default async function AllProductsPage() {
               toNumber((p as any).discountedPrice) ||
               toNumber((p as any).presalePrice) ||
               toNumber((p as any).mrp);
+            const variantKeys = p.sizes ? Object.keys(p.sizes) : [];
+            const firstVariantId = variantKeys.length > 0 ? Number(variantKeys[0]) : 0;
+            const firstVariant = p.sizes ? Object.values(p.sizes)[0] : '';
 
             return (
               <ProductTile
                 key={`${p.id || p.slug || p.name || "item"}-${index}`}
+                productId={p.id}
                 href={hrefFor(p)}
                 title={title}
                 slug={`${p.slug}`}
@@ -73,11 +83,13 @@ export default async function AllProductsPage() {
                     ? `/assets/models/products/${dir}/1.avif`
                     : "/assets/placeholder.png"
                 }
-                price={fmtINR(price)}
-                rating={5}
-                showAdd
-                className="p-3 sm:p-4"
+                price={price}
+                mrp={p.mrp}
                 newLaunch={!!p.new_launch}
+                bestseller={p.bestseller?? false}
+                color= {p.color ?? ''}
+                variantId={firstVariantId}
+                size={firstVariant}
               />
             );
           })}

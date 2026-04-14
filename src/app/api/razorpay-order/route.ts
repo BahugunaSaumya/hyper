@@ -1,248 +1,196 @@
-// src/app/api/razorpay-order/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import Razorpay from "razorpay";
-import { getDb } from "@/lib/firebaseAdmin";
-import { getAuth } from "firebase-admin/auth";
+import db from "@/lib/mysql";
+import { getServerUser } from "@/lib/firebaseAdmin";
+import bcrypt from "bcryptjs";
+import { ResultSetHeader } from "mysql2";
 
 export const runtime = "nodejs";
 
-type ClientItem = {
-  id: string;
-  title?: string;
-  size?: string;
-  qty: number;
-  unitPrice?: number; // hint only; server recomputes
-  image?: string;
-  slug?: string;
-};
-
-type CreateBody = {
-  customer: { name?: string; email?: string; phone?: string };
-  shippingAddress: {
-    country?: string; state?: string; city?: string;
-    postal?: string; addr1?: string; addr2?: string;
-  };
-  items: ClientItem[];
-  clientTotals?: { subtotal?: number; shipping?: number; total?: number; currency?: string };
-  notes?: Record<string, string>;
-};
-
-function pickServerPrice(p: any): number {
-  const toNum = (x: any) =>
-    x == null || x === "" ? undefined : Number(String(x).replace(/[^\d.]/g, ""));
-  const price = toNum(p.price);
-  const pre = toNum(p.presalePrice);
-  const disc = toNum(p.discountedPrice);
-  const mrp = toNum(p.mrp);
-  return (price ?? pre ?? disc ?? mrp ?? 0); // RUPEES
-}
-
-// ---------- Robust product resolution helpers ----------
-function slugify(raw: string): string {
-  return String(raw || "")
-    .toLowerCase()
-    .trim()
-    .replace(/[_\s]+/g, "-")
-    .replace(/[^a-z0-9-]/g, "")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "");
-}
-
-function slugFromImagePath(image?: string): string | null {
-  // e.g. /assets/models/products/neon-bone-blitz/2.jpg -> neon-bone-blitz
-  if (!image) return null;
-  const m = image.match(/\/products\/([^/]+)\//i);
-  return m?.[1] || null;
-}
-
-async function getProductByAnyKey(
-  db: FirebaseFirestore.Firestore,
-  item: { id?: string; title?: string; image?: string; slug?: string }
-) {
-  const candidates: string[] = [];
-
-  // raw keys
-  if (item.id) candidates.push(item.id);
-  if (item.slug) candidates.push(item.slug);
-
-  // normalized forms
-  if (item.id) candidates.push(slugify(item.id));
-  if (item.title) candidates.push(slugify(item.title));
-
-  // from image path
-  const fromImg = slugFromImagePath(item.image);
-  if (fromImg) candidates.push(fromImg);
-
-  // de-duplicate while preserving order
-  const tried = new Set<string>();
-  for (const key of candidates) {
-    const k = key.trim();
-    if (!k || tried.has(k)) continue;
-    tried.add(k);
-
-    // try as document id
-    const byId = await db.collection("products").doc(k).get();
-    if (byId.exists) return { id: byId.id, data: byId.data()! };
-
-    // try as slug field
-    const bySlug = await db.collection("products").where("slug", "==", k).limit(1).get();
-    if (!bySlug.empty) {
-      const doc = bySlug.docs[0];
-      return { id: doc.id, data: doc.data()! };
-    }
-  }
-  return null;
-}
-// -------------------------------------------------------
-
 export async function POST(req: NextRequest) {
+  const connection = await db.getConnection();
+
   try {
-    // Parse JSON (log raw body once if parse fails)
-    let body: CreateBody | null = null;
+    const body = await req.json();
+    const { shippingAddress, customer, cartId, session_id } = body;
+
+    const authHeader = req.headers.get("authorization") || "";
+    const token = authHeader.split("Bearer ")[1] || null;
+
+    let customerId: number | null = null;
+    let email: string = customer?.email || "";
+    let sessionId: string | null = session_id || null;
+
+    await connection.beginTransaction();
+
+    // 1️⃣ Identify or Create Customer
     try {
-      body = await req.json();
-    } catch {
-      const raw = await req.text();
-      console.error("[razorpay-order] Could not parse JSON. Raw body:", raw);
-      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+      if (token && token !== "undefined") {
+        const decoded = await getServerUser();
+        email = decoded.email ?? email;
+
+        const [custRows]: any = await connection.query(
+          "SELECT id FROM customers WHERE firebase_uid = ? LIMIT 1",
+          [decoded.uid]
+        );
+        customerId = custRows[0]?.id || null;
+      }
+
+      // If not logged in, search by email to see if they've shopped before
+      if (!customerId && email) {
+        const [existing]: any = await connection.query(
+          "SELECT id FROM customers WHERE email = ? LIMIT 1",
+          [email]
+        );
+        
+        if (existing.length > 0) {
+          customerId = existing[0].id;
+        } else {
+          // New Guest: Provide all required fields including password placeholder
+          const hashedPassword = await bcrypt.hash(shippingAddress.first_name, 10);
+          const [newCust]: any = await connection.query(
+            `INSERT INTO customers (first_name, last_name, email, mobile, password) 
+             VALUES (?, ?, ?, ?, ?)`,
+            [shippingAddress.first_name, shippingAddress.last_name, email, customer?.phone || shippingAddress.mobile, hashedPassword]
+          );
+          customerId = (newCust as ResultSetHeader).insertId;
+        }
+      }
+    } catch (e: any) {
+      throw new Error("Failed to initialize customer record: " + e.message);
     }
 
-    if (!Array.isArray(body?.items) || body.items.length === 0) {
-      console.warn("[razorpay-order] No items on request");
-      return NextResponse.json({ error: "No items" }, { status: 400 });
+    if (!cartId) throw new Error("Active shopping cart not found.");
+
+    // 2️⃣ Save Address into cart_addresses (Temporary/Current Cart)
+    let cartAddressId: number;
+    try {
+      const [cartAddrInsert]: any = await connection.query(
+        `INSERT INTO cart_addresses (first_name, last_name, mobile, email, address1, address2, pincode, city, state) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          shippingAddress.first_name, shippingAddress.last_name, shippingAddress.mobile, email,
+          shippingAddress.address1, shippingAddress.address2, shippingAddress.pincode, shippingAddress.city, shippingAddress.state,
+        ]
+      );
+      cartAddressId = cartAddrInsert.insertId;
+    } catch (e: any) {
+      throw new Error("Error saving cart address: " + e.message);
     }
 
-    if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
-      console.error("[razorpay-order] Keys not configured");
-      return NextResponse.json({ error: "Razorpay keys not configured" }, { status: 500 });
+    // 3️⃣ Save Address into order_addresses (REQUIRED for Orders table FK)
+    let orderAddressId: number;
+    try {
+      const [orderAddrInsert]: any = await connection.query(
+        `INSERT INTO order_addresses (first_name, last_name, mobile, email, address1, address2, pincode, city, state) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          shippingAddress.first_name, shippingAddress.last_name, shippingAddress.mobile, email,
+          shippingAddress.address1, shippingAddress.address2, shippingAddress.pincode, shippingAddress.city, shippingAddress.state,
+        ]
+      );
+      orderAddressId = orderAddrInsert.insertId;
+    } catch (e: any) {
+      throw new Error("Error creating permanent order address: " + e.message);
     }
 
-    const db = getDb();
+    // 4️⃣ Fetch Cart and Lock
+    const [cartRows]: any = await connection.query(
+      `SELECT * FROM carts WHERE id = ? AND order_id IS NULL LIMIT 1 FOR UPDATE`,
+      [cartId]
+    );
+    if (!cartRows.length) throw new Error("Cart is no longer available.");
+    const cart = cartRows[0];
 
-    // Resolve each cart line to a product by id / slug / normalized / image-derived slug
-    const resolved = await Promise.all(
-      body.items.map((it) => getProductByAnyKey(db as any, it))
+    // Update cart to reflect the current checkout attempt
+    await connection.query(
+      `UPDATE carts SET customer_id = ?, email = ?, shipping_address_id = ?, billing_address_id = ? WHERE id = ?`,
+      [customerId, email, cartAddressId, cartAddressId, cartId]
     );
 
-    for (let i = 0; i < resolved.length; i++) {
-      if (!resolved[i]) {
-        console.warn("[razorpay-order] Product not found; tried id/slug/normalized/image", body.items[i]);
-        return NextResponse.json({ error: `Product not found: ${body.items[i].id}` }, { status: 400 });
-      }
-    }
-
-    const serverItems = resolved.map((doc, idx) => {
-      const p = doc!.data;
-      const unit = pickServerPrice(p); // RUPEES
-      const qty = Math.max(1, Number(body!.items[idx].qty || 0));
-      return {
-        id: doc!.id,
-        title: p.title || body!.items[idx].title || `Item ${idx + 1}`,
-        size: body!.items[idx].size || "M",
-        qty,
-        unitPrice: unit,                                        // RUPEES
-        image: p.image || body!.items[idx].image || "",
-        slug: p.slug || body!.items[idx].slug || slugify(p.title || body!.items[idx].title || doc!.id),
-        _raw: p,
-      };
-    });
-
-    
-
-    const subtotalRupees = serverItems.reduce((sum, it) => sum + it.unitPrice * it.qty, 0);
-
-    // Clamp shipping to {0|80}
-    const clientShip = Number(body.clientTotals?.shipping || 0);
-    const shippingRupees = clientShip === 80 ? 80 : 0;
-
-    const currency = (body.clientTotals?.currency || "INR").toUpperCase();
-    const totalRupees = subtotalRupees + shippingRupees;
-
-    if (totalRupees <= 0) {
-      console.warn("[razorpay-order] Invalid total computed", { subtotalRupees, shippingRupees });
-      return NextResponse.json({ error: "Invalid total" }, { status: 400 });
-    }
-
-    const amountPaise = Math.round(totalRupees * 100);
-
-    // Try to tag the order with the signed-in user (if a Firebase ID token was sent)
-    let ownerUid: string | null = null;
-    let ownerEmailLower: string | null = null;
+    // 5️⃣ Generate Order
+    const orderNumber = await generateOrderNumber(connection);
+    let orderId: number;
     try {
-      const authHeader = req.headers.get("authorization") || "";
-      const m = authHeader.match(/^Bearer\s+(.+)$/i);
-      if (m) {
-        const tok = await getAuth().verifyIdToken(m[1]);
-        ownerUid = tok.uid || null;
-        ownerEmailLower = (tok.email || "").toLowerCase() || null;
+      const [orderInsert]: any = await connection.query(
+        `INSERT INTO orders SET ?`,
+        {
+          email,
+          customer_id: customerId,
+          billing_address_id: orderAddressId, // Use the ID from order_addresses
+          shipping_address_id: orderAddressId, // Use the ID from order_addresses
+          session_id: sessionId,
+          subtotal: cart.subtotal,
+          discount: cart.discount,
+          shipping_charges: cart.shipping_charges,
+          tax: cart.tax,
+          total: cart.total,
+          coupon_id: cart.coupon_id || null,
+          order_number: orderNumber,
+          payment_status: "pending",
+          order_status: "created",
+        }
+      );
+      orderId = orderInsert.insertId;
+
+      // Copy Items
+      const [cartItems]: any = await connection.query("SELECT * FROM cart_items WHERE cart_id = ?", [cart.id]);
+      for (const item of cartItems) {
+        await connection.query(`INSERT INTO order_items SET ?`, {
+          order_id: orderId,
+          product_id: item.product_id,
+          variant_id: item.variant_id,
+          mrp: item.mrp,
+          price: item.price,
+          quantity: item.quantity,
+          subtotal: item.subtotal,
+          discount: item.discount,
+          tax: item.tax,
+          shipping_total: item.shipping_total,
+          total: item.total,
+        });
       }
-    } catch {
-      // no-op; proceed without owner tagging if token missing/invalid
-    }
-    // Also fall back to the checkout email if provided
-    if (!ownerEmailLower && body.customer?.email) {
-      ownerEmailLower = String(body.customer.email).toLowerCase();
+    } catch (e: any) {
+      throw new Error("Failed to generate order records: " + e.message);
     }
 
-    // Draft order — store rupees under totals and mirror to hintTotals for client fallback
-    const draft = {
-      status: "created",
-      customer: body.customer || {},
-      items: serverItems.map(({ _raw, ...x }) => x),
-      totals: {
-        subtotal: subtotalRupees,
-        shipping: shippingRupees,
-        total: totalRupees,
-        currency,
-      },
-      hintTotals: {
-        subtotal: subtotalRupees,
-        shipping: shippingRupees,
-        total: totalRupees,
-        currency,
-      },
-      shippingAddress: body.shippingAddress || null,
-      note: body.notes?.source || null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      payment: { provider: "razorpay", status: "created", mode: "live" },
-      source: "razorpay-order",
-
-      // NEW: owner tagging so /api/me/orders can always find this order
-      ownerUid: ownerUid || null,
-      ownerEmailLower: ownerEmailLower || null,
-    };
-
-    const dbRef = await (db as any).collection("orders").add(draft);
-    const orderId = dbRef.id;
-
-    // Razorpay order
+    // 6️⃣ Finish Razorpay
     const razorpay = new Razorpay({
       key_id: process.env.RAZORPAY_KEY_ID!,
       key_secret: process.env.RAZORPAY_KEY_SECRET!,
     });
 
     const rzpOrder = await razorpay.orders.create({
-      amount: amountPaise,          // PAISE
-      currency,
-      receipt: `order_rcptid_${orderId}`,
-      notes: { ...(body.notes || {}), orderId },
+      amount: Math.round(Number(cart.total) * 100),
+      currency: "INR",
+      receipt: orderNumber,
+      notes: { dbOrderId: String(orderId) },
     });
 
- 
-    return NextResponse.json(
-      {
-        ...rzpOrder,
-        orderId,
-        computed: { subtotal: subtotalRupees, shipping: shippingRupees, total: totalRupees, currency },
-      },
-      { status: 200 }
-    );
+    await connection.query("UPDATE orders SET razorpay_order_id = ? WHERE id = ?", [rzpOrder.id, orderId]);
+    await connection.query("UPDATE carts SET order_id = ? WHERE id = ?", [orderId, cart.id]);
+    
+    await connection.commit();
+
+    return NextResponse.json({
+      ...rzpOrder,
+      dbOrderId: orderId,
+      order_number: orderNumber,
+    });
+
   } catch (err: any) {
-    console.error("[razorpay-order] error:", err?.message || err);
-    return NextResponse.json(
-      { error: "Unable to create Razorpay order", details: err?.message || String(err) },
-      { status: 500 }
-    );
+    await connection.rollback();
+    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+  } finally {
+    connection.release();
+  }
+}
+
+async function generateOrderNumber(connection: any): Promise<string> {
+  while (true) {
+    const random = Math.floor(100000000 + Math.random() * 900000000);
+    const orderNumber = `OR-${random}`;
+    const [rows]: any = await connection.query("SELECT id FROM orders WHERE order_number = ? LIMIT 1", [orderNumber]);
+    if (rows.length === 0) return orderNumber;
   }
 }

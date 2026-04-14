@@ -1,90 +1,86 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDb } from "@/lib/firebaseAdmin";
-import { parseCSV, mapProducts } from "@/lib/csv";
-import { promises as fs } from "fs";
-import path from "path";
+import db from "@/lib/mysql";
 import * as cache from "@/lib/cache";
 
 export const runtime = "nodejs";
 
 // cache settings
-const TTL_MS = 60_000;       // Firestore cache 60s
-const SWR_MS = 5 * 60_000;   // Stale-while-revalidate 5m
-const CSV_TTL = 5 * 60_000;  // CSV cache 5m
-const CSV_SWR = 30 * 60_000; // CSV stale 30m
+const TTL_MS = 60_000;       // 60s
+const SWR_MS = 5 * 60_000;   // 5m
 
-function keyFor(limit: number) {
-  return `admin:qry:newlaunch?limit=${limit}`;
+function normalizeProduct(p: any) {
+  return {
+    ...p,
+    price: Number(p.price),
+    mrp: Number(p.mrp),
+    discount_percentage: Number(p.discount_percentage),
+    bestseller: Boolean(p.bestseller),
+    new_launch: Boolean(p.new_launch),
+    categories: p.categories ?? [],
+    sizes: p.sizes ?? [],
+  };
 }
 
-export async function GET(req: NextRequest) {
-  // await cache.clear(); 
-  const { searchParams } = new URL(req.url);
-  const limit = Math.max(1, Math.min(50, Number(searchParams.get("limit") || 12)));
-
+export async function GET(_req: NextRequest) {
   const headers = {
-    "Cache-Control": "public, max-age=60, s-maxage=300, stale-while-revalidate=300",
+    "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
   };
 
-  const cacheKey = keyFor(limit);
+  const cacheKey = "api:products:new-launch?limit=12";
 
-  // 1️⃣ Firestore (primary, cached)
   try {
-    const products = await cache.remember<Array<{ id: string; [k: string]: any }>>(
+    const products = await cache.remember<any[]>(
       cacheKey,
       TTL_MS,
       SWR_MS,
       async () => {
-        const db = getDb();
-        const snap = await db
-          .collection("products")
-          .where("new_launch", "==", 1)
-          .limit(limit)
-          .get();
+        const [rows] = await db.query(
+          `
+          SELECT
+            p.*,
 
-        return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+            /* categories */
+            (
+              SELECT JSON_ARRAYAGG(c.slug)
+              FROM product_categories pc
+              JOIN categories c ON c.id = pc.category_id
+              WHERE pc.product_id = p.id
+            ) AS categories,
+
+            /* sizes */
+            (
+              SELECT JSON_ARRAYAGG(s.label)
+              FROM product_variants pv
+              JOIN sizes s ON s.id = pv.size_id
+              WHERE pv.product_id = p.id
+              AND pv.quantity > 0
+            ) AS sizes
+
+          FROM products p
+          WHERE p.new_launch = 1
+          AND p.active=1
+          ORDER BY p.created_at DESC
+          LIMIT 12
+          `
+        );
+
+        return (rows as any[]).map(normalizeProduct);
       }
     );
 
-    if (Array.isArray(products) && products.length > 0) {
-      return NextResponse.json({ products }, { status: 200, headers });
+    if (!products.length) {
+      return NextResponse.json(
+        { error: "No new launch products available" },
+        { status: 404, headers }
+      );
     }
-  } catch (e) {
-    console.warn("[/api/products/new-launch] Firestore unavailable; falling back to CSV.", e);
-  }
-
-  // 2️⃣ CSV fallback (cached)
-  try {
-    const csvKey = `csv:newlaunch?limit=${limit}`;
-    const products = await cache.remember<Array<{ id: string; [k: string]: any }>>(
-      csvKey,
-      CSV_TTL,
-      CSV_SWR,
-      async () => {
-        const file = path.join(process.cwd(), "public", "assets", "hyper-products-sample.csv");
-        const csv = await fs.readFile(file, "utf8");
-
-        const all = mapProducts(parseCSV(csv));
-
-        // ✅ Normalize & filter robustly
-        const filtered = all.filter((p: any) => {
-          const val = String(p.new_launch ?? "")
-            .trim()
-            .replace(/['"]/g, "")
-            .toLowerCase();
-          return val === "1" || val === "true";
-        });
-
-        return filtered.slice(0, limit).map((p: any, i: number) => ({
-          id: p.id ?? p.slug ?? String(i),
-          ...p,
-        }));
-      }
-    );
 
     return NextResponse.json({ products }, { status: 200, headers });
-  } catch (e) {
-    console.error("[/api/products/new-launch] CSV fallback failed:", e);
-    return NextResponse.json({ error: "No new launch products available" }, { status: 404, headers });
+  } catch (error) {
+    console.error("[/api/products/new-launch] MySQL error:", error);
+    return NextResponse.json(
+      { error: "Internal Server Error" },
+      { status: 500, headers }
+    );
   }
 }

@@ -8,6 +8,7 @@ import { ADMIN_EMAILS } from "@/config/admin";
 import { USER_DASHBOARD_PATH, LOGIN_PATH } from "@/config/paths";
 import { useState, useCallback } from "react";
 import SearchModal from "./SearchModal";
+import { useRouter } from "next/navigation";
 
 export default function Header() {
   const pathname = usePathname();
@@ -23,7 +24,19 @@ export default function Header() {
   // Auth & admin detection
   let isAdmin = false;
   const { user, loading } = useAuth() as any;
+  const router = useRouter();
   const accountHref = !loading && user ? USER_DASHBOARD_PATH : LOGIN_PATH;
+  const handleWishlistClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+
+    if (loading) return;
+
+    if (!user) {
+      router.push("/login");
+    } else {
+      router.push("/wishlist");
+    }
+  };
 
   try {
     if (!loading && user) {
@@ -88,6 +101,18 @@ export default function Header() {
                 </span>
               )}
             </Link>
+
+            <button 
+              onClick={handleWishlistClick}
+              className="relative hover:opacity-75 transition-opacity" 
+              aria-label="Wishlist"
+            >
+              <img
+                src='/assets/wishlist-icon.png'
+                alt='wishlist icon'
+                className="h-5 w-5 object-contain"
+              />
+            </button>
 
             {/* Account */}
             <Link href={accountHref} className={linkHover} aria-label="Account">

@@ -1,48 +1,52 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "../_lib/auth";
-import { getDb } from "@/lib/firebaseAdmin";
-import * as cache from "@/lib/cache";
+import db from "@/lib/mysql";
+import { RowDataPacket } from "mysql2";
 
 export const runtime = "nodejs";
-
-const TTL_MS = 30_000;
-const SWR_MS = 120_000;
-const SUM_KEY = "admin:sum:dashboard";
 
 export async function GET(req: NextRequest) {
   const unauthorized = await requireAdmin(req);
   if (unauthorized) return unauthorized;
 
-  const peek = cache.peek(SUM_KEY);
-  let xcache = "MISS";
+  try {
+    const { searchParams } = new URL(req.url);
+    const range = searchParams.get("range") || "today";
 
-  const payload = await cache.remember<{ ordersCount: number; usersCount: number; revenue: number }>(
-    SUM_KEY,
-    TTL_MS,
-    SWR_MS,
-    async () => {
-      const db = getDb();
-      const [ordersSnap, usersSnap] = await Promise.all([
-        db.collection("orders").get(),
-        db.collection("users").get(),
-      ]);
+    let dateCondition = "CURDATE()";
+    if (range === "week") dateCondition = "DATE_SUB(CURDATE(), INTERVAL 7 DAY)";
+    if (range === "month") dateCondition = "DATE_SUB(CURDATE(), INTERVAL 30 DAY)";
 
-      let revenue = 0;
-      for (const d of ordersSnap.docs) {
-        const a = d.data()?.amounts?.total;
-        if (typeof a === "number") revenue += a;
-      }
+    // Fetching directly from the DB for instant data
+    const [orderStats, userStats] = await Promise.all([
+      db.query<RowDataPacket[]>(
+        `SELECT 
+          COUNT(id) as ordersCount, 
+          IFNULL(SUM(total), 0) as revenue 
+         FROM orders 
+         WHERE payment_status = 'paid' 
+         AND created_at >= ${range === 'today' ? 'CURDATE()' : dateCondition}`
+      ),
+      db.query<RowDataPacket[]>("SELECT COUNT(id) as usersCount FROM customers")
+    ]);
 
-      return { ordersCount: ordersSnap.size, usersCount: usersSnap.size, revenue };
-    }
-  );
+    const stats = orderStats[0][0];
+    const customers = userStats[0][0];
 
-  if (peek.has && (peek.fresh || peek.stale)) xcache = peek.fresh ? "HIT" : "STALE";
-  return NextResponse.json(payload, {
-    status: 200,
-    headers: {
-      "Cache-Control": "private, max-age=30, stale-while-revalidate=120",
-      "X-Cache": xcache,
-    },
-  });
+    const payload = {
+      ordersCount: Number(stats.ordersCount) || 0,
+      usersCount: Number(customers.usersCount) || 0,
+      revenue: Number(stats.revenue) || 0,
+    };
+
+    return NextResponse.json(payload, {
+      status: 200,
+      headers: {
+        "Cache-Control": "no-store, max-age=0", // Ensure browser doesn't cache locally
+      },
+    });
+  } catch (error: any) {
+    console.error("Dashboard Fetch Error:", error);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+  }
 }

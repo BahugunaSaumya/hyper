@@ -6,32 +6,23 @@ import ProductTile from "@/components/ProductTile";
 import LoadingScreen from "./LoadingScreen";
 
 type Product = {
-  id: string;
+  id: number;
   slug?: string;
   title?: string;
   name?: string;
-  price?: number | string;
+  price: number;
   discountedPrice?: number | string;
   presalePrice?: number | string;
   salePrice?: number | string;
-  mrp?: number | string;
+  mrp: number;
   new_launch: boolean;
+  bestseller: boolean;
+  color: string;
+  sizes: []
 };
-
-const fmtINR = (n: number | string | undefined) =>
-  "₹ " + Number(n || 0).toLocaleString("en-IN");
 
 const toNumber = (v: any) =>
   Number.isFinite(+v) ? +v : (typeof v === "string" ? parseFloat(v.replace(/[^0-9.]/g, "")) : 0);
-
-const dirFrom = (p: Product) => (p.slug || p.title || p.name || p.id || "").trim();
-const IMG_NAMES = ["1", "2", "3", "4"];
-const oneRandomImg = (dir: string) => {
-  const idx = Math.floor(Math.random() * IMG_NAMES.length);
-  return `/assets/models/products/${dir}/${IMG_NAMES[idx]}.avif`;
-};
-const fallbackSeq = (dir: string) => IMG_NAMES.map(n => `/assets/models/products/${dir}/${n}.jpg`);
-
 const hrefFor = (p: Product) =>`/product/${p.slug}`;
 
 function shuffle<T>(xs: T[]) {
@@ -43,51 +34,14 @@ function shuffle<T>(xs: T[]) {
   return a;
 }
 
-/** Picks ONE image; no rotation. If it 404s, tries the remaining candidates once. */
-function OneShotImage({ dir, alt }: { dir: string; alt: string }) {
-  const tried = useRef<Set<string>>(new Set());
-  const [src, setSrc] = useState(() => oneRandomImg(dir));
-  const fallbacks = useMemo(() => fallbackSeq(dir), [dir]);
-
-  useEffect(() => {
-    tried.current.clear();
-    setSrc(oneRandomImg(dir));
-  }, [dir]);
-
-  const onError = () => {
-    tried.current.add(src);
-    const next = fallbacks.find(u => !tried.current.has(u));
-    if (next) {
-    
-      setSrc(next);
-    } else {
-      setSrc("/assets/placeholder.png");
-    }
-  };
-
-  return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={src}
-      alt={alt}
-      onError={onError}
-      className="h-full w-full object-cover"
-      loading="lazy"
-      decoding="async"
-    />
-  );
-}
-
 export default function YouMayAlsoLike({
   excludeTitle = "",
   limit = 4,
-  headingImg = "/assets/ymal-header.png",
-  debug = true,
+  headingImg = "/assets/ymal-header.png"
 }: {
   excludeTitle?: string;
   limit?: number;
   headingImg?: string;
-  debug?: boolean;
 }) {
   const [products, setProducts] = useState<Product[]>([]);
   const [err, setErr] = useState<string | null>(null);
@@ -98,15 +52,13 @@ export default function YouMayAlsoLike({
     window.dispatchEvent(new CustomEvent("ymal:mounted", { detail: { excludeTitle } }));
     return;
   }, [excludeTitle]);
-
-  // FETCH from Firestore-backed API (no CSV)
   useEffect(() => {
     let mounted = true;
     (async () => {
       try {
         setErr(null);
         setLoading(true);
-        const res = await fetch("/api/products?limit=50", { cache: "no-store" });
+        const res = await fetch("/api/products?limit=16", { next: { revalidate: 36000 }});
         const body = await res.json().catch(() => null);
         if (!res.ok) throw new Error(body?.error || "Failed to load products");
         const list: Product[] = Array.isArray(body?.products) ? body.products : [];
@@ -121,8 +73,6 @@ export default function YouMayAlsoLike({
     })();
     return () => { mounted = false; };
   }, []);
-
-  // PICK visible items (we can shuffle products; images themselves are NOT rotated)
   const visible = useMemo(() => {
     const ex = excludeTitle.toLowerCase();
     const pool = products.filter(p => (p.title || p.name || "").toLowerCase() !== ex);
@@ -134,50 +84,40 @@ export default function YouMayAlsoLike({
     return (
       <div className="mt-14" data-ymal>
         <div className="text-center mb-6">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={headingImg} alt="You may also like" className="mx-auto w-64 sm:w-80" />
         </div>
          <div className="text-sm text-gray-500 text-center"><LoadingScreen /></div>
         </div>
     );
   }
-
-
   return (
-    <div className="mt-14" data-ymal>
+    <div className="mt-14 px-2" data-ymal>
       <div className="text-center mb-6">
-        {/* header image to match product detail page */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={headingImg} alt="You may also like" className="mx-auto w-64 sm:w-80" />
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
         {visible.map((p) => {
           const title = p.title || p.name || "Product";
-          const dir = dirFrom(p);
-
-          // price selection (no CSV): prefer price → sale/discounted → presale → mrp
-          const price =
-            toNumber((p as any).price) ||
-            toNumber((p as any).salePrice) ||
-            toNumber((p as any).discountedPrice) ||
-            toNumber((p as any).presalePrice) ||
-            toNumber((p as any).mrp);
-
+          const price = toNumber((p as any).price) || toNumber((p as any).mrp);
+          const variantKeys = p.sizes ? Object.keys(p.sizes) : [];
+          const firstVariantId = variantKeys.length > 0 ? Number(variantKeys[0]) : 0;
+          const firstVariant = p.sizes ? Object.values(p.sizes)[0] : '';
           return (
             <ProductTile
               key={p.id}
+              productId={p.id}
               href={hrefFor(p)}
               title={title}
               slug={`${p.slug}`}
-              image={dir ? `/assets/models/products/${dir}/1.avif` : "/assets/placeholder.png"}
-              price={fmtINR(price)}
-              rating={5}
-              showAdd
-              // Optional: if your ProductTile supports className, keep the tighter padding:
-              className="p-3 sm:p-4"
+              image={ `${p.slug}` ? `/assets/models/products/${p.slug}/1.avif` : "/assets/placeholder.png"}
+              mrp={p.mrp}
+              price={price}
               newLaunch={!!p.new_launch}
-            // If ProductTile doesn't accept className, you can remove ^ safely.
+              bestseller={p.bestseller ?? false}
+              color= {p.color ?? ''}
+              variantId={firstVariantId}
+              size={firstVariant}
             />
           );
         })}

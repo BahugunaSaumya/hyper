@@ -1,82 +1,78 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDb } from "@/lib/firebaseAdmin";
-import { parseCSV, mapProducts } from "@/lib/csv";
-import { promises as fs } from "fs";
-import path from "path";
+import db from "@/lib/mysql";
 import * as cache from "@/lib/cache";
 
 export const runtime = "nodejs";
 
-// cache settings
-const TTL_MS = 60_000;       // fresh 60s
-const SWR_MS = 5 * 60_000;   // serve stale up to 5m
-const CSV_TTL = 5 * 60_000;  // CSV fresh 5m
-const CSV_SWR = 30 * 60_000; // CSV stale 30m
+const TTL_MS = 60_000;
+const SWR_MS = 5 * 60_000;
+
+/**
+ * Normalizes the MySQL row for the frontend list
+ */
+function normalizeProduct(p: any) {
+  return {
+    ...p,
+    price: Number(p.price),
+    mrp: Number(p.mrp),
+    discount_percentage: Number(p.discount_percentage),
+    bestseller: Boolean(p.bestseller),
+    new_launch: Boolean(p.new_launch),
+    categories: p.categories ?? [],
+    sizes: p.sizes ?? [],
+  };
+}
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const limitParam = searchParams.get("limit");
-  const limit =
-    limitParam === "all"
-      ? null
-      : Math.max(1, Math.min(500, Number(limitParam || 50)));
+  const limit = limitParam === "all" ? 1000 : Math.max(1, Math.min(500, Number(limitParam || 50)));
 
-  const headers = {
-    "Cache-Control": "public, max-age=60, s-maxage=300, stale-while-revalidate=300",
-  };
+  const cacheKey = `api:products:list?limit=${limit}`;
 
-  const cacheKey = `admin:qry:products?limit=${limitParam || "default"}`;
-  let products: any[] = [];
-
-  // --- 1️⃣ Try Firestore with cache ---
   try {
-    products = await cache.remember<any[]>(
+    const products = await cache.remember<any[]>(
       cacheKey,
       TTL_MS,
       SWR_MS,
       async () => {
-        const db = getDb();
-        const snap = await db.collection("products").limit(limit ?? 500).get();
-        const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-        return list;
+        const [rows] = await db.query(`
+          SELECT 
+            p.*,
+            /* Aggregating Categories */
+            (
+              SELECT JSON_ARRAYAGG(c.slug)
+              FROM product_categories pc
+              JOIN categories c ON c.id = pc.category_id
+              WHERE pc.product_id = p.id
+            ) AS categories,
+            /* Aggregating Sizes using the correct labels */
+            (
+              SELECT JSON_OBJECTAGG(pv.id, s.label)
+              FROM product_variants pv
+              JOIN sizes s ON s.id = pv.size_id
+              WHERE pv.product_id = p.id
+              AND pv.quantity > 0
+            ) AS sizes
+          FROM products p
+          where p.active=1
+          ORDER BY p.created_at DESC
+          LIMIT ?
+        `, [limit]);
+
+        return (rows as any[]).map(normalizeProduct);
       }
     );
 
-    // ✅ If Firestore returned products, stop here
-    if (Array.isArray(products) && products.length > 0) {
-      return NextResponse.json({ products }, { status: 200, headers });
-    }
-  } catch (e) {
-    console.warn("[/api/products] Firestore unavailable:", e);
-  }
+    return NextResponse.json({ products }, { 
+      status: 200, 
+      headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+      "X-Data-Source": "mysql"
+       } 
+    });
 
-  // --- 2️⃣ CSV fallback (cached) ---
-  try {
-    const csvKey = `csv:products?limit=${limitParam || "default"}`;
-    products = await cache.remember<any[]>(
-      csvKey,
-      CSV_TTL,
-      CSV_SWR,
-      async () => {
-        const file = path.join(process.cwd(), "public", "assets", "hyper-products-sample.csv");
-        const csv = await fs.readFile(file, "utf8");
-        const parsed = mapProducts(parseCSV(csv));
-        return parsed.map((p: any, i: number) => ({
-          id: p.id ?? p.slug ?? String(i),
-          ...p,
-        }));
-      }
-    );
-  } catch (e) {
-    console.error("[/api/products] CSV fallback failed:", e);
+  } catch (error) {
+    console.error("Database Error:", error);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
-
-  if (!products.length) {
-    return NextResponse.json(
-      { error: "No products available" },
-      { status: 404, headers }
-    );
-  }
-
-  return NextResponse.json({ products }, { status: 200, headers });
 }

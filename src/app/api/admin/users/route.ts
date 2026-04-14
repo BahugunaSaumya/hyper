@@ -1,24 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDb } from "@/lib/firebaseAdmin";
+import db from "@/lib/mysql";
 import { requireAdmin } from "../_lib/auth";
 import * as cache from "@/lib/cache";
+import { RowDataPacket } from "mysql2";
 
 export const runtime = "nodejs";
 
 const TTL_MS = 60_000;
 const SWR_MS = 5 * 60_000;
 const keyFor = (limit: number, q: string, per: number) =>
-  `admin:qry:users?limit=${limit}&q=${encodeURIComponent(q)}&per=${per}`;
-
-function tsToMs(x: any): number {
-  try {
-    if (!x) return 0;
-    if (typeof x?.toDate === "function") return x.toDate().getTime();
-    if (typeof x?.seconds === "number") return x.seconds * 1000;
-    const n = Date.parse(x);
-    return Number.isFinite(n) ? n : 0;
-  } catch { return 0; }
-}
+  `admin:qry:users:mysql?limit=${limit}&q=${encodeURIComponent(q)}&per=${per}`;
 
 export async function GET(req: NextRequest) {
   const unauthorized = await requireAdmin(req);
@@ -34,63 +25,49 @@ export async function GET(req: NextRequest) {
   let xcache = "MISS";
 
   try {
-    const payload = await cache.remember<{ users: Array<Record<string, any>> }>(
+    const payload = await cache.remember<{ users: Array<any> }>(
       k,
       TTL_MS,
       SWR_MS,
       async () => {
-        const db = getDb();
+        const connection = await db.getConnection();
+        try {
+          // 1️⃣ Build the Customer Query
+          let query = `SELECT id, first_name, last_name, email, mobile, firebase_uid, created_at 
+                       FROM customers`;
+          const params: any[] = [];
 
-        // Base list
-        const usersSnap = await db.collection("users").limit(limit).get();
-        let users = usersSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
-
-        if (q) {
-          const ql = q.toLowerCase();
-          users = users.filter(
-            (u) =>
-              String(u.name || "").toLowerCase().includes(ql) ||
-              String(u.email || "").toLowerCase().includes(ql)
-          );
-        }
-        users = users.slice(0, limit);
-
-        if (perUserOrders > 0) {
-          const withOrders: any[] = [];
-          for (const u of users) {
-            const uid = u.id;
-            const email = u.email || "";
-            let orders: any[] = [];
-
-            // 🔁 No orderBy → no composite index required; we sort in memory
-            const s1 = await db
-              .collection("orders")
-              .where("userId", "==", uid)
-              .limit(perUserOrders)
-              .get()
-              .catch(() => null);
-
-            if (s1 && !s1.empty) {
-              orders = s1.docs.map((d) => ({ id: d.id, ...d.data() }));
-            } else if (email) {
-              const s2 = await db
-                .collection("orders")
-                .where("customer.email", "==", email)
-                .limit(perUserOrders)
-                .get()
-                .catch(() => null);
-              if (s2 && !s2.empty) orders = s2.docs.map((d) => ({ id: d.id, ...d.data() }));
-            }
-
-            // Sort descending by createdAt if present
-            orders.sort((a, b) => tsToMs(b.createdAt) - tsToMs(a.createdAt));
-
-            withOrders.push({ ...u, orders });
+          if (q) {
+            query += ` WHERE first_name LIKE ? OR last_name LIKE ? OR email LIKE ? OR mobile LIKE ?`;
+            const searchVal = `%${q}%`;
+            params.push(searchVal, searchVal, searchVal, searchVal);
           }
-          users = withOrders;
-        }
 
-        return { users };
+          query += ` ORDER BY created_at DESC LIMIT ?`;
+          params.push(limit);
+
+          const [users] = await connection.query<RowDataPacket[]>(query, params);
+
+          // 2️⃣ Fetch Recent Orders if requested
+          if (perUserOrders > 0 && users.length > 0) {
+            for (const user of users) {
+              // Fetch latest orders for this specific customer
+              const [orders] = await connection.query<RowDataPacket[]>(
+                `SELECT id, order_number, total, order_status, payment_status, created_at 
+                 FROM orders 
+                 WHERE customer_id = ? OR email = ?
+                 ORDER BY created_at DESC 
+                 LIMIT ?`,
+                [user.id, user.email, perUserOrders]
+              );
+              user.orders = orders;
+            }
+          }
+
+          return { users };
+        } finally {
+          connection.release();
+        }
       }
     );
 

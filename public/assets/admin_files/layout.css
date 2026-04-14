@@ -131,7 +131,7 @@
     -webkit-text-decoration: underline dotted;
     text-decoration: underline dotted;
   }
-  h1, h2, h3, h4, h5, h6 {
+  h1, h2, h3, h4, h5, h6, .font-inherit {
     font-size: inherit;
     font-weight: inherit;
   }
@@ -343,6 +343,9 @@
   }
   .left-0 {
     left: calc(var(--spacing) * 0);
+  }
+  .left-1 {
+    left: calc(var(--spacing) * 1);
   }
   .left-1\/2 {
     left: calc(1/2 * 100%);
@@ -1653,6 +1656,9 @@
   }
   .font-sans {
     font-family: var(--font-sans);
+  }
+  .font-mono-family {
+    font-family: var(--default-mono-font-family);
   }
   .text-2xl {
     font-size: var(--text-2xl);
@@ -3571,8 +3577,12 @@ body.zoom-90 {
   }
 }
 .no-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
+  -ms-overflow-style: none;     /* IE / Edge */
+  scrollbar-width: none;        /* Firefox */
+  -webkit-overflow-scrolling: touch;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;                /* Chrome / Safari */
 }
 @property --tw-translate-x {
   syntax: "*";

@@ -1,204 +1,118 @@
-// src/app/signup/page.tsx
 "use client";
-
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { LOGIN_PATH } from "@/config/paths";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 
-const HERO_SLIDES = [
-  "/assets/login/signup-gym.png",
-  "/assets/login/signup-gym.png",
-  "/assets/login/signup-gym.png",
-];
-
 export default function SignupPage() {
-  const { signupEmail, loginGoogle } = useAuth();
+  const { signupEmail, loading } = useAuth() as any;
   const router = useRouter();
 
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [pw, setPw] = useState("");
-  const [showPw, setShowPw] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-  const [slide, setSlide] = useState(0);
+  const [form, setForm] = useState({
+    first_name: "", last_name: "", email: "", mobile: "", password: ""
+  });
+  const [status, setStatus] = useState({ type: "", message: "" });
 
-  // Auto-rotate hero images
-  useEffect(() => {
-    const id = setInterval(() => setSlide((s) => (s + 1) % HERO_SLIDES.length), 4000);
-    return () => clearInterval(id);
-  }, []);
+  const validate = () => {
+    if (!form.first_name || !form.last_name) return "Full name is required.";
+    if (!form.email.includes("@")) return "Please enter a valid email.";
+    if (form.mobile.length < 10) return "Enter a valid 10-digit mobile number.";
+    if (form.password.length < 6) return "Password must be at least 6 characters.";
+    return null;
+  };
 
-  async function handleSignup() {
-    setErr(null);
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const error = validate();
+    if (error) return setStatus({ type: "error", message: error });
+
+    setStatus({ type: "info", message: "Creating your account..." });
+
     try {
-      await signupEmail(name.trim(), email.trim(), pw);
-      router.replace("/dashboard");
-    } catch (e: any) {
-      setErr(e?.message || "Signup failed. Please try again.");
+      await signupEmail(form.email, form.password, {
+        first_name: form.first_name,
+        last_name: form.last_name,
+        mobile: form.mobile
+      });
+      setStatus({ type: "success", message: "Registration successful! Redirecting..." });
+      setTimeout(() => router.push("/dashboard"), 1500);
+    } catch (err: any) {
+      let friendlyMessage = "Registration failed. Please try again.";
+      if (err.code === "auth/email-already-in-use") {
+        friendlyMessage = "This email is already registered. Try logging in instead.";
+      } else if (err.code === "auth/weak-password") {
+        friendlyMessage = "Password is too weak. Please use at least 6 characters.";
+      } else if (err.message) {
+        friendlyMessage = err.message;
+      }
+      setStatus({ type: "error", message: friendlyMessage });
     }
-  }
-
-  async function handleGoogle() {
-    setErr(null);
-    try {
-      await loginGoogle();
-      router.replace("/dashboard");
-    } catch (e: any) {
-      setErr(e?.message || "Google sign-in failed. Please try again.");
-    }
-  }
+  };
 
   return (
-    <main className="min-h-[100dvh] bg-white text-black">
-      <div className="mx-auto max-w-7xl grid grid-cols-1 lg:grid-cols-2 gap-0">
-        {/* LEFT: image carousel */}
-        <aside className="relative hidden lg:block">
-          <img
-            key={slide}
-            src={HERO_SLIDES[slide]}
-            alt=""
-            className="absolute inset-0 h-full w-full object-cover transition-opacity duration-500"
-          />
-          <div className="absolute inset-0 bg-black/10" />
+    <main className="min-h-screen grid lg:grid-cols-2 bg-white text-black font-sans">
+      <aside className="hidden lg:block relative">
+        <img src="/assets/login/signup-gym.png" className="w-full h-full object-contain" alt="Gym" />
+      </aside>
 
-          {/* dots */}
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2">
-            {HERO_SLIDES.map((_, i) => (
-              <button
-                key={i}
-                aria-label={`Go to slide ${i + 1}`}
-                onClick={() => setSlide(i)}
-                className={`h-2.5 w-2.5 rounded-full transition ${
-                  i === slide ? "bg-white" : "bg-white/40 hover:bg-white/70"
-                }`}
-              />
-            ))}
-          </div>
-        </aside>
-
-        {/* RIGHT: form */}
-        <section className="px-6 sm:px-10 lg:px-14 py-12 lg:py-20">
-          <div className="mx-auto w-full max-w-lg">
-            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-[0.06em] text-center">
-              CREATE AN ACCOUNT
-            </h1>
-
-            <p className="mt-3 text-center text-sm text-gray-600">
-              Already have an account?{" "}
-              <Link href={LOGIN_PATH}>Log In</Link>
+      <section className="flex items-center justify-center p-8">
+        <div className="w-full max-w-md">
+          <header className="mb-10 text-center lg:text-left">
+          <h1 className="text-4xl font-black uppercase tracking-tighter mb-2">Join the Club</h1>
+            <p className="text-gray-500">
+             Already have an account? <Link href="/login" className="text-pink-600 font-bold hover:underline">Login</Link>
             </p>
+          </header>
+          <p className="text-gray-500 mb-8">Fill in your details to get started.</p>
 
-            {err && (
-              <div className="mt-4 rounded-md bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">
-                {err}
+          {status.message && (
+            <div className={`mb-6 p-4 rounded-lg text-sm font-medium border ${
+              status.type === "error" ? "bg-pink-50 border-pink-200 text-pink-600" : 
+              status.type === "success" ? "bg-green-50 border-green-200 text-green-600" : 
+              "bg-black-50 border-black-200 text-black-600"
+            }`}>
+              {status.message}
+            </div>
+          )}
+
+          <form onSubmit={handleSignup} className="space-y-5">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="text-md font-bold text-gray-400">First Name</label>
+                <input required type="text" className="w-full border-b-2 py-2 outline-none focus:border-black transition"
+                  onChange={e => setForm({...form, first_name: e.target.value})} />
               </div>
-            )}
-
-            {/* Full name */}
-            <label className="mt-8 block text-sm font-medium">Full Name</label>
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Your name"
-              className="mt-2 w-full rounded-md border px-4 py-3 outline-none focus:ring-2 focus:ring-pink-400"
-            />
-
-            {/* Email */}
-            <label className="mt-5 block text-sm font-medium">Email Address</label>
-            <input
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              type="email"
-              placeholder="you@example.com"
-              className="mt-2 w-full rounded-md border px-4 py-3 outline-none focus:ring-2 focus:ring-pink-400"
-              autoComplete="email"
-            />
-
-            {/* Password */}
-            <label className="mt-5 block text-sm font-medium">Password</label>
-            <div className="mt-2 relative">
-              <input
-                value={pw}
-                onChange={(e) => setPw(e.target.value)}
-                type={showPw ? "text" : "password"}
-                placeholder="••••••••"
-                className="w-full rounded-md border px-4 py-3 pr-12 outline-none focus:ring-2 focus:ring-pink-400"
-                autoComplete="new-password"
-              />
-              <button
-                type="button"
-                aria-label={showPw ? "Hide password" : "Show password"}
-                onClick={() => setShowPw((s) => !s)}
-                className="absolute inset-y-0 right-0 px-3 grid place-items-center text-gray-500 hover:text-gray-700"
-              >
-                {/* eye icon */}
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                >
-                  {showPw ? (
-                    <>
-                      <path d="M3 3l18 18" />
-                      <path d="M10.584 10.587a3 3 0 004.242 4.243" />
-                      <path d="M9.88 5.09A9.996 9.996 0 0121 12s-3.75 6-9 6a8.99 8.99 0 01-4.12-1.03" />
-                      <path d="M7.11 7.11A8.987 8.987 0 003 12s3.75 6 9 6c1.163 0 2.273-.205 3.29-.58" />
-                    </>
-                  ) : (
-                    <>
-                      <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z" />
-                      <circle cx="12" cy="12" r="3.2" />
-                    </>
-                  )}
-                </svg>
-              </button>
+              <div className="space-y-1">
+                <label className="text-md font-bold text-gray-400">Last Name</label>
+                <input required type="text" className="w-full border-b-2 py-2 outline-none focus:border-black transition"
+                  onChange={e => setForm({...form, last_name: e.target.value})} />
+              </div>
             </div>
 
-            {/* Terms */}
-            <p className="mt-3 text-xs text-gray-500">
-              By creating an account, you agree to our{" "}
-              <a href="/terms" className="underline hover:text-pink-500">
-                Terms of use
-              </a>{" "}
-              and{" "}
-              <a href="/privacy" className="underline hover:text-pink-500">
-                Privacy Policy
-              </a>
-            </p>
+            <div className="space-y-1">
+              <label className="text-md font-bold text-gray-400">Email Address</label>
+              <input required type="email" className="w-full border-b-2 py-2 outline-none focus:border-black transition"
+                onChange={e => setForm({...form, email: e.target.value})} />
+            </div>
 
-            {/* Submit */}
-            <button
-              onClick={handleSignup}
-              className="mt-6 w-full py-3 rounded-full border-2 border-black font-semibold hover:bg-black hover:text-white transition"
-            >
-              SIGN UP
+            <div className="space-y-1">
+              <label className="text-md font-bold text-gray-400">Mobile Number</label>
+              <input required type="tel" className="w-full border-b-2 py-2 outline-none focus:border-black transition"
+                onChange={e => setForm({...form, mobile: e.target.value})} />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-md font-bold text-gray-400">Password</label>
+              <input required type="password" className="w-full border-b-2 py-2 outline-none focus:border-black transition"
+                onChange={e => setForm({...form, password: e.target.value})} />
+            </div>
+
+            <button disabled={loading} className="w-full bg-black text-white py-4 rounded-full font-bold tracking-widest hover:bg-pink-600 transition disabled:bg-gray-300 mt-4 font-title">
+              {loading ? "Processing..." : "Create Account"}
             </button>
-
-            {/* Divider */}
-            <div className="mt-8 flex items-center gap-3 text-gray-400">
-              <span className="h-px flex-1 bg-gray-200" />
-              <span className="text-xs">OR</span>
-              <span className="h-px flex-1 bg-gray-200" />
-            </div>
-
-            {/* Google sign up */}
-            <div className="mt-6 flex justify-center">
-              <button
-                onClick={handleGoogle}
-                className="h-12 w-12 rounded-2xl shadow-md grid place-items-center border border-gray-200 hover:shadow-lg transition"
-                aria-label="Sign up with Google"
-              >
-                <img src="/assets/google.png" alt="Google" className="h-6 w-6" />
-              </button>
-            </div>
-          </div>
-        </section>
-      </div>
+          </form>
+        </div>
+      </section>
     </main>
   );
 }

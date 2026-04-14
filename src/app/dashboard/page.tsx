@@ -1,587 +1,200 @@
-// src/app/dashboard/page.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import { loginUrl } from "@/config/paths";
 import LoadingScreen from "@/components/LoadingScreen";
 
+// Updated types to match MySQL schema
 type OrderLite = {
-  id: string;
-  total?: number | string;                // legacy top-level (often paise)
-  status?: string;
-  createdAt?: any;                        // Firestore Timestamp | ISO | number
-  placedAt?: string;                      // ISO/string
-  amounts?: { total?: number; currency?: string };  // new-ish rupees
-  totals?: { total?: number; currency?: string };   // new rupees
-  customer?: { name?: string };
+  id: number;
+  order_number: string;
+  total: number;
+  order_status: string;
+  payment_status: string;
+  created_at: string;
 };
 
 type Address = {
-  name?: string;
-  phone?: string;
-  street?: string;
-  city?: string;
-  state?: string;
-  postal?: string;
-  country?: string;
+  first_name: string;
+  last_name: string;
+  mobile: string;
+  address1: string;
+  address2: string;
+  city: string;
+  state: string;
+  pincode: string;
+  company?: string;
 };
 
 export default function DashboardPage() {
-  const { user, loading, profile } = useAuth() as any;
+  const { user, logout, loading } = useAuth() as any;
   const router = useRouter();
 
   const [orders, setOrders] = useState<OrderLite[]>([]);
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
-  const [fetching, setFetching] = useState(false);
-  const [firstLoad, setFirstLoad] = useState(true);
-  const [fetchErr, setFetchErr] = useState<string | null>(null);
-
-  // Address state (read-only by default if Firestore has one)
-  const [addr, setAddr] = useState<Address>({
-    name: "",
-    phone: "",
-    street: "",
-    city: "",
-    state: "",
-    postal: "",
-    country: "IN",
-  });
+  const [addr, setAddr] = useState<Address | null>(null);
+  const [fetching, setFetching] = useState(true);
   const [editingAddr, setEditingAddr] = useState(false);
   const [savingAddr, setSavingAddr] = useState(false);
 
-  // Redirect to login if not authenticated
   useEffect(() => {
-    if (!loading && !user) {
-      router.replace(loginUrl("/dashboard"));
-    }
+    if (!loading && !user) router.replace("/login?next=/dashboard");
   }, [loading, user, router]);
 
-  // Prefill from local profile (context) or local draft for initial render
-  useEffect(() => {
-    const draft = safeParse(localStorage.getItem("addressDraft"));
-    const fromProfile: Address | null = profile?.address || null;
-
-    if (fromProfile) {
-      setAddr({
-        name: fromProfile.name || profile?.name || "",
-        phone: fromProfile.phone || profile?.phone || "",
-        street: fromProfile.street || "",
-        city: fromProfile.city || "",
-        state: fromProfile.state || "",
-        postal: fromProfile.postal || "",
-        country: fromProfile.country || "IN",
-      });
-      setEditingAddr(false);
-    } else if (draft) {
-      setAddr({
-        name: draft.name || profile?.name || "",
-        phone: draft.phone || profile?.phone || "",
-        street: draft.street || "",
-        city: draft.city || "",
-        state: draft.state || "",
-        postal: draft.postal || "",
-        country: draft.country || "IN",
-      });
-      setEditingAddr(true);
-    } else {
-      setAddr({
-        name: profile?.name || "",
-        phone: profile?.phone || "",
-        street: "",
-        city: "",
-        state: "",
-        postal: "",
-        country: "IN",
-      });
-      setEditingAddr(true);
-    }
-  }, [profile?.address, profile?.name, profile?.phone]);
-
-  // NEW: Load saved profile/address from Firestore (authoritative)
+  // Combined fetch for Profile and Orders
   useEffect(() => {
     if (!user) return;
-    let cancelled = false;
-    (async () => {
+    const loadDashboardData = async () => {
       try {
-        const tok = await user.getIdToken?.();
-        const res = await fetch("/api/me/profile", {
-          headers: { authorization: `Bearer ${tok}` },
-          cache: "no-store",
-        });
-        const body = await res.json().catch(() => null);
-        if (!res.ok || !body) return;
-        if (cancelled) return;
+        const tok = await user.getIdToken();
+        const [profRes, orderRes] = await Promise.all([
+          fetch("/api/me/profile", { headers: { authorization: `Bearer ${tok}` } }),
+          fetch("/api/me/orders", { headers: { authorization: `Bearer ${tok}` } })
+        ]);
 
-        if (body.address) {
-          setAddr({
-            name: body.address.name || profile?.name || "",
-            phone: body.address.phone || profile?.phone || "",
-            street: body.address.street || "",
-            city: body.address.city || "",
-            state: body.address.state || "",
-            postal: body.address.postal || "",
-            country: body.address.country || "IN",
-          });
-          setEditingAddr(false);
-        }
-      } catch { /* ignore */ }
-    })();
-    return () => { cancelled = true; };
-  }, [user, profile?.name, profile?.phone]);
+        const profData = await profRes.json();
+        const orderData = await orderRes.json();
 
-  // Load orders (paged) from API
-  useEffect(() => {
-    if (!user || fetching) return;
-    (async () => {
-      setFetching(true);
-      setFetchErr(null);
-      try {
-        const tok = await user.getIdToken?.();
-        const res = await fetch(`/api/me/orders?limit=50`, {
-          headers: { authorization: `Bearer ${tok}` },
-          cache: "no-store",
-        });
-        const body = await res.json().catch(() => null);
-        if (!res.ok) throw new Error(body?.error || "Failed to load orders");
-        const list = Array.isArray(body?.orders) ? body.orders : [];
-        list.sort((a: any, b: any) => tsMs(b?.createdAt) - tsMs(a?.createdAt));
-        setOrders(list);
-        setNextCursor(body?.nextCursor || null);
-      } catch (e: any) {
-        setFetchErr(e?.message || "Failed to load orders");
+        if (profRes.ok) setAddr(profData.address);
+        if (orderRes.ok) setOrders(orderData.orders || []);
+      } catch (err) {
+        console.error("Dashboard load failed", err);
       } finally {
         setFetching(false);
-        setFirstLoad(false);
       }
-    })();
+    };
+    loadDashboardData();
   }, [user]);
 
-  async function loadMore() {
-    if (!user || !nextCursor || fetching) return;
-    setFetching(true);
-    setFetchErr(null);
-    try {
-      const tok = await user.getIdToken?.();
-      const res = await fetch(
-        `/api/me/orders?limit=50&cursor=${encodeURIComponent(nextCursor)}`,
-        { headers: { authorization: `Bearer ${tok}` }, cache: "no-store" }
-      );
-      const body = await res.json().catch(() => null);
-      if (!res.ok) throw new Error(body?.error || "Failed to load more orders");
-      const page: OrderLite[] = Array.isArray(body?.orders) ? body.orders : [];
-      setOrders((prev) => {
-        const merged = [...prev, ...page];
-        merged.sort((a: any, b: any) => tsMs(b?.createdAt) - tsMs(a?.createdAt));
-        return dedupeById(merged);
-      });
-      setNextCursor(body?.nextCursor || null);
-    } catch (e: any) {
-      setFetchErr(e?.message || "Failed to load more orders");
-    } finally {
-      setFetching(false);
-    }
-  }
+  const kpis = useMemo(() => ({
+    count: orders.length,
+    totalSpend: orders.reduce((sum, o) => sum + Number(o.total), 0),
+    latest: orders[0]?.created_at || null
+  }), [orders]);
 
-  // Derived KPIs
-  const kpis = useMemo(() => {
-    const count = orders.length;
-    const totalSpend = orders.reduce((sum, o) => sum + getTotalRupees(o), 0);
-
-    const latestWhen =
-      toISO(orders[0]?.createdAt) ||
-      orders[0]?.placedAt ||
-      orders
-        .map((o) => toISO(o.createdAt) || o.placedAt || null)
-        .filter(Boolean)
-        .sort()
-        .pop() ||
-      null;
-
-    return { count, totalSpend, latestWhen };
-  }, [orders]);
-
-  if (loading || (!user && typeof window !== "undefined")) {
-    return (
-      <main className="min-h-[60vh] grid place-items-center text-sm text-gray-600">
-        <LoadingScreen />
-      </main>
-    );
-  }
-  if (!user) return null;
-
-  // Save address to Firestore (with graceful local fallback)
-  async function saveAddress() {
-    if (!user) return;
+  async function saveAddress(e: React.FormEvent) {
+    e.preventDefault();
     setSavingAddr(true);
     try {
-      const tok = await user.getIdToken?.();
-
-      // Preferred endpoint
-      let res = await fetch("/api/me/profile", {
+      const tok = await user.getIdToken();
+      const res = await fetch("/api/me/profile", {
         method: "PUT",
-        headers: {
-          "content-type": "application/json",
-          authorization: `Bearer ${tok}`,
-        },
-        body: JSON.stringify({ address: addr }),
+        headers: { "Content-Type": "application/json", authorization: `Bearer ${tok}` },
+        body: JSON.stringify(addr),
       });
-
-      // Fallback alias if someone removed /profile
-      if (res.status === 404) {
-        res = await fetch("/api/me/address", {
-          method: "PUT",
-          headers: {
-            "content-type": "application/json",
-            authorization: `Bearer ${tok}`,
-          },
-          body: JSON.stringify({ address: addr }),
-        });
-      }
-
       if (res.ok) {
-        localStorage.removeItem("addressDraft");
         setEditingAddr(false);
-        alert("Address saved.");
-        return;
+        alert("Address updated successfully.");
       }
-
-      const bodyText = await res.text().catch(() => "");
-      console.warn("[dashboard] address save failed:", res.status, bodyText);
-      localStorage.setItem("addressDraft", JSON.stringify(addr));
-      alert("Saved locally (no profile API). Add /api/me/profile to persist in Firestore.");
-      setEditingAddr(false);
     } catch (e) {
-      console.error(e);
-      localStorage.setItem("addressDraft", JSON.stringify(addr));
-      alert("Saved locally. (Network/API error)");
-      setEditingAddr(false);
+      alert("Failed to save address.");
     } finally {
       setSavingAddr(false);
     }
   }
 
-  function cancelEditAddress() {
-    const fromProfile: Address | null = profile?.address || null;
-    const draft = safeParse(localStorage.getItem("addressDraft"));
-    const base: Address =
-      fromProfile ||
-      draft || {
-        name: profile?.name || "",
-        phone: profile?.phone || "",
-        street: "",
-        city: "",
-        state: "",
-        postal: "",
-        country: "IN",
-      };
-    setAddr(base);
-    setEditingAddr(false);
-  }
+  if (loading || fetching) return <LoadingScreen />;
 
   return (
-    <main className="bg-white text-black">
-      <div style={{ height: "calc(var(--nav-h, 88px))" }} />
+    <main className="max-w-6xl mx-auto px-4 py-10 bg-white text-black">
+      <header className="mb-10">
+        <h1 className="text-4xl font-black uppercase tracking-tighter">My Account</h1>
+        <p className="text-gray-500">Welcome back, {user?.email}</p>
+        <button onClick={() => logout()} className="mt-4 text-md font-bold text-white bg-red-500 px-3 py-2 rounded hover:underline">Logout</button>
+      </header>
 
-      {/* Header */}
-      <section className="max-w-6xl mx-auto px-6 pt-10 pb-6">
-        <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-wide">
-          My Account
-        </h1>
-        <p className="text-sm text-gray-600 mt-1">
-          Signed in as <span className="font-medium">{user.email || user.uid}</span>
-        </p>
+      <section className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+        <KPIBox label="Total Orders" value={kpis.count} />
+        <KPIBox label="Total Spent" value={`₹${kpis.totalSpend.toLocaleString()}`} />
+        <KPIBox label="Latest Order" value={kpis.latest ? new Date(kpis.latest).toLocaleDateString() : "N/A"} />
       </section>
 
-      {/* KPI Cards */}
-      <section className="max-w-6xl mx-auto px-4 md:px-6 grid grid-cols-1 sm:grid-cols-3 gap-4 pb-8">
-        <Card title="Orders">
-          <div className="text-2xl font-extrabold">{kpis.count}</div>
-        </Card>
-        <Card title="Total Spend">
-          <div className="text-2xl font-extrabold">₹ {fmtINR(kpis.totalSpend)}</div>
-        </Card>
-        <Card title="Last Order">
-          <div className="text-sm">
-            {kpis.latestWhen ? new Date(kpis.latestWhen).toLocaleString() : "—"}
-          </div>
-        </Card>
-      </section>
-
-      <div className="max-w-6xl mx-auto px-4 md:px-6 grid lg:grid-cols-3 gap-6 pb-16">
-        {/* Orders */}
-        <section className="lg:col-span-2 rounded-2xl border border-gray-200 overflow-hidden">
-          <header className="px-5 py-3 border-b text-sm font-semibold flex items-center justify-between">
-            <span>Your Orders</span>
-            <div className="flex items-center gap-2">
-              {fetchErr && <span className="text-xs text-red-600">{fetchErr}</span>}
-              <button
-                onClick={() => {
-                  // quick reload first page
-                  setNextCursor(null);
-                  setOrders([]);
-                  setFirstLoad(true);
-                  (async () => {
-                    if (!user) return;
-                    setFetching(true);
-                    try {
-                      const tok = await user.getIdToken?.();
-                      const res = await fetch(`/api/me/orders?limit=50`, {
-                        headers: { authorization: `Bearer ${tok}` },
-                        cache: "no-store",
-                      });
-                      const body = await res.json().catch(() => null);
-                      if (!res.ok) throw new Error(body?.error || "Failed to load orders");
-                      const list = Array.isArray(body?.orders) ? body.orders : [];
-                      list.sort((a: any, b: any) => tsMs(b?.createdAt) - tsMs(a?.createdAt));
-                      setOrders(list);
-                      setNextCursor(body?.nextCursor || null);
-                    } catch (e: any) {
-                      setFetchErr(e?.message || "Failed to load orders");
-                    } finally {
-                      setFetching(false);
-                      setFirstLoad(false);
-                    }
-                  })();
-                }}
-                className="text-xs px-3 py-1 rounded-full border hover:bg-black hover:text-white transition disabled:opacity-60"
-                disabled={fetching}
-              >
-                Refresh
-              </button>
-            </div>
-          </header>
-
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead className="bg-gray-50">
+      <div className="grid lg:grid-cols-3 gap-10">
+        <div className="lg:col-span-2">
+          <h2 className="text-xl font-bold mb-4 mt-4 uppercase tracking-tight">Order History</h2>
+          <div className="border rounded-xl  overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 border-b">
                 <tr>
-                  <Th>Order ID</Th>
-                  <Th>Status</Th>
-                  <Th>Total</Th>
-                  <Th>Placed</Th>
-                  <Th></Th>
+                  <th className="p-4 text-left">Order #</th>
+                  <th className="p-4 text-left">Date</th>
+                  <th className="p-4 text-left">Status</th>
+                  <th className="p-4 text-left">Total</th>
+                  <th className="p-4 text-right">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {orders.length ? (
-                  orders.map((o) => {
-                    const total = getTotalRupees(o);
-                    const when = toISO(o.createdAt) || o.placedAt || null;
-                    return (
-                      <tr key={o.id} className="hover:bg-gray-50">
-                        <Td className="font-mono">{o.id}</Td>
-                        <Td className="capitalize">{o.status || "created"}</Td>
-                        <Td>₹ {fmtINR(total)}</Td>
-                        <Td>{when ? new Date(when).toLocaleString() : "—"}</Td>
-                        <Td>
-                          <Link
-                            href={`/order/${o.id}`}
-                            className="text-xs px-3 py-1 rounded-full border hover:bg-black hover:text-white transition"
-                          >
-                            View
-                          </Link>
-                        </Td>
-                      </tr>
-                    );
-                  })
-                ) : (
-                  <tr>
-                    <Td colSpan={5} className="text-gray-500">
-                      {firstLoad ? "Loading…" : "You haven’t placed any orders yet."}
-                    </Td>
+                {orders.map(o => (
+                  <tr key={o.id} className="hover:bg-gray-50">
+                    <td className="p-4 font-medium">{o.order_number}</td>
+                    <td className="p-4 text-gray-500">{new Date(o.created_at).toLocaleDateString()}</td>
+                    <td className="p-4"><StatusBadge status={o.order_status} /></td>
+                    <td className="p-4 font-bold">₹{Number(o.total).toLocaleString()}</td>
+                    <td className="p-4 text-right">
+                      <Link href={`/orders/${o.order_number}`} className="text-pink-600 font-bold hover:underline">View</Link>
+                    </td>
                   </tr>
-                )}
+                ))}
               </tbody>
             </table>
           </div>
+        </div>
 
-          <div className="px-5 py-3 border-t flex items-center justify-between">
-            <span className="text-xs text-gray-500">
-              {orders.length} loaded{nextCursor ? " (more available)" : ""}
-            </span>
-            <button
-              onClick={loadMore}
-              disabled={!nextCursor || fetching}
-              className="text-xs px-4 py-2 rounded-full border hover:bg-black hover:text-white transition disabled:opacity-60"
-            >
-              {fetching ? "Loading…" : nextCursor ? "Load more" : "All caught up"}
-            </button>
-          </div>
-        </section>
-
-        {/* Address / Profile */}
-        <section className="rounded-2xl border border-gray-200 p-5">
-          <div className="flex items-center justify-between">
-            <div className="text-sm font-semibold">Profile & Address</div>
-            {!editingAddr ? (
-              <button
-                onClick={() => setEditingAddr(true)}
-                className="text-xs px-3 py-1.5 rounded-full border hover:bg-black hover:text-white"
-              >
-                Edit
+        <aside>
+          <div className="p-6 border rounded-xl bg-gray-50 mt-4">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="font-bold uppercase">Default Address</h2>
+              <button onClick={() => setEditingAddr(!editingAddr)} className="font-bold text-pink-600">
+                {editingAddr ? "Cancel" : "Add Address"}
               </button>
-            ) : null}
-          </div>
-
-          {/* READ-ONLY VIEW */}
-          {!editingAddr ? (
-            <div className="space-y-3 mt-3">
-              <Labeled value={user.email || user.uid} label="Email" />
-              <Labeled value={addr.name} label="Full Name" />
-              <Labeled value={addr.phone} label="Phone" />
-              <Labeled
-                value={[addr.street, addr.city, addr.state, addr.postal].filter(Boolean).join(", ")}
-                label="Address"
-              />
-              <Labeled value={addr.country} label="Country" />
             </div>
-          ) : (
-            // EDIT FORM
-            <div className="space-y-3 mt-3">
-              <Labeled value={user.email || user.uid} label="Email" />
-              <Input label="Full Name" value={addr.name} onChange={(v) => setAddr((a) => ({ ...a, name: v }))} />
-              <Input label="Phone" value={addr.phone} onChange={(v) => setAddr((a) => ({ ...a, phone: v }))} />
-              <Input label="Street Address" value={addr.street} onChange={(v) => setAddr((a) => ({ ...a, street: v }))} />
-              <div className="grid grid-cols-2 gap-3">
-                <Input label="City" value={addr.city} onChange={(v) => setAddr((a) => ({ ...a, city: v }))} />
-                <Input label="State" value={addr.state} onChange={(v) => setAddr((a) => ({ ...a, state: v }))} />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <Input label="Postal Code" value={addr.postal} onChange={(v) => setAddr((a) => ({ ...a, postal: v }))} />
-                <Input label="Country" value={addr.country} onChange={(v) => setAddr((a) => ({ ...a, country: v }))} />
-              </div>
 
-              <div className="pt-2 flex items-center justify-between gap-3">
-                <button
-                  onClick={saveAddress}
-                  disabled={savingAddr}
-                  className="px-4 py-2 rounded-full border text-sm font-semibold hover:bg-black hover:text-white transition disabled:opacity-60"
-                >
-                  {savingAddr ? "Saving…" : "Save"}
+            {editingAddr ? (
+              <form onSubmit={saveAddress} className="space-y-3">
+                <input className="w-full p-2 border rounded" placeholder="First Name" value={addr?.first_name || ""} onChange={e => setAddr({...addr!, first_name: e.target.value})} />
+                <input className="w-full p-2 border rounded" placeholder="Last Name" value={addr?.last_name || ""} onChange={e => setAddr({...addr!, last_name: e.target.value})} />
+                <input className="w-full p-2 border rounded" placeholder="Address Line 1" value={addr?.address1 || ""} onChange={e => setAddr({...addr!, address1: e.target.value})} />
+                <input className="w-full p-2 border rounded" placeholder="Address Line 2" value={addr?.address2 || ""} onChange={e => setAddr({...addr!, address2: e.target.value})} />
+                <input className="w-full p-2 border rounded" placeholder="Mobile" value={addr?.mobile || ""} onChange={e => setAddr({...addr!, mobile: e.target.value})} />
+                <input className="w-full p-2 border rounded" placeholder="City" value={addr?.city || ""} onChange={e => setAddr({...addr!, city: e.target.value})} />
+                <input className="w-full p-2 border rounded" placeholder="State" value={addr?.state || ""} onChange={e => setAddr({...addr!, state: e.target.value})} />
+                <input className="w-full p-2 border rounded" placeholder="Pincode" value={addr?.pincode || ""} onChange={e => setAddr({...addr!, pincode: e.target.value})} />
+                <button disabled={savingAddr} className="w-full bg-black text-white py-2 rounded-full font-bold tracking-widest text-md">
+                  {savingAddr ? "Saving..." : "Save Address"}
                 </button>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => {
-                      localStorage.setItem("addressDraft", JSON.stringify(addr));
-                      alert("Saved locally. (If no profile API exists, this keeps your draft here.)");
-                    }}
-                    className="px-3 py-1.5 rounded-full border text-xs hover:bg-gray-100"
-                  >
-                    Save local draft
-                  </button>
-                  <button
-                    onClick={cancelEditAddress}
-                    className="px-3 py-1.5 rounded-full border text-xs hover:bg-gray-100"
-                  >
-                    Cancel
-                  </button>
-                </div>
+              </form>
+            ) : (
+              <div className="text-sm text-gray-700 space-y-1">
+                {addr ? (
+                  <>
+                    <p className="font-bold text-black">{addr.first_name} {addr.last_name}</p>
+                    <p>{addr.address1}</p>
+                    <p>{addr.address2}</p>
+                    <p>{addr.city}, {addr.state} - {addr.pincode}</p>
+                    <p className="pt-2 text-gray-500">Mobile: {addr.mobile}</p>
+                  </>
+                ) : <p className="italic">No address saved yet.</p>}
               </div>
-            </div>
-          )}
-        </section>
+            )}
+          </div>
+        </aside>
       </div>
     </main>
   );
 }
 
-/* ---------- helpers & tiny UI bits ---------- */
-
-function Card({ title, children }: { title: string; children: React.ReactNode }) {
+// Sub-components
+function KPIBox({ label, value }: any) {
   return (
-    <div className="rounded-2xl border border-gray-200 p-5">
-      <div className="text-xs text-gray-600 mb-1">{title}</div>
-      {children}
-    </div>
-  );
-}
-function Th({ children }: { children: React.ReactNode }) {
-  return <th className="text-left px-4 py-2 font-semibold whitespace-nowrap">{children}</th>;
-}
-function Td({
-  children,
-  className = "",
-  colSpan,
-}: {
-  children: React.ReactNode;
-  className?: string;
-  colSpan?: number;
-}) {
-  return <td className={`px-4 py-2 align-top ${className}`} colSpan={colSpan}>{children}</td>;
-}
-function Input({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value?: string;
-  onChange: (v: string) => void;
-}) {
-  return (
-    <label className="flex flex-col gap-1">
-      <span className="text-xs text-gray-600">{label}</span>
-      <input
-        className="border rounded px-3 py-2"
-        value={value || ""}
-        onChange={(e) => onChange(e.target.value)}
-      />
-    </label>
-  );
-}
-function Labeled({ label, value }: { label: string; value?: string }) {
-  return (
-    <div className="flex flex-col gap-1">
-      <span className="text-xs text-gray-600">{label}</span>
-      <span className="text-sm">{value || "—"}</span>
+    <div className="p-6 border rounded-2xl">
+      <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">{label}</p>
+      <p className="text-2xl font-black">{value}</p>
     </div>
   );
 }
 
-// ---- money/time utils that support legacy & new orders ----
-function getTotalRupees(o: any): number {
-  // Prefer explicit rupees in new shapes
-  if (typeof o?.amounts?.total === "number") return o.amounts.total;
-  if (typeof o?.totals?.total === "number") return o.totals.total;
-
-  // Legacy: top-level `total` often in paise
-  const top = typeof o?.total === "string" ? parseFloat(o.total) : Number(o?.total || 0);
-  if (isFinite(top) && top > 0) return top / 100;
-
-  return 0;
-}
-function fmtINR(n?: number) {
-  return Number(n || 0).toLocaleString("en-IN");
-}
-function safeParse(json: any) {
-  try { return JSON.parse(json); } catch { return null; }
-}
-function toISO(ts: any): string | null {
-  try {
-    if (!ts) return null;
-    if (typeof ts?.toDate === "function") return ts.toDate().toISOString();
-    if (typeof ts?.seconds === "number") return new Date(ts.seconds * 1000).toISOString();
-    if (typeof ts?._seconds === "number") return new Date(ts._seconds * 1000).toISOString();
-    const d = new Date(ts);
-    return isNaN(+d) ? null : d.toISOString();
-  } catch { return null; }
-}
-function tsMs(ts: any) {
-  const iso = toISO(ts);
-  return iso ? Date.parse(iso) : 0;
-}
-function dedupeById<T extends { id: string }>(xs: T[]) {
-  const seen = new Set<string>();
-  const out: T[] = [];
-  for (const x of xs) {
-    if (!seen.has(x.id)) {
-      seen.add(x.id);
-      out.push(x);
-    }
-  }
-  return out;
+function StatusBadge({ status }: { status: string }) {
+  const colors: any = { delivered: 'bg-green-100 text-green-700', cancelled: 'bg-red-100 text-red-700', processing: 'bg-blue-100 text-blue-700' };
+  return <span className={`px-2 py-1 rounded text-[10px] font-bold ${colors[status] || 'bg-gray-100 text-gray-600'}`}>{status}</span>;
 }

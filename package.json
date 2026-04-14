@@ -9,8 +9,10 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@netlify/functions": "^5.1.1",
     "@react-email/render": "^1.4.0",
     "@tailwindcss/typography": "^0.5.19",
+    "bcryptjs": "^3.0.3",
     "crypto-js": "^4.2.0",
     "embla-carousel-auto-scroll": "^8.6.0",
     "embla-carousel-react": "^8.6.0",
@@ -18,6 +20,8 @@
     "firebase-admin": "^13.5.0",
     "framer-motion": "^12.23.16",
     "install": "^0.13.0",
+    "js-cookie": "^3.0.5",
+    "mysql2": "^3.16.2",
     "next": "^16.0.7",
     "next-navigation": "^1.0.6",
     "plyr": "^3.8.3",
@@ -33,6 +37,7 @@
     "@eslint/eslintrc": "^3",
     "@netlify/plugin-nextjs": "^5.15.1",
     "@tailwindcss/postcss": "^4",
+    "@types/js-cookie": "^3.0.6",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

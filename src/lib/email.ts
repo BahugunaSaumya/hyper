@@ -77,7 +77,7 @@ function canonicalProductsPathOrNull(img?: string | null): string | null {
     try {
       const u = new URL(p);
       const lower = u.pathname.toLowerCase();
-      if (/^\/assets\/models\/products\/[^/]+\/\d+\.(jpg|jpeg|png|webp)$/i.test(lower)) {
+      if (/^\/assets\/models\/products\/[^/]+\/\d+\.(jpg|jpeg|png|webp|avif)$/i.test(lower)) {
         return encodeURI(u.origin + lower);
       }
     } catch { /* ignore */ }
@@ -88,7 +88,7 @@ function canonicalProductsPathOrNull(img?: string | null): string | null {
   p = p.replace(/^\.\//, "/"); // drop leading "./"
   const lower = p.toLowerCase().replace(/\/+/g, "/");
 
-  if (/^\/assets\/models\/products\/[^/]+\/\d+\.(jpg|jpeg|png|webp)$/i.test(lower)) {
+  if (/^\/assets\/models\/products\/[^/]+\/\d+\.(jpg|jpeg|png|webp|avif)$/i.test(lower)) {
     return absEncode(lower);
   }
   return null;
@@ -107,7 +107,7 @@ function itemThumbUrl(it: any): string | null {
 
   // 2) Derive slug from fields
   let baseSlug: string | null =
-    it?.slug || it?.productSlug || (it?.title ? slugify(it.title) : null);
+    it?.slug || (it?.title ? slugify(it.title) : null);
 
   // 3) Try derive slug from any image path containing /products/<slug>/
   if (!baseSlug && it?.image) {
@@ -118,41 +118,30 @@ function itemThumbUrl(it: any): string | null {
   if (!baseSlug) return null;
 
   // Always point to your canonical thumbnail: .../<slug>/1.jpg
-  return absEncode(`/assets/models/products/${encodeURIComponent(baseSlug)}/1.jpg`);
+  return absEncode(`/assets/models/products/${encodeURIComponent(baseSlug)}/1.avif`);
 }
 
 // ---------- NORMALIZATION ----------
 function getTotals(order: any) {
-  // Prefer rupees under amounts/totals/hintTotals
-  const b = order?.amounts || order?.totals || order?.hintTotals || {};
-  let subtotal = Number(b.subtotal || 0);
-  let shipping = Number(b.shipping || 0);
-  let discount = Number(b.discount || 0);
-  let tax = Number(b.tax || 0);
-  let total = Number(b.total || 0);
-  const currency = b.currency || order?.currency || "INR";
-
-  // Legacy fallback: top-level paise
-  if (!total && typeof order?.total === "number") {
-    total = order.total / 100;
-  }
-  return { subtotal, shipping, discount, tax, total, currency };
+  return {
+    subtotal: Number(order?.subtotal || 0),
+    shipping: Number(order?.shipping_charges || 0),
+    discount: Number(order?.discount || 0),
+    tax: Number(order?.tax || 0),
+    total: Number(order?.total || 0),
+    currency: "INR"
+  };
 }
+
 function normalizeItems(order: any) {
-  const items: any[] = Array.isArray(order?.items) ? order.items : [];
-  return items.map((it: any, idx: number) => ({
-    title: it.title || it.name || `Item ${idx + 1}`,
-    size: it.size || it.variant || undefined,
-    qty: Number(it.qty ?? it.quantity ?? 1) || 1,
-    // RUPEES (fallback: paise/100)
-    unitPrice:
-      typeof it.unitPrice === "number"
-        ? it.unitPrice
-        : typeof it.price === "number"
-          ? it.price / 100
-          : 0,
+  const items = Array.isArray(order?.items) ? order.items : [];
+  return items.map((it: any) => ({
+    title: it.title || "Product",
+    size: it.size || it.variant_name || "",
+    qty: Number(it.quantity || 1),
+    unitPrice: Number(it.price || 0),
     image: it.image,
-    slug: it.slug || it.productSlug,
+    slug: it.slug
   }));
 }
 
@@ -161,7 +150,7 @@ function renderCustomerEmail(order: any, orderId: string) {
   const c = order?.customer || {};
   const ship = order?.shipping || order?.shippingAddress || {};
   const items = normalizeItems(order);
-  const { subtotal, shipping, total, currency } = getTotals(order);
+  const { subtotal, tax, shipping, discount, total, currency } = getTotals(order);
   const status = order?.status || "paid";
 
   const itemRows = items
@@ -176,11 +165,9 @@ function renderCustomerEmail(order: any, orderId: string) {
       return `
       <tr>
         <td style="padding:10px;border:1px solid #eee;vertical-align:middle;text-align:center">${thumb}</td>
-        <td style="padding:10px;border:1px solid #eee;vertical-align:middle">
-          ${escapeHtml(it.title)}
-          ${it.size ? ` <span style="color:#6b7280">(Size: ${escapeHtml(it.size)})</span>` : ""}
-        </td>
+        <td style="padding:10px;border:1px solid #eee;vertical-align:middle">${escapeHtml(it.title)}</td>
         <td style="padding:10px;border:1px solid #eee;vertical-align:middle;text-align:center">${it.qty}</td>
+        <td style="padding:10px;border:1px solid #eee;vertical-align:middle;text-align:center">${it.size}</td>
         <td style="padding:10px;border:1px solid #eee;vertical-align:middle;text-align:right">${inr(it.unitPrice)}</td>
       </tr>`;
     })
@@ -248,7 +235,7 @@ function renderCustomerEmail(order: any, orderId: string) {
                 )} ${escapeHtml(ship.postal || ship.postalCode || "-")}
               </div>
               <div style="font-size:13px;color:#374151">${escapeHtml(
-                ship.country || "-"
+                ship.country || "India"
               )}</div>
             </td>
           </tr>
@@ -261,6 +248,7 @@ function renderCustomerEmail(order: any, orderId: string) {
               <th style="padding:8px;border:1px solid #eee;text-align:center;width:56px">Img</th>
               <th style="padding:8px;border:1px solid #eee;text-align:left">Product</th>
               <th style="padding:8px;border:1px solid #eee;text-align:center;width:60px">Qty</th>
+              <th style="padding:8px;border:1px solid #eee;text-align:center;width:60px">Size</th>
               <th style="padding:8px;border:1px solid #eee;text-align:right;width:120px">Price</th>
             </tr>
           </thead>
@@ -276,8 +264,14 @@ function renderCustomerEmail(order: any, orderId: string) {
           <tr><td style="padding:6px 0;color:#374151">Subtotal</td><td style="padding:6px 0;text-align:right">${inr(
             subtotal
           )}</td></tr>
+          <tr><td style="padding:6px 0;color:#374151">Tax</td><td style="padding:6px 0;text-align:right">${inr(
+            tax
+          )}</td></tr>
           <tr><td style="padding:6px 0;color:#374151">Shipping</td><td style="padding:6px 0;text-align:right">${inr(
             shipping
+          )}</td></tr>
+          <tr><td style="padding:6px 0;color:#374151">Discount</td><td style="padding:6px 0;text-align:right">${inr(
+            discount
           )}</td></tr>
           <tr><td style="padding:6px 0;font-weight:700">Total</td><td style="padding:6px 0;text-align:right;font-weight:700">${inr(
             total
@@ -313,8 +307,8 @@ function renderAdminEmail(order: any, orderId: string) {
   const c = order?.customer || {};
   const ship = order?.shipping || order?.shippingAddress || {};
   const items = normalizeItems(order);
-  const { subtotal, shipping, total, currency } = getTotals(order);
-  const pay = order?.paymentInfo || order?.payment || {};
+  const { subtotal, tax, shipping, discount, total, currency } = getTotals(order);
+  const pay = order?.payment || {};
   const status = order?.status || "created";
 
   const itemRows = items
@@ -329,10 +323,9 @@ function renderAdminEmail(order: any, orderId: string) {
       return `
       <tr>
         <td style="padding:10px;border:1px solid #eee;vertical-align:middle;text-align:center">${thumb}</td>
-        <td style="padding:10px;border:1px solid #eee;vertical-align:middle">${escapeHtml(
-          it.title
-        )}${it.size ? ` <span style="color:#6b7280">(${escapeHtml(it.size)})</span>` : ""}</td>
+        <td style="padding:10px;border:1px solid #eee;vertical-align:middle">${escapeHtml(it.title)}</td>
         <td style="padding:10px;border:1px solid #eee;vertical-align:middle;text-align:center">${it.qty}</td>
+        <td style="padding:10px;border:1px solid #eee;vertical-align:middle;text-align:center">${it.size}</td>
         <td style="padding:10px;border:1px solid #eee;vertical-align:middle;text-align:right">${inr(
           it.unitPrice
         )}</td>
@@ -398,6 +391,7 @@ function renderAdminEmail(order: any, orderId: string) {
               <th style="padding:8px;border:1px solid #eee;text-align:center;width:56px">Img</th>
               <th style="padding:8px;border:1px solid #eee;text-align:left">Product</th>
               <th style="padding:8px;border:1px solid #eee;text-align:center;width:60px">Qty</th>
+              <th style="padding:8px;border:1px solid #eee;text-align:center;width:60px">Size</th>
               <th style="padding:8px;border:1px solid #eee;text-align:right;width:120px">Price</th>
             </tr>
           </thead>
@@ -413,8 +407,14 @@ function renderAdminEmail(order: any, orderId: string) {
           <tr><td style="padding:6px 0;color:#374151">Subtotal</td><td style="padding:6px 0;text-align:right">${inr(
             subtotal
           )}</td></tr>
+          <tr><td style="padding:6px 0;color:#374151">Tax</td><td style="padding:6px 0;text-align:right">${inr(
+            tax
+          )}</td></tr>
           <tr><td style="padding:6px 0;color:#374151">Shipping</td><td style="padding:6px 0;text-align:right">${inr(
             shipping
+          )}</td></tr>
+          <tr><td style="padding:6px 0;color:#374151">Discount</td><td style="padding:6px 0;text-align:right">${inr(
+            discount
           )}</td></tr>
           <tr><td style="padding:6px 0;font-weight:700">Total</td><td style="padding:6px 0;text-align:right;font-weight:700">${inr(
             total
@@ -460,7 +460,7 @@ export async function sendOrderEmails(orderId: string, order: OrderLike) {
   const { total } = getTotals(order);
 
   // CUSTOMER
-  const toCustomer = order?.customer?.email;
+  const toCustomer = order?.email || order?.customer?.email;
   if (toCustomer) {
     const r = await resend.emails.send({
       from: FROM_EMAIL,

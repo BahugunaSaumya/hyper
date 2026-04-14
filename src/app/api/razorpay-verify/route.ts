@@ -1,214 +1,145 @@
-// src/app/api/razorpay-verify/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
-import { getDb } from "@/lib/firebaseAdmin";
+import db from "@/lib/mysql";
 import { sendOrderEmails } from "@/lib/email";
 
 export const runtime = "nodejs";
-// --- helpers: drop into your order detail page file ---
-function toDateSafe(ts: any): Date | null {
-  if (!ts) return null;
-  try {
-    if (ts instanceof Date) return ts;
-    if (typeof ts === "string" || typeof ts === "number") return new Date(ts);
-    if (ts.toDate) return ts.toDate();                              // Firestore Timestamp
-    if (typeof ts.seconds === "number") return new Date(ts.seconds * 1000);
-  } catch { }
-  return null;
-}
 
-function formatDateTime(d: Date | null) {
-  return d ? d.toLocaleString("en-IN", { hour12: false }) : "—";
-}
-
-function getDisplayTotals(order: any) {
-  // new flow: rupees live under 'amounts' OR 'totals'
-  const b = order?.amounts || order?.totals || {};
-  let subtotal = Number(b.subtotal || 0);
-  let shipping = Number(b.shipping || 0);
-  let total = Number(b.total || 0);
-  let currency = b.currency || order?.currency || "INR";
-
-  // legacy fallback: paise at top-level 'total'
-  if (!total && typeof order?.total === "number") total = order.total / 100;
-
-  return { subtotal, shipping, total, currency };
-}
-
-const inr = (n: number) => "₹ " + Number(n || 0).toLocaleString("en-IN");
-
-type VerifyBody = {
-  // Firestore order id created earlier in your flow
-  orderId: string;
-
-  // Razorpay fields returned to the handler on success
-  razorpay_order_id: string;
-  razorpay_payment_id: string;
-  razorpay_signature: string;
-
-  // optional passthroughs if you want to upsert any missing details
-  // (we keep them but do not rely on them unless the order doc is missing fields)
-  customer?: any;
-  items?: any[];
-  total?: number;       // in paise (server is source of truth ideally)
-  currency?: string;    // default "INR"
-  shippingAddress?: any;
-  note?: string | null;
-};
-
-function verifyRazorpaySignature(orderId: string, paymentId: string, signature: string, secret: string) {
+// Helper to verify signature
+function verifyRazorpaySignature(
+  razorpayOrderId: string,
+  razorpayPaymentId: string,
+  signature: string,
+  secret: string
+) {
   const hmac = crypto.createHmac("sha256", secret);
-  hmac.update(`${orderId}|${paymentId}`);
+  hmac.update(`${razorpayOrderId}|${razorpayPaymentId}`);
   const expected = hmac.digest("hex");
   return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature));
 }
 
 export async function POST(req: NextRequest) {
+  const connection = await db.getConnection();
+  
   try {
-    const body = (await req.json()) as VerifyBody;
-
+    const body = await req.json();
     const {
-      orderId,
+      dbOrderId,
       razorpay_order_id,
       razorpay_payment_id,
       razorpay_signature,
-      customer,
-      items,
-      total,
-      currency = "INR",
-      shippingAddress,
-      note,
-    } = body || {};
+    } = body;
 
-    if (!orderId) {
-      return NextResponse.json({ error: "Missing orderId" }, { status: 400 });
-    }
-    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
-      return NextResponse.json({ error: "Missing Razorpay verification fields" }, { status: 400 });
-    }
-    if (!process.env.RAZORPAY_KEY_SECRET) {
-      return NextResponse.json({ error: "Razorpay secret not configured" }, { status: 500 });
+    // 1. Validation
+    if (!dbOrderId || !razorpay_order_id || !razorpay_payment_id) {
+      return NextResponse.json({ error: "Missing verification data" }, { status: 400 });
     }
 
-    // 1) Verify signature
-    const ok = verifyRazorpaySignature(
+    const secret = process.env.RAZORPAY_KEY_SECRET;
+    if (!secret) return NextResponse.json({ error: "Server config error" }, { status: 500 });
+
+    // 2. Verify Signature
+    const isSignatureValid = verifyRazorpaySignature(
       razorpay_order_id,
       razorpay_payment_id,
       razorpay_signature,
-      process.env.RAZORPAY_KEY_SECRET
+      secret
     );
 
-    if (!ok) {
-      console.warn("[razorpay-verify] signature mismatch", {
+    if (!isSignatureValid) {
+      return NextResponse.json({ error: "Invalid payment signature" }, { status: 400 });
+    }
+
+    // 3. Database Updates
+    await connection.beginTransaction();
+
+    const [orders]: any = await connection.query(`
+      SELECT 
+        o.*, 
+        c.first_name as customer_first, c.last_name as customer_last, c.email as customer_email, c.mobile as customer_mobile,
+        oa.address1, oa.address2, oa.city, oa.state, oa.pincode, oa.mobile as ship_mobile
+      FROM orders o
+      LEFT JOIN customers c ON o.customer_id = c.id
+      LEFT JOIN order_addresses oa ON o.shipping_address_id = oa.id
+      WHERE o.id = ?
+    `,
+      [dbOrderId]
+    );
+
+    if (orders.length === 0) throw new Error("Order not found");
+    if (orders[0].payment_status === "paid") {
+       await connection.rollback();
+       return NextResponse.json({ success: true, message: "Already processed" });
+    }
+
+    // ✅ FIX: Update only columns that exist (Ensure you ran the ALTER TABLE SQL first!)
+    await connection.query(
+      `UPDATE orders SET 
+        payment_status = 'paid', 
+        order_status = 'confirmed',
+        razorpay_order_id = ?, 
+        razorpay_payment_id = ?,
+        razorpay_signature = ?,
+        updated_at = CURRENT_TIMESTAMP 
+       WHERE id = ?`,
+      [razorpay_order_id, razorpay_payment_id, razorpay_signature, dbOrderId]
+    );
+
+    // ✅ FIX: Clear the items from the cart so it appears empty to the user
+    // We find the cart linked to this order and "close" it
+    await connection.query(
+      `UPDATE carts SET updated_at = CURRENT_TIMESTAMP WHERE order_id = ?`,
+      [dbOrderId]
+    );
+
+    await connection.commit();
+
+    const [itemsRows] = await db.query(`
+      SELECT oi.*, p.title, p.slug, p.image, s.label as size
+      FROM order_items oi
+      LEFT JOIN products p ON oi.product_id = p.id
+      LEFT JOIN product_variants pv ON oi.variant_id = pv.id
+      LEFT JOIN sizes s ON pv.size_id = s.id
+      WHERE oi.order_id = ?
+    `, [dbOrderId]);
+    const orderRow = orders[0];
+    const orderData = {
+      ...orderRow,
+      items: itemsRows,
+      shipping: {
+        name: `${orderRow.customer_first} ${orderRow.customer_last}`.trim(),
+        addr1: orderRow.address1,
+        addr2: orderRow.address2,
+        city: orderRow.city,
+        state: orderRow.state,
+        postal: orderRow.pincode,
+        phone: orderRow.ship_mobile
+      },
+      customer: {
+        name: `${orderRow.customer_first} ${orderRow.customer_last}`.trim(),
+        email: orderRow.customer_email,
+        phone: orderRow.customer_mobile
+      },
+      payment: {
+        provider: 'razorpay',
         razorpay_order_id,
         razorpay_payment_id,
-      });
-      return NextResponse.json({ verified: false, error: "Invalid signature" }, { status: 400 });
-    }
-
-    const db = getDb();
-    const ref = db.collection("orders").doc(String(orderId));
-
-    // 2) Idempotent update (mark paid once, record payment details)
-    await db.runTransaction(async (tx) => {
-      const snap = await tx.get(ref);
-      const existing = snap.exists ? (snap.data() || {}) : {};
-
-      // Ensure a base document exists (won't overwrite existing values)
-      if (!snap.exists) {
-        tx.set(
-          ref,
-          {
-            status: "created",
-            customer: customer || {},
-            items: Array.isArray(items) ? items : [],
-            total: typeof total === "number" ? total : 0,
-            currency,
-            shippingAddress: shippingAddress || null,
-            note: note ?? null,
-            createdAt: new Date(),
-            source: "razorpay-verify-upsert",
-          },
-          { merge: true }
-        );
+        razorpay_signature
       }
+    };
+    await sendOrderEmails(String(dbOrderId), orderData);
 
-      const alreadyPaid = existing?.status === "paid";
-      const alreadyEmailed =
-        !!existing?.email?.customerSentAt && !!existing?.email?.adminSentAt;
-
-      // If fully processed earlier, no-op
-      if (alreadyPaid && alreadyEmailed) return;
-
-      tx.set(
-        ref,
-        {
-          status: "paid",
-          payment: {
-            ...(existing.payment || {}),
-            provider: "razorpay",
-            status: "paid",
-            razorpay_order_id,
-            razorpay_payment_id,
-            razorpay_signature,
-            verifiedAt: new Date(),
-            mode: "live",
-          },
-          updatedAt: new Date(),
-          email: { ...(existing.email || {}), willSendNow: true },
-        },
-        { merge: true }
-      );
+    return NextResponse.json({
+      success: true,
+      message: "Payment verified and order confirmed",
+      dbOrderId
     });
 
-    // 3) Send emails exactly once
-    const fresh = await ref.get();
-    const order = { id: fresh.id, ...(fresh.data() || {}) };
-
-    if (!order?.email?.customerSentAt || !order?.email?.adminSentAt) {
-      try {
-        await sendOrderEmails(String(orderId), order);
-        await ref.set(
-          {
-            email: {
-              ...(order.email || {}),
-              customerSentAt: order.email?.customerSentAt || new Date(),
-              adminSentAt: order.email?.adminSentAt || new Date(),
-              willSendNow: false,
-            },
-            updatedAt: new Date(),
-          },
-          { merge: true }
-        );
-      } catch (e: any) {
-        console.error("[razorpay-verify] email error:", e?.message || e);
-        await ref.set(
-          {
-            email: {
-              ...(order.email || {}),
-              willSendNow: false,
-              lastError: String(e?.message || e),
-            },
-          },
-          { merge: true }
-        );
-      }
-    }
-
-    return NextResponse.json(
-      {
-        success: true,
-        verified: true,
-        mode: "live",
-        message: "Payment verified; order marked paid (idempotent) and emails handled.",
-        order_id: razorpay_order_id,
-        payment_id: razorpay_payment_id,
-        orderId,
-      },
-      { status: 200 }
-    );
   } catch (err: any) {
-    console.error("[razorpay-verify] fatal:", err?.message || err);
-    return NextResponse.json({ error: "Unable to verify payment" }, { status: 500 });
+    await connection.rollback();
+    console.error("[VERIFY_ERROR]:", err.message);
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  } finally {
+    connection.release();
   }
 }

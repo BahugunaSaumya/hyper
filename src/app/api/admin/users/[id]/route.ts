@@ -1,94 +1,84 @@
-// src/app/api/admin/users/[id]/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { getDb } from "@/lib/firebaseAdmin";
+import db from "@/lib/mysql";
 import { requireAdmin } from "../../_lib/auth";
+import { RowDataPacket } from "mysql2";
 
 export const runtime = "nodejs";
 
-/**
- * GET /api/admin/users/:id
- * :id may be a user doc id OR an email address.
- */
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
   const unauthorized = await requireAdmin(_req);
   if (unauthorized) return unauthorized;
 
+  const connection = await db.getConnection();
+
   try {
-    const db = getDb();
     const idOrEmail = decodeURIComponent((await params).id || "").trim();
     if (!idOrEmail) {
-      return NextResponse.json({ error: "Missing user id" }, { status: 400 });
+      return NextResponse.json({ error: "Missing user identification" }, { status: 400 });
     }
 
-    // 1) Load user by doc id; if not found and looks like email, try email
-    let userDoc = await db.collection("users").doc(idOrEmail).get();
-    let userData: any = null;
+    // 1️⃣ Load User & Saved Address
+    // We search by ID or Email as per your requirements
+    const [userRows] = await connection.query<RowDataPacket[]>(
+      `SELECT c.id, c.first_name, c.last_name, c.email, c.mobile, c.firebase_uid, c.created_at,
+              ca.address1, ca.address2, ca.city, ca.state, ca.pincode, ca.mobile as address_mobile
+       FROM customers c
+       LEFT JOIN customer_addresses ca ON c.id = ca.customer_id
+       WHERE c.id = ? OR c.email = ?
+       LIMIT 1`,
+      [idOrEmail, idOrEmail]
+    );
 
-    if (userDoc.exists) {
-      userData = { id: userDoc.id, ...userDoc.data() };
-    } else if (idOrEmail.includes("@")) {
-      const q = await db.collection("users").where("email", "==", idOrEmail).limit(1).get();
-      if (!q.empty) {
-        const d = q.docs[0];
-        userData = { id: d.id, ...d.data() };
-      }
-    }
-
-    if (!userData) {
+    if (userRows.length === 0) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    const address =
-      userData.address ?? userData.shippingAddress ?? userData.defaultAddress ?? null;
+    const userData = userRows[0];
 
+    // Format user object
     const user = {
       id: userData.id,
-      email: userData.email || null,
-      name: userData.name || userData.displayName || null,
-      address,
-      ...userData, // keep original fields
+      name: `${userData.first_name || ""} ${userData.last_name || ""}`.trim() || "N/A",
+      email: userData.email,
+      mobile: userData.mobile,
+      firebase_uid: userData.firebase_uid,
+      joinedAt: userData.created_at,
+      address: userData.address1 ? {
+        address1: userData.address1,
+        address2: userData.address2,
+        city: userData.city,
+        state: userData.state,
+        pincode: userData.pincode,
+        mobile: userData.address_mobile
+      } : null
     };
 
-    // 2) Load orders (by uid, then by email) WITHOUT orderBy (no composite index)
-    const ordersRaw: any[] = [];
-    const uid = user.id;
-    const email = user.email || "";
+    // 2️⃣ Load All Orders for this User
+    // We check both customer_id and email to capture guest orders placed with same email
+    const [orderRows] = await connection.query<RowDataPacket[]>(
+      `SELECT id, order_number, total, order_status, payment_status, created_at
+       FROM orders
+       WHERE customer_id = ? OR email = ?
+       ORDER BY created_at DESC`,
+      [user.id, user.email]
+    );
 
-    const byUidSnap = await db.collection("orders").where("userId", "==", uid).limit(500).get();
-    byUidSnap.forEach((d) => ordersRaw.push({ id: d.id, ...d.data() }));
-
-    if (email) {
-      const byEmailSnap = await db.collection("orders").where("customer.email", "==", email).limit(500).get();
-      byEmailSnap.forEach((d) => {
-        if (!ordersRaw.some((o) => o.id === d.id)) ordersRaw.push({ id: d.id, ...d.data() });
-      });
-    }
-
-    const toISO = (ts: any): string | null => {
-      try {
-        if (!ts) return null;
-        if (typeof ts?.toDate === "function") return ts.toDate().toISOString();
-        if (typeof ts?.seconds === "number") return new Date(ts.seconds * 1000).toISOString();
-        const d = new Date(ts);
-        return isNaN(+d) ? null : d.toISOString();
-      } catch { return null; }
-    };
-
-    // Normalize & newest-first
-    const orders = ordersRaw
-      .map((o) => ({
-        id: o.id,
-        total: o.total ?? o.amount ?? o.amounts?.total ?? null,
-        items: Array.isArray(o.items) ? o.items : null,
-        status: o.status ?? null,
-        createdAt: toISO(o.createdAt) || toISO(o.placedAt) || null,
-        ...o,
-      }))
-      .sort((a, b) => (b.createdAt ? Date.parse(b.createdAt) : 0) - (a.createdAt ? Date.parse(a.createdAt) : 0));
+    // Format orders
+    const orders = orderRows.map(o => ({
+      id: o.id,
+      orderNumber: o.order_number,
+      total: Number(o.total),
+      status: o.order_status,
+      paymentStatus: o.payment_status,
+      createdAt: o.created_at
+    }));
 
     return NextResponse.json({ user, orders }, { status: 200 });
+
   } catch (e: any) {
-    console.error("[/api/admin/users/[id] GET] error:", e?.stack || e?.message || e);
-    return NextResponse.json({ error: e?.message || "Failed to load user details" }, { status: 500 });
+    console.error("[/api/admin/users/[id] GET] error:", e);
+    return NextResponse.json({ error: "Failed to load user details" }, { status: 500 });
+  } finally {
+    connection.release();
   }
 }

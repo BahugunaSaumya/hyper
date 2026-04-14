@@ -313,6 +313,15 @@ body.zoom-90 {
   backface-visibility: hidden;
 }
 
+.animate-slideIn {
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
 /* left/right motion (the wrapper is already rotated in JSX) */
 @keyframes hero-left {
   0% {
@@ -430,8 +439,10 @@ body.zoom-90 {
 }
 
 .no-scrollbar {
-  -ms-overflow-style: none;
-  /* IE and Edge */
-  scrollbar-width: none;
-  /* Firefox */
+  -ms-overflow-style: none;     /* IE / Edge */
+  scrollbar-width: none;        /* Firefox */
+  -webkit-overflow-scrolling: touch;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;                /* Chrome / Safari */
 }

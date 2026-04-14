@@ -7,6 +7,7 @@ import { AuthProvider } from "@/context/AuthContext";
 import Header from "@/components/Header";
 import { CartProvider } from "@/context/CartContext";
 import ClientWrapper from "@/components/ClientWrapper";
+import GoogleAnalytics from "@/components/analytics/GoogleAnalytics";
 
 const palanquin = Palanquin({
   subsets: ["latin"],
@@ -39,6 +40,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <AuthProvider>
           <CartProvider>
             <Header />
+            <GoogleAnalytics />
             <ClientWrapper>
               <main className="offset-header">
                 <div className="page-shell">{children}</div>

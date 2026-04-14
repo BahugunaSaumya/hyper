@@ -6,23 +6,16 @@ import useEmblaCarousel from "embla-carousel-react";
 
 const productCategories = [
   {
-    slug: "male-mma-shorts",
-    image: "/assets/male-mma-shorts.avif",
-    title: "Male MMA Shorts",
+    slug: "mma-shorts",
+    image: "/assets/mma-shorts.avif",
+    title: "MMA Shorts",
     description:
       "Built for performance and power — designed to handle intense training, sparring, and competition.",
   },
   {
-    slug: "female-mma-shorts",
-    image: "/assets/female-mma-shorts.avif",
-    title: "Female MMA Shorts",
-    description:
-      "Engineered for comfort, flexibility, and strength — made to move with you through every session.",
-  },
-  {
-    slug: "male-compressions",
-    image: "/assets/male-compressions.avif",
-    title: "Male Compressions",
+    slug: "mma-compressions",
+    image: "/assets/mma-compressions.avif",
+    title: "MMA Compressions",
     description:
       "High-performance compression wear that enhances mobility, boosts recovery, and keeps you fight-ready.",
   },

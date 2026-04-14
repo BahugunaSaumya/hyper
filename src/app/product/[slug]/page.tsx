@@ -1,54 +1,137 @@
-import fs from "node:fs/promises";
-import path from "node:path";
 import ProductDetailView from "@/components/ProductDetailView";
-import { parseCSV, mapProducts } from "@/lib/csv";
-import { coverFor } from "@/lib/images";
-import * as cache from "@/lib/cache"; // 👈 add
+import db from "@/lib/mysql";
+import * as cache from "@/lib/cache";
+import fs from "fs";
+import path from "path";
 
-const CSV_TTL = 5 * 60_000;   // 5m fresh
-const CSV_SWR = 30 * 60_000;  // 30m stale-while-revalidate
 
-async function loadAllProductsCached() {
-  return cache.remember<any[]>(
-    "csv:all-products",
-    CSV_TTL,
-    CSV_SWR,
+export const runtime = "nodejs";
+
+const DB_TTL = 5 * 60 * 60 * 1000; // 5 hours
+const DB_SWR = 30 * 60 * 60 * 1000;
+
+/**
+ * Normalize MySQL row → frontend-friendly object
+ */
+function normalizeProduct(p: any) {
+  return {
+    id: p.id,
+    title: p.title,
+    slug: p.slug,
+    description: p.description,
+    gender: p.gender,
+    color: p.color,
+    image: p.image,
+    mrp: Number(p.mrp),
+    price: Number(p.price),
+    discountPercentage: Number(p.discount_percentage),
+    presalePrice: Number(p.presale_price),
+    presalePricePercentage: Number(p.presale_price_percentage),
+    bestseller: Boolean(p.bestseller),
+    new_launch: Boolean(p.new_launch),
+    categories: p.categories ?? [],
+    sizes: p.sizes ?? [],
+    updatedAt: p.updated_at,
+  };
+}
+
+/**
+ * Fetch product + categories + sizes (single query)
+ */
+async function loadProductBySlug(slug: string) {
+  return cache.remember(
+    `db:product:${slug}`,
+    DB_TTL,
+    DB_SWR,
     async () => {
-      const csvPath = path.join(process.cwd(), "public", "assets", "hyper-products-sample.csv");
-      const csv = await fs.readFile(csvPath, "utf8");
-      return mapProducts(parseCSV(csv));
+      const [rows] = await db.query(
+        `
+        SELECT
+        p.id,
+        p.title,
+        p.slug,
+        p.description,
+        p.price,
+        p.mrp,
+        p.discount_percentage,
+        p.bestseller,
+
+        /* categories */
+        (
+          SELECT JSON_ARRAYAGG(slug)
+          FROM (
+            SELECT DISTINCT c.slug
+            FROM product_categories pc
+            JOIN categories c ON c.id = pc.category_id
+            WHERE pc.product_id = p.id
+          ) cat
+        ) AS categories,
+
+        /* sizes */
+        (
+          SELECT JSON_OBJECTAGG(pv.id, s.label)
+          FROM product_variants pv
+          JOIN sizes s ON s.id = pv.size_id
+          WHERE pv.product_id = p.id
+          AND pv.quantity > 0
+        ) AS sizes
+
+      FROM products p
+      WHERE p.slug = ?
+      LIMIT 1;
+        `,
+        [slug]
+      );
+      const product = (rows as any[])[0];
+      if (!product) return null;
+      return {
+        ...normalizeProduct(product),
+        images: loadGalleryImages(slug),
+      };
     }
   );
 }
 
-export default async function Page(props: { params: Promise<{ slug: string }> }) {
-  const { slug } = await props.params;
-  const name = decodeURIComponent(slug);
+function loadGalleryImages(slug: string): string[] {
+  const dir = path.join(
+    process.cwd(),
+    "public/assets/models/products",
+    slug
+  );
 
-  let product: any | undefined;
+  if (!fs.existsSync(dir)) return [];
 
-  try {
-    const products = await loadAllProductsCached();
+  return fs
+    .readdirSync(dir)
+    .filter((f) => /\.(avif|webp|png|jpg|jpeg)$/i.test(f))
+    .sort((a, b) => {
+      const na = parseInt(a);
+      const nb = parseInt(b);
+      if (!isNaN(na) && !isNaN(nb)) return na - nb;
+      return a.localeCompare(b);
+    })
+    .map((f) => `/assets/models/products/${slug}/${f}`);
+}
 
-    // prefer title match; fallback to slug match
-    product =
-      products.find((p) => (p.title ?? "").toLowerCase() === name.toLowerCase()) ??
-      products.find((p) => (p.slug ?? "").toLowerCase() === name.toLowerCase());
-  } catch {
-    // ignore; fallback below
-  }
+
+/**
+ * Product page
+ */
+export default async function Page({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
+  const { slug } = await params;
+
+  const product = await loadProductBySlug(slug);
 
   if (!product) {
-    product = {
-      id: name,
-      title: name,
-      price: "",
-      image: `/assets/models/products/${encodeURI(name)}/1.jpg`,
-      description: "",
-      sizes: [],
-    };
-  } else {
-    product.image = product.image || coverFor(product);
+    return (
+      <div className="p-10 text-center text-xl font-medium">
+        Product not found
+      </div>
+    );
   }
 
   return <ProductDetailView product={product} />;
